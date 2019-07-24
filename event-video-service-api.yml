@@ -1,0 +1,112 @@
+openapi: '3.0.0'
+info:
+  title: Event Video Sevice API
+  version: '1.0.0'
+
+paths:
+  /upload/evtvideos/{cameraId}:
+    post:
+      summary: upload event videos to cloud storage after slice and merge operations
+      tags: [upload]
+      requestBody:
+        description: |
+          upload files once to avoid maintaining states between requests.
+          note: ref to https://swagger.io/specification for more info about multiple files upload
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      parameters:
+        - in: path
+          name: cameraId
+          description: 'camera identifier'
+          required: true
+          schema:
+            type: string
+            example: 'C90840818'
+        - in: query
+          name: startTime
+          description: 'start time as epoch in seconds, TZ used is GMT(UTC)'
+          required: true
+          schema:
+            type: integer
+            example: 1563937933
+        - in: query
+          name: endTime
+          description: 'end time as epoch in seconds, TZ used is GMT(UTC)'
+          required: true
+          schema:
+            type: integer
+            example: 1563938933
+        - in: query
+          name: headOffset
+          description: time in seconds to ignore for the first video file from left
+          required: true
+          schema:
+            type: integer
+            example: 150
+        - in: query
+          name: tailOffset
+          description: time in seconds to ignore for the last video file from right
+          required: true
+          schema:
+            type: integer
+            example: 60
+      responses:
+        '200':
+          description: OK
+  /query/evtvideos/{cameraId}:
+    get:
+      summary: query event videos that being within or overlapping with the time window [startTime, endTime]
+      tags: [query]
+      parameters:
+        - in: path
+          name: cameraId
+          description: 'camera identity'
+          required: true
+          schema:
+            type: string
+            example: 'C90840818'
+        - in: query
+          name: startTime
+          description: 'start time as epoch in seconds, TZ used is GMT(UTC)'
+          required: true
+          schema:
+            type: integer
+            example: 1563937933
+        - in: query
+          name: endTime
+          description: 'end time as epoch in seconds, TZ used is GMT(UTC). 0: now; SAME_AS_startTime: expect only one video with this start time'
+          required: false
+          schema:
+            type: integer
+            default: 0
+            example: 1563937933
+      responses:
+        '200':
+          description: list of meta objects for event videos since startTime of camera with id cameraId
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    startTime:
+                      type: integer
+                      description: start time as epoch in seconds, TZ as UTC.
+                      example: 1563937933
+                    endTime:
+                      type: integer
+                      description: end time as epoch in seconds, TZ as UTC.
+                      example: 1563938933
+                    url:
+                      type: string
+                      description: azure storage url of this event video
+                      example: https://ils-azure-storage/bucketid_path_to_video.mp4
