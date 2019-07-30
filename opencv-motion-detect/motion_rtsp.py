@@ -48,7 +48,6 @@ class FrameFetcher(Thread):
                         self.frameCnt+=1
                 else:
                     print("error read frame")
-                    exit(1)
                 time.sleep(1.0 / self.fps)
             
             print("error: cap is not opened, reconnecting...")
@@ -124,7 +123,7 @@ class MotionDetector(Thread):
                         else:
                             # state transaction: 'PRE' -> 'IN'
                             eventState = 'IN'
-                            evtQue.append({'type': 'start', 'ts': int(lastEventEnterTs)})
+                            evtQue.append({'type': 'start', 'ts': int(lastEventEnterTs), 'frame':frame})
                         # update ts
                         lastEventEnterTs = start
                     else:
@@ -140,15 +139,21 @@ class MotionDetector(Thread):
                             eventState = 'POST'
                     else:
                         lastEventEnterTs = start
+
                 elif eventState == 'POST':
                     if not hasEvent:
-                        if start - lastEventEnterTs > env['EVT_END_SECS']/2:
+                        if start - lastEventEnterTs > env['EVT_END_SECS']:
                             # 'POST' -> 'NONE's
                             eventState = None
                             # emmit event
-                            evtQue.append({'type': 'end', 'ts': int(lastEventEnterTs + env['EVT_END_SECS']/2)})                     
+                            evtQue.append({'type': 'end', 'ts': int(lastEventEnterTs + env['EVT_END_SECS']/2)})  
+                    else:
+                        eventState = 'IN'
+                        lastEventEnterTs = start
+                        
+            except IndexError:
+                pass                   
             except Exception as e:
-                print("error: no frame: {}".format(e))
                 traceback.print_exc()
             finally:
                 # fps implication
@@ -165,10 +170,13 @@ class EventConsumer(Thread):
         while True:
             try:
                 evt = self.evtQue.popleft()
-                print("event: ", json.dumps(evt))
-            except:
-                #print("no event")
+                print('event {{type: {}, ts: {}}}'.format(evt['type'], evt['ts']))
+                if evt['type'] == 'start':
+                    cv2.imwrite(('event-{}.jpg'.format(evt['ts'])), evt['frame'])
+            except IndexError:
                 pass
+            except:
+                traceback.print_exc()
             finally:
                 time.sleep(4)
 
@@ -189,6 +197,7 @@ if __name__ == '__main__':
     env['SLICE_DURATION'] = int(os.getenv('SLICE_DURATION', 20))
     env['EVT_START_SECS'] = int(os.getenv('EVT_START_SECS', 2))
     env['EVT_END_SECS'] = int(os.getenv('EVT_END_SECS', 30))
+    env['DEMO_IMG'] = bool(os.getenv('DEMO_IMG', False))
     
     evtQue = deque(maxlen=100)
     
