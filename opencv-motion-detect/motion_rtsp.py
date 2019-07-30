@@ -3,7 +3,7 @@ __author__ = 'Bruce.Lu'
 __date__ = '2019/07/30'
 __enhencements__ = {"1": "state machine based algorithm", "2": "using avg frame instead of previous frame to calc delta",
     "3": "does not depend on accurate process step time", "4": "event notification machanism"}
-__credits__ = 'Zhao LiPeng for the frame-delta algorithm'
+__credits__ = ['Zhao LiPeng for the basic frame-delta algorithm', 'Ge.Xu for advices']
 
 
 import os, sys, datetime, time, cv2, imutils, json, atexit, traceback
@@ -12,7 +12,7 @@ from collections import deque
 
 class FrameFetcher(Thread):
     def init(self):
-        self.cap = cv2.VideoCapture(env['STREAM_ADDR'])
+        self.cap = cv2.VideoCapture(self.env['STREAM_ADDR'])
         self.videoProto = 'RTSP' if 'rtsp' in self.env['STREAM_ADDR'] else 'FILE'
         self.height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
         self.width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
@@ -34,11 +34,12 @@ class FrameFetcher(Thread):
     def run(self):
         while True:
             while self.cap.isOpened():
+                start = datetime.datetime.now().timestamp()
                 ret, frame = self.cap.read()
                 if ret:
                     try:
                         self.frameHolder.append(frame)
-                        if self.frameCnt % (self.fps * 2) == 0:
+                        if self.frameCnt % (self.fps * 60) == 0:
                             print("frameCnt: ", self.frameCnt)
                     except:
                         self.failedPutCnt += 1
@@ -48,9 +49,12 @@ class FrameFetcher(Thread):
                         self.frameCnt+=1
                 else:
                     print("error read frame")
-                time.sleep(1.0 / self.fps)
-            
-            print("error: cap is not opened, reconnecting...")
+                    break
+                delta = datetime.datetime.now().timestamp() - start
+                delta = 1.0 / self.fps - delta
+                if delta > 0:
+                    time.sleep(delta)
+            print("error: connecting to camera {}, reconnecting...".format(self.env['STREAM_ADDR']))
             self.init()
 
 class MotionDetector(Thread):
@@ -70,8 +74,12 @@ class MotionDetector(Thread):
         lastEventEnterTs = None
         eventState = None # pre, in, post, none
         evtQue = self.evtQue
+
+        # statistic variables
         cntContNoEvent = 0
+        cntContNoEventPrev = 0
         cntContEvent = 0
+        cntContEventPrev = 0
         while True:
             start = datetime.datetime.now().timestamp()
             try:
@@ -97,19 +105,21 @@ class MotionDetector(Thread):
                         hasEvent = True
                         break
 
-                # live logging
+                # live sampling log
                 if hasEvent:
                     cntContEvent += 1
                     cntContNoEvent = 0
-                    if cntContEvent %(self.env['PROC_FPS'] * 2) == 0:
+                    if cntContEvent %(self.env['PROC_FPS'] * 10) == 0 and cntContEvent != cntContEventPrev:
                         print('continous event cnt: {}, current state: {}'.format(cntContEvent, eventState))
+                    cntContEventPrev = cntContEvent
                 else:
                     cntContNoEvent += 1
                     cntContEvent = 0
-                    if cntContNoEvent %(self.env['PROC_FPS'] * 2) == 0:
+                    if cntContNoEvent %(self.env['PROC_FPS'] * 10) == 0 and cntContNoEventPrev != cntContNoEvent:
                         print('continous no event cnt: {},  current state: {}'.format(cntContNoEvent, eventState))
+                    cntContNoEventPrev = cntContNoEvent
                     
-                # statemachine for event
+                # statemachine for event states transaction
                 if eventState == None:
                     if hasEvent:
                         eventState = 'PRE'
@@ -150,7 +160,7 @@ class MotionDetector(Thread):
                     else:
                         eventState = 'IN'
                         lastEventEnterTs = start
-                        
+
             except IndexError:
                 pass                   
             except Exception as e:
