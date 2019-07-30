@@ -4,7 +4,7 @@ info:
   version: '1.0.0'
 
 paths:
-  /upload/evtvideos/{cameraId}:
+  /evtvideos/{cameraId}:
     post:
       summary: upload event videos to cloud storage after slice and merge operations
       tags: [upload]
@@ -61,7 +61,6 @@ paths:
       responses:
         '200':
           description: OK
-  /query/evtvideos/{cameraId}:
     get:
       summary: query event videos that being within or overlapping with the time window [startTime, endTime]
       tags: [query]
