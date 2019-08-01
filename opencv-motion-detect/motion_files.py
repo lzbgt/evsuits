@@ -20,6 +20,7 @@ class FrameFetcher(Thread):
             self.frameCnt = 0
             self.failedPutCnt = 0
             self.frameSeq = 0
+            self.startTs = 0
             print(self.width, self.height, self.fps)
         else:
             self.cap = None
@@ -42,7 +43,8 @@ class FrameFetcher(Thread):
                     ret, frame = self.cap.read()
                     if ret:
                         try:
-                            self.frameHolder.append(frame)
+                            self.frameCnt = self.cap.get(cv2.CAP_PROP_POS_FRAMES)
+                            self.frameHolder.append({'f': frame, 't': start, 's': self.frameCnt})
                             if self.frameCnt % (self.fps * 2) == 0:
                                 print("frameCnt: ", self.frameCnt)
                         except:
@@ -89,23 +91,28 @@ class FrameFetcher(Thread):
                                 self.height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
                                 self.width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
                                 self.fps = self.cap.get(cv2.CAP_PROP_FPS)
-                                self.fps = self.fps * 2
                                 self.frameCnt = 0
+                                self.pastVideosFrameCnt = 0
                                 self.failedPutCnt = 0
+                                self.startTs = f['t'] - int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))/self.fps
                                 print(self.width, self.height, self.fps)
+                                self.fpsx = self.fps * 1.2
+                            else:
+                                self.pastVideosFrameCnt += self.frameCnt
+                                self.frameCnt = 0
                             
                             currentFile = f
                             while True:
                                 try:
                                     ret, frame = self.cap.read()
                                     if ret:
-                                        self.frameHolder.append(frame)
-                                        self.frameSeq += self.cap.get(cv2.CAP_PROP_POS_FRAMES)
-                                        # calc frame time
+                                        self.frameCnt = self.cap.get(cv2.CAP_PROP_POS_FRAMES)
+                                        frameCnt = self.pastVideosFrameCnt + self.frameCnt
+                                        ts = self.startTs + frameCnt/self.fps
+                                        self.frameHolder.append({'f': frame, 't': ts, 's': frameCnt})
 
-                                        self.frameCnt += 1
                                         if self.frameCnt % (self.fps * 2) == 0:
-                                            print("frameCnt:{}, file: {}, fseq: {}".format(self.frameCnt, f['f'], ))
+                                            print("frameCnt:{}, file: {}, fseq: {}".format(self.frameCnt, f['f'], frameCnt))
                                     else:
                                         break
                                 except:
@@ -144,7 +151,8 @@ class MotionDetector(Thread):
         while True:
             start = datetime.datetime.now().timestamp()
             try:
-                frame = frameHolder.popleft()
+                data = frameHolder.popleft()
+                frame = data['f']
                 gray = cv2.resize(frame.copy(), (500, 500))
                 gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                 gray = cv2.GaussianBlur(gray, (21, 21), 0)
@@ -182,35 +190,35 @@ class MotionDetector(Thread):
                 if eventState == None:
                     if hasEvent:
                         eventState = 'PRE'
-                        lastEventEnterTs = start
+                        lastEventEnterTs = data['t']
                     else:
                         pass
                 elif eventState == 'PRE':
                     if hasEvent:
-                        if start - lastEventEnterTs > env['EVT_START_SECS']:
+                        if data['t'] - lastEventEnterTs > env['EVT_START_SECS']:
                             eventState = 'PRE'
                         else:
                             # state transaction: 'PRE' -> 'IN'
                             eventState = 'IN'
                             evtQue.append({'type': 'start', 'ts': int(lastEventEnterTs)})
                         # update ts
-                        lastEventEnterTs = start
+                        lastEventEnterTs = data['t']
                     else:
                         # state transaction: 'PRE' -> 'NONE'
-                        if start - lastEventEnterTs > env['EVT_START_SECS']:
+                        if data['t'] - lastEventEnterTs > env['EVT_START_SECS']:
                             eventState = None
                         else:
                             pass
                 elif eventState == 'IN':
                     if not hasEvent:
-                        if start - lastEventEnterTs > env['EVT_END_SECS']/2:
+                        if data['t'] - lastEventEnterTs > env['EVT_END_SECS']/2:
                             # 'IN' -> 'POST'
                             eventState = 'POST'
                     else:
-                        lastEventEnterTs = start
+                        lastEventEnterTs = data['t']
                 elif eventState == 'POST':
                     if not hasEvent:
-                        if start - lastEventEnterTs > env['EVT_END_SECS']/2:
+                        if data['t'] - lastEventEnterTs > env['EVT_END_SECS']/2:
                             # 'POST' -> 'NONE's
                             eventState = None
                             # emmit event
