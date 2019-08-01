@@ -1,12 +1,18 @@
 CC = g++
 CFLAGS = -g -Wall -std=c++11
 
+cvsrc = prog1.cpp
+cvprog = cvprog
 
-src1 = prog1.cpp
-prog1 = prog1
+rtspsrc=rtsp.cpp
+rtspprog=rtspprog
 
 OPENCV = `pkg-config opencv --cflags --libs`
-LIBS = $(OPENCV)
+FFMPEG = `pkg-config libavformat libavutil libavcodec --cflags --libs`
 
-$(prog1):$(src1)
-	$(CC) $(CFLAGS) -o $(prog1) $(src1) $(LIBS)
+
+$(cvprog):$(cvsrc)
+	$(CC) $(CFLAGS) -o $(cvprog) $(cvsrc) $(OPENCV)
+
+$(rtspprog):$(rtspsrc)
+	$(CC) $(CFLAGS) -o $(rtspprog) $(rtspsrc) $(FFMPEG)
