@@ -19,6 +19,7 @@ class FrameFetcher(Thread):
             self.fps = self.cap.get(cv2.CAP_PROP_FPS)
             self.frameCnt = 0
             self.failedPutCnt = 0
+            self.frameSeq = 0
             print(self.width, self.height, self.fps)
         else:
             self.cap = None
@@ -37,6 +38,7 @@ class FrameFetcher(Thread):
         if self.videoProto == 'RTSP':
             while True:
                 while self.cap.isOpened():
+                    start = datetime.datetime.now().timestamp()
                     ret, frame = self.cap.read()
                     if ret:
                         try:
@@ -51,67 +53,73 @@ class FrameFetcher(Thread):
                             self.frameCnt += 1
                     else:
                         print("error read frame")
-                        exit(1)
-                    time.sleep(1.0 / self.fps)
+                        break
+
+                    delta = datetime.datetime.now().timestamp() - start
+                    delta = 1.0 / self.fps - delta
+                    if delta > 0:
+                        time.sleep(delta)
+                        time.sleep(1.0 / self.fps)
                 print("error: cap is not opened, reconnecting...")
                 self.init()
         else:
             # it's folder, process video slices in double speed
-            currentIdx = -1
-            lastIdx = -1
-            startup = True
+            currentFile = None
             while True:
                 try:
-                    videos = ['{}/{}'.format(self.env['VIDEO_ADDR'],f) for f in os.listdir(self.env['VIDEO_ADDR']) if f.startswith(self.env['SLICE_BASENAME'])]
-                    videos = sorted(videos, key=lambda x: os.stat(x).st_mtime)
-                    if len(videos) < 2:
+                    videos = [{'f': '{}/{}'.format(self.env['VIDEO_ADDR'],f), 't': os.stat(self.env['VIDEO_ADDR'] + '/' + f).st_mtime} for f in os.listdir(self.env['VIDEO_ADDR']) if f.startswith(self.env['SLICE_BASENAME'])]
+                    videos = sorted(videos, key=lambda x: x['t'])
+                    idx = 0
+                    if currentFile:
+                        for k,v in enumerate(videos):
+                            if v['f'] == currentFile['f'] and v['t'] == currentFile['t']:
+                                idx = k
+                    if len(videos) < 2 or (currentFile and (idx == len(videos) - 2)):
                         print('waiting for next video ...')
                     else:
-                        z = re.match(r'.*?'+self.env['SLICE_BASENAME']+'(\d+)\..*?'+self.env['SLICE_BASENAME']+'(\d+)\..*?', videos[0]+videos[-1])
-                        if z:
-                            currentIdx =int(z.group(1))
-                            lastIdx = int(z.group(2))
-                        else:
-                            print('no matched video files')
-                            continue
-                        print('currentIdx: {}, lastIdx: {}'.format(currentIdx, lastIdx))
-
-                        for f in videos[:-1]:
-                                if self.cap != None:
-                                    self.cap.release()
-                                self.cap = cv2.VideoCapture(f)
-                                if not self.cap.isOpened():
-                                    print('failed to open file: {}'.format(f))
-                                    continue
-                                if startup:
-                                    self.height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-                                    self.width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-                                    self.fps = self.cap.get(cv2.CAP_PROP_FPS)
-                                    self.fps = self.fps * 2
-                                    self.frameCnt = 0
-                                    self.failedPutCnt = 0
-                                    print(self.width, self.height, self.fps)
-                                while True:
+                        for f in videos[idx:-1]:
+                            if self.cap != None:
+                                self.cap.release()
+                            print('openning {}'.format(f))
+                            self.cap = cv2.VideoCapture(f['f'])
+                            if not self.cap.isOpened():
+                                print('failed to open file: {}'.format(f))
+                                continue
+                            if not currentFile:
+                                self.height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+                                self.width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+                                self.fps = self.cap.get(cv2.CAP_PROP_FPS)
+                                self.fps = self.fps * 2
+                                self.frameCnt = 0
+                                self.failedPutCnt = 0
+                                print(self.width, self.height, self.fps)
+                            
+                            currentFile = f
+                            while True:
+                                try:
                                     ret, frame = self.cap.read()
                                     if ret:
-                                        try:
-                                            self.frameHolder.append(frame)
-                                            if self.frameCnt % (self.fps * 2) == 0:
-                                                print("frameCnt: ", self.frameCnt)
-                                        except:
-                                            self.failedPutCnt += 1
-                                            if self.failedPutCnt % (self.fps * 2) == 0:
-                                                print("failedPutCnt: ", self.failedPutCnt)
-                                        finally:
-                                            self.frameCnt += 1
+                                        self.frameHolder.append(frame)
+                                        self.frameSeq += self.cap.get(cv2.CAP_PROP_POS_FRAMES)
+                                        # calc frame time
+
+                                        self.frameCnt += 1
+                                        if self.frameCnt % (self.fps * 2) == 0:
+                                            print("frameCnt:{}, file: {}, fseq: {}".format(self.frameCnt, f['f'], ))
                                     else:
-                                        print("error read frame")
+                                        break
+                                except:
+                                    traceback.print_exc()
+                                    print("error read frame")
+                                    self.cap.release()
+                                    self.cap = None
+                                    break  
+                                finally:
                                     time.sleep(1.0 / self.fps)
                 except:
                     traceback.print_exc()
                 finally:
                     time.sleep(2)
-                    exit(1)
                 
 
 class MotionDetector(Thread):
