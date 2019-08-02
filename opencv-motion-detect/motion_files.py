@@ -45,11 +45,11 @@ class FrameFetcher(Thread):
                         try:
                             self.frameCnt = self.cap.get(cv2.CAP_PROP_POS_FRAMES)
                             self.frameHolder.append({'f': frame, 't': start, 's': self.frameCnt})
-                            if self.frameCnt % (self.fps * 2) == 0:
+                            if self.frameCnt % (self.fps * 5) == 0:
                                 print("frameCnt: ", self.frameCnt)
                         except:
                             self.failedPutCnt += 1
-                            if self.failedPutCnt % (self.fps * 2) == 0:
+                            if self.failedPutCnt % (self.fps * 5) == 0:
                                 print("failedPutCnt: ", self.failedPutCnt)
                         finally:
                             self.frameCnt += 1
@@ -253,7 +253,7 @@ class EventConsumer(Thread):
 
 if __name__ == '__main__':
     env = {}
-    env['VIDEO_ADDR'] = os.getenv('VIDEO_ADDR', '/tmp/test')#'rtsp://172.31.0.121/live/0/sub')
+    env['VIDEO_ADDR'] = os.getenv('VIDEO_ADDR', '/tmp/test')# 'rtsp://172.31.0.121/live/0/sub')
     env['PROC_FPS'] = int(os.getenv('PROC_FPS', 10))
 
     sensitivity_base = 20

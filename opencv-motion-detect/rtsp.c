@@ -163,8 +163,11 @@ int main(int argc, const char *argv[])
         if (pPacket->stream_index == video_stream_index) {
             logging("AVPacket->pts %" PRId64, pPacket->pts);
             response = decode_packet(pPacket, pCodecContext, pFrame);
-            if (response < 0)
-                break;
+            if (response < 0){
+                // logging("decode_packet error: %s", av_err2str(response));
+                continue;
+            }
+
             // stop it, otherwise we'll be saving hundreds of frames
             if (--how_many_packets_to_process <= 0) break;
         }
@@ -197,6 +200,7 @@ static int decode_packet(AVPacket *pPacket, AVCodecContext *pCodecContext, AVFra
     // Supply raw packet data as input to a decoder
     // https://ffmpeg.org/doxygen/trunk/group__lavc__decoding.html#ga58bc4bf1e0ac59e27362597e467efff3
     int response = avcodec_send_packet(pCodecContext, pPacket);
+    int ret = -1;
 
     if (response < 0) {
         logging("Error while sending a packet to the decoder: %s", av_err2str(response));
@@ -208,15 +212,18 @@ static int decode_packet(AVPacket *pPacket, AVCodecContext *pCodecContext, AVFra
         // https://ffmpeg.org/doxygen/trunk/group__lavc__decoding.html#ga11e6542c4e66d3028668788a1a74217c
         response = avcodec_receive_frame(pCodecContext, pFrame);
         if (response == AVERROR(EAGAIN) || response == AVERROR_EOF) {
-            logging("Error response: %s", av_err2str(response));
+            //frame packet consumed, read next frame from AVFormatContext
+            // logging("Error response: %s", av_err2str(response));
+            // response = 0;
+            
+            // no frame extraced
             break;
         }
-        else if (response < 0) {
+        
+        if (response < 0) {
             logging("Error while receiving a frame from the decoder: %s", av_err2str(response));
             return response;
-        }
-
-        if (response >= 0) {
+        } else {
             logging(
                 "Frame %d (type=%c, size=%d bytes) pts %d key_frame %d [DTS %d]",
                 pCodecContext->frame_number,
@@ -231,9 +238,11 @@ static int decode_packet(AVPacket *pPacket, AVCodecContext *pCodecContext, AVFra
             snprintf(frame_filename, sizeof(frame_filename), "%s-%d.pgm", "frame", pCodecContext->frame_number);
             // save a grayscale frame into a .pgm file
             save_gray_frame(pFrame->data[0], pFrame->linesize[0], pFrame->width, pFrame->height, frame_filename);
+            ret = 0;
         }
     }
-    return 0;
+
+    return ret;
 }
 
 static void save_gray_frame(unsigned char *buf, int wrap, int xsize, int ysize, char *filename)
