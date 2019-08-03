@@ -11,10 +11,13 @@ OPENCV = `pkg-config opencv --cflags --libs`
 FFMPEG = `pkg-config libavformat libavutil libavcodec --cflags --libs`
 
 
-all:cvprog mux rtsp
+all:cvprog mux rtsp rtspr
 
-rtsp: rtsp.c
-	$(CC) $(CFLAGS) -o rtsp rtsp.c $(FFMPEG)
+rtspr: rtsp-relay.cpp
+	$(CPP) $(CFLAGS) -o rtspr rtsp-relay.cpp $(FFMPEG)
+	
+rtsp: rtsp.cpp
+	$(CPP) $(CFLAGS) -o rtsp rtsp.cpp $(FFMPEG)
 
 cvprog:prog1.cpp
 	$(CPP) $(CPPFLAGS) -o $(cvprog) $(cvsrc) $(OPENCV)
@@ -23,4 +26,4 @@ mux:demuxing_decoding.c
 	$(CC) $(CFLAGS) -o mux demuxing_decoding.c $(FFMPEG)
 
 clean:
-	rm -fr rtsp cvprog mux
+	rm -fr rtsp cvprog mux rtspr
