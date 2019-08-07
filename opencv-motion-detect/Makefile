@@ -1,6 +1,6 @@
 CC = gcc
 CPP = g++
-CPPFLAGS = -g -Wall -std=g++1z
+CPPFLAGS = -g -Wall -std=gnu++1z
 CFLAGS = -g -Wall
 
 LIBOPENCV = `pkg-config opencv --cflags --libs`
@@ -14,7 +14,7 @@ libzmq:
 	cd vendor/libzmq && [ -f $(CURDIR)/vendor/lib/pkgconfig/libzmq.pc ] || ./autogen.sh && ./configure --prefix=$(CURDIR)/vendor
 	cd vendor/libzmq && make -j 4 && make install
 rtspr: rtsp-relay.cpp
-	$(CPP) $(CPPFLAGS) -o rtspr rtsp-relay.cpp $(LIBFFMPEG) $(pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc)
+	$(CPP) $(CPPFLAGS) -o rtspr rtsp-relay.cpp $(LIBFFMPEG) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc`
 	
 rtsp: rtsp.cpp
 	$(CPP) $(CFLAGS) -o rtsp rtsp.cpp $(LIBFFMPEG)
