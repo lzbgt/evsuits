@@ -15,6 +15,7 @@ namespace fs = std::filesystem;
 
 #include "inc/json.hpp"
 #include "inc/blockingconcurrentqueue.hpp"
+#include  "vendor/include/zmq.h"
 
 using namespace std;
 using json = nlohmann::json;
