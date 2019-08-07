@@ -1,11 +1,10 @@
 CC = gcc
 CPP = g++
-CPPFLAGS = -g -Wall -std=c++11
+CPPFLAGS = -g -Wall -std=gnu++1z
 CFLAGS = -g -Wall
 
 cvsrc = prog1.cpp
 cvprog = cvprog
-
 
 OPENCV = `pkg-config opencv --cflags --libs`
 FFMPEG = `pkg-config libavformat libavutil libavcodec --cflags --libs`
@@ -14,7 +13,7 @@ FFMPEG = `pkg-config libavformat libavutil libavcodec --cflags --libs`
 all:cvprog mux rtsp rtspr
 
 rtspr: rtsp-relay.cpp
-	$(CPP) $(CFLAGS) -o rtspr rtsp-relay.cpp $(FFMPEG)
+	$(CPP) $(CPPFLAGS) -o rtspr rtsp-relay.cpp $(FFMPEG)
 	
 rtsp: rtsp.cpp
 	$(CPP) $(CFLAGS) -o rtsp rtsp.cpp $(FFMPEG)
