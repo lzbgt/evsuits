@@ -151,6 +151,7 @@ protected:
         zmq_msg_t msg;
         av_log_set_level(AV_LOG_DEBUG);
         int pktCnt = 0;
+        AVPacket packet;
         while (true) {
             if(checkStop() == true) {
                 bStopSig = true;
@@ -171,15 +172,12 @@ protected:
             av_log(NULL, AV_LOG_DEBUG, "msg size: %d, %d\n", ret, zmq_msg_size(&msg));
             // deserialize the packet
             pktCnt++;
-            AVPacket packet;
-            av_log(NULL, AV_LOG_WARNING, "chkpt1: %d\n", pktCnt);
             ret = PacketSerializer::decode((char*)zmq_msg_data(&msg), ret, &packet); {
                 if (ret < 0) {
                     av_log(NULL, AV_LOG_ERROR, "packet decode failed.");
                     continue;
                 }
             }
-            av_log(NULL, AV_LOG_WARNING, "chkpt2: %d\n", pktCnt);
             zmq_msg_close(&msg);
             // relay
             AVStream *in_stream =NULL, *out_stream = NULL;
@@ -192,14 +190,12 @@ protected:
             packet.duration = av_rescale_q(packet.duration, in_stream->time_base, out_stream->time_base);
             packet.pos = -1;
             
-            av_log(NULL, AV_LOG_WARNING, "chkpt4: %d\n", pktCnt);
+            //av_log(NULL, AV_LOG_WARNING, "chkpt1: %d\n", pktCnt);
             ret = av_interleaved_write_frame(pAVFormatRemux, &packet);
-            av_log(NULL, AV_LOG_WARNING, "chkpt5: %d\n", pktCnt);
+            //av_log(NULL, AV_LOG_WARNING, "chkpt2: %d\n", pktCnt);
             av_packet_unref(&packet);
-            av_log(NULL, AV_LOG_WARNING, "chkpt6: %d\n", pktCnt);
             if (ret < 0) {
                 av_log(NULL, AV_LOG_ERROR,  "Error muxing packet\n");
-                continue;
             }
         }
         av_write_trailer(pAVFormatRemux);
