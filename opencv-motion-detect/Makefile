@@ -5,7 +5,7 @@ CFLAGS = -g -Wall
 
 LIBOPENCV = `pkg-config opencv --cflags --libs`
 LIBFFMPEG = `pkg-config libavformat libavutil libavcodec --cflags --libs`
-LIBS=
+LIBS=-lpthread
 
 .PHONY: all
 all: libzmq evmgr evpusher

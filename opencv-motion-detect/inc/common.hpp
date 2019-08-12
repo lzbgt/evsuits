@@ -23,7 +23,7 @@ namespace PacketSerializer {
         int wholeSize = 4 + pkt.size;
         if(pkt.side_data_elems != 0) {
             for(int i = 0; i < pkt.side_data_elems; i++) {
-                wholeSize += pkt.side_data[i].size + 8;
+                wholeSize += pkt.side_data[i].size + sizeof(AVPacketSideData);
             }
         }else{
             wholeSize +=4;
