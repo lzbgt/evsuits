@@ -40,7 +40,7 @@ private:
         if(ret != 0) {
             logThrow(NULL, AV_LOG_FATAL, "failed connect to pub");
         }
-        ret = zmq_connect(pSubscriber, "tcp://172.31.0.96:5556");
+        ret = zmq_connect(pSubscriber, "tcp://localhost:5556");
         if(ret != 0) {
             logThrow(NULL, AV_LOG_FATAL, "failed create sub");
         }
