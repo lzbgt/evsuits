@@ -20,48 +20,72 @@ void logThrow(void * avcl, int lvl, const char *fmt, ...)
 
 namespace PacketSerializer {
     int encode(AVPacket &pkt, char **bytes) {
+        int cnt = 0;
+        //data
         int wholeSize = 4 + pkt.size;
+        //side data
+        wholeSize +=4;
         if(pkt.side_data_elems != 0) {
             for(int i = 0; i < pkt.side_data_elems; i++) {
                 wholeSize += pkt.side_data[i].size + sizeof(AVPacketSideData);
             }
-        }else{
-            wholeSize +=4;
         }
-        wholeSize += 8 * 5 + 4;
+
+        // 4 + 8: wholeSize + DEADBEAF
+        wholeSize += 8 * 5 + 4 + 4 + 8;
         *bytes = (char*)malloc(wholeSize);
 
         // data
-        memcpy(*bytes, &(pkt.size), 4);
-        memcpy(*bytes, pkt.data, pkt.size);
+        memcpy((*bytes)+cnt, &(pkt.size), 4);
+        cnt +=4;
+        memcpy((*bytes )+cnt, pkt.data, pkt.size);
+        cnt += pkt.size;
         //side data
-        memcpy(*bytes, &(pkt.side_data_elems), 4);
+        memcpy((*bytes )+cnt, &(pkt.side_data_elems), 4);
+        cnt +=4;
         if(pkt.side_data_elems != 0) {
             for(int i = 0; i < pkt.side_data_elems; i++) {
-                memcpy(*bytes, &(pkt.side_data[i].size), 4);
-                memcpy(*bytes, pkt.side_data[i].data, pkt.side_data[i].size);
-                memcpy(*bytes, &(pkt.side_data[i].type), 4);
+                memcpy((*bytes )+cnt, &(pkt.side_data[i].size), 4);
+                cnt+=4;
+                memcpy((*bytes )+cnt, pkt.side_data[i].data, pkt.side_data[i].size);
+                cnt+=pkt.side_data[i].size;
+                memcpy((*bytes )+cnt, &(pkt.side_data[i].type), 4);
+                cnt+=4;
             }
-        }else{
-            wholeSize +=4;
         }
 
         // other properties
-        memcpy(*bytes, &(pkt.pts), 8);
-        memcpy(*bytes, &(pkt.dts), 8);
-        memcpy(*bytes, &(pkt.pos), 8);
-        memcpy(*bytes, &(pkt.duration), 8);
-        memcpy(*bytes, &(pkt.convergence_duration), 8);
-        memcpy(*bytes, &(pkt.flags), 4);
+        memcpy((*bytes )+cnt, &(pkt.pts), 8);
+        cnt+=8;
+        memcpy((*bytes )+cnt, &(pkt.dts), 8);
+        cnt+=8;
+        memcpy((*bytes )+cnt, &(pkt.pos), 8);
+        cnt+=8;
+        memcpy((*bytes )+cnt, &(pkt.duration), 8);
+        cnt+=8;
+        memcpy((*bytes )+cnt, &(pkt.convergence_duration), 8);
+        cnt+=8;
+        memcpy((*bytes )+cnt, &(pkt.flags), 4);
+        cnt+=4;
+        memcpy((*bytes )+cnt,&wholeSize, 4);
+        cnt+=4;
+        memcpy((*bytes )+cnt, (char*)"DEADBEEF", 8);
+        cnt+=8;
         av_log_set_level(AV_LOG_DEBUG);
+        assert(cnt == wholeSize);
         av_log(NULL, AV_LOG_DEBUG, "\n\n\npkt origin size %d, serialized size: %d, elems:%d\n\n\n", pkt.size, wholeSize, pkt.side_data_elems);
         return wholeSize;
     }
 
-    AVPacket *decode(char * bytes) {
+    int decode(char * bytes, int len, AVPacket *pkt) {
         // allocate packet mem on heap
-        AVPacket *pkt = (AVPacket*)malloc(sizeof(AVPacket));
+        //AVPacket *pkt = (AVPacket*)malloc(sizeof(AVPacket));
+        int ret = 0;
         int got = 0;
+        if(strncmp("DEADBEEF", bytes + len - 8, 8) != 0) {
+            av_log(NULL, AV_LOG_ERROR, "invalid packet");
+            return -1;
+        }
         memcpy(&(pkt->size), bytes, 4);
         got += 4;
         av_new_packet(pkt, pkt->size);
@@ -92,7 +116,11 @@ namespace PacketSerializer {
         memcpy(&(pkt->flags), bytes + got, 4);
         got += 4;
 
-        return pkt;
+        int wholeSize = 0;
+        memcpy(&wholeSize, bytes + got, 4);
+        av_log(NULL, AV_LOG_WARNING, "wholeSize: %d, %d", wholeSize, got);
+
+        return ret;
     }
 }
 
