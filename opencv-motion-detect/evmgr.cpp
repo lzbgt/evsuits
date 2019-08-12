@@ -110,14 +110,13 @@ protected:
             // serialize packet to raw bytes
             char * data = NULL;
             //av_log(NULL, AV_LOG_WARNING, "chkpt1: %d\n", pktCnt);
-            int size = PacketSerializer::encode(packet, &data);
+            int size = AVPacketSerializer::encode(packet, &data);
             //av_log(NULL, AV_LOG_WARNING, "chkpt2: %d\n", pktCnt);
             zmq_msg_init_data(&msg, (void*)data, size, mqPacketFree, NULL);
             //av_log(NULL, AV_LOG_WARNING, "chkpt3: %d\n", pktCnt);
             zmq_send_const(pPublisher, zmq_msg_data(&msg), size, 0);
             //av_log(NULL, AV_LOG_WARNING, "chkpt4: %d\n", pktCnt);
             
-
             av_packet_unref(&packet);
         }
 

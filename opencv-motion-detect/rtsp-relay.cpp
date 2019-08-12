@@ -144,6 +144,8 @@ int main(int argc, char **argv)
             av_packet_unref(&packet);
             continue;
         }
+
+        av_log(NULL, AV_LOG_ERROR, "pts: %lld, dts:%lld, dur: %lld\n", packet.pts, packet.dts, packet.duration);
         packet.stream_index = streamList[packet.stream_index];
         out_stream = pAVFormatRemux->streams[packet.stream_index];
         /* copy packet */
@@ -151,6 +153,8 @@ int main(int argc, char **argv)
         packet.dts = av_rescale_q_rnd(packet.dts, in_stream->time_base, out_stream->time_base, AVRounding(AV_ROUND_NEAR_INF|AV_ROUND_PASS_MINMAX));
         packet.duration = av_rescale_q(packet.duration, in_stream->time_base, out_stream->time_base);
         packet.pos = -1;
+        av_log(NULL, AV_LOG_WARNING, "pts: %lld, dts:%lld, dur: %lld, idx: %d\n", packet.pts, packet.dts, packet.duration, packet.stream_index);
+
 
         ret = av_interleaved_write_frame(pAVFormatRemux, &packet);
         if (ret < 0) {

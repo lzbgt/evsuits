@@ -83,6 +83,8 @@ private:
             logThrow(NULL, AV_LOG_FATAL,  "Failed to retrieve input stream information");
         }
 
+        //avformat_close_input(&pAVFormatInput);
+
         pAVFormatInput->flags = AVFMT_FLAG_NOBUFFER | AVFMT_FLAG_FLUSH_PACKETS;
 
         ret = avformat_alloc_output_context2(&pAVFormatRemux, NULL, "rtsp", urlOut);
@@ -104,8 +106,7 @@ private:
             AVStream *in_stream = pAVFormatInput->streams[i];
             AVCodecParameters *in_codecpar = in_stream->codecpar;
             if (in_codecpar->codec_type != AVMEDIA_TYPE_AUDIO &&
-                    in_codecpar->codec_type != AVMEDIA_TYPE_VIDEO &&
-                    in_codecpar->codec_type != AVMEDIA_TYPE_SUBTITLE) {
+                    in_codecpar->codec_type != AVMEDIA_TYPE_VIDEO) {
                 streamList[i] = -1;
                 continue;
             }
@@ -120,6 +121,10 @@ private:
             if (ret < 0) {
                 logThrow(NULL, AV_LOG_FATAL,  "Failed to copy codec parameters\n");
             }
+        }
+
+        for(int i = 0; i < pAVFormatInput->nb_streams; i++ ) {
+            av_log(NULL, AV_LOG_INFO, "streamList[%d]: %d\n", i, streamList[i]);
         }
 
         av_dump_format(pAVFormatRemux, 0, urlOut, 1);
@@ -150,11 +155,8 @@ protected:
         bool bStopSig = false;
         zmq_msg_t msg;
         av_log_set_level(AV_LOG_DEBUG);
-        bool firstPkt = true;
-        double oldPos = 0;
         AVPacket packet;
         uint64_t pktCnt = 0;
-        int64_t start_time = av_gettime();
         while (true) {
             if(checkStop() == true) {
                 bStopSig = true;
@@ -172,79 +174,32 @@ protected:
                 continue;
             }
 
-            av_log(NULL, AV_LOG_DEBUG, "msg size: %d, %d\n", ret, zmq_msg_size(&msg));
             // decode
             pktCnt++;
-            ret = PacketSerializer::decode((char*)zmq_msg_data(&msg), ret, &packet); {
+            ret = AVPacketSerializer::decode((char*)zmq_msg_data(&msg), ret, &packet); {
                 if (ret < 0) {
                     av_log(NULL, AV_LOG_ERROR, "packet decode failed.");
                     continue;
                 }
             }
             zmq_msg_close(&msg);
+
+            av_log(NULL, AV_LOG_ERROR, "packet stream indx: %d\n", packet.stream_index);
             // relay
             AVStream *in_stream =NULL, *out_stream = NULL;
             in_stream  = pAVFormatInput->streams[packet.stream_index];
             packet.stream_index = streamList[packet.stream_index];
             out_stream = pAVFormatRemux->streams[packet.stream_index];
 
+            //calc pts
             {
-                //Simple Write PTS
-                if (packet.pts == AV_NOPTS_VALUE) {
-                    //Write PTS
-                    AVRational time_base1 = pAVFormatInput->streams[packet.stream_index]->time_base;
-                    //Duration between 2 frames (us)
-                    int64_t calc_duration = (double)AV_TIME_BASE / av_q2d(pAVFormatInput->streams[packet.stream_index]->r_frame_rate);
-                    //Parameters
-                    packet.pts = (double)(pktCnt*calc_duration) / (double)(av_q2d(time_base1)*AV_TIME_BASE);
-                    packet.dts = packet.pts;
-                    packet.duration = (double)calc_duration / (double)(av_q2d(time_base1)*AV_TIME_BASE);
-                }
-                //Important:Delay
-                if (packet.stream_index == packet.stream_index)
-                {
-                    AVRational time_base = pAVFormatInput->streams[packet.stream_index]->time_base;
-                    AVRational time_base_q = { 1,AV_TIME_BASE };
-                    int64_t pts_time = av_rescale_q(packet.dts, time_base, time_base_q);
-                    int64_t now_time = av_gettime() - start_time;
-                    if (pts_time > now_time)
-                        av_usleep(pts_time - now_time);
-                }
-                else
-                {
-                    AVRational time_base1 = pAVFormatInput->streams[packet.stream_index]->time_base;
-                    AVRational time_base_q = { 1, AV_TIME_BASE };
-                    double frame_size = pAVFormatInput->streams[packet.stream_index]->codec->frame_size;
-                    double sample_rate = pAVFormatInput->streams[packet.stream_index]->codec->sample_rate;
-                    //Duration between 2 frames (us)  
-                    int64_t calc_duration = (double)(AV_TIME_BASE) * (frame_size / sample_rate);
-                    packet.pts = av_rescale_q(pktCnt*calc_duration, time_base_q, time_base1);
-                    packet.dts = packet.pts;
-                    packet.duration = av_rescale_q(calc_duration, time_base_q, time_base1);
-                    packet.pos = -1;
-
-                    //_sleep(26);
-                    //AVRational time_base1 = pAVFormatInput->streams[packet.stream_index]->time_base;
-                    double currentPos = packet.pts * av_q2d(time_base1);
-                    if (firstPkt == true)
-                    {
-                        oldPos = currentPos;
-                        firstPkt = false;
-                    }
-                    double duration = currentPos - oldPos;
-                    oldPos = currentPos;
-                    cout << duration << endl;
-                    av_usleep(duration * 1000 * 1000);
-                }
-
-                in_stream = pAVFormatInput->streams[packet.stream_index];
-                out_stream = pAVFormatRemux->streams[packet.stream_index];
+                av_log(NULL, AV_LOG_WARNING, "seq: %lld, pts: %lld, dts: %lld, dur: %lld, idx:%d\n", pktCnt, packet.pts, packet.dts, packet.duration, packet.stream_index);
                 /* copy packet */
-                //转换PTS/DTS（Convert PTS/DTS）
                 packet.pts = av_rescale_q_rnd(packet.pts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
                 packet.dts = av_rescale_q_rnd(packet.dts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
                 packet.duration = av_rescale_q(packet.duration, in_stream->time_base, out_stream->time_base);
                 packet.pos = -1;
+                av_log(NULL, AV_LOG_WARNING, "chkpt0.4: %lld\n", pktCnt);
             }
             
             //av_log(NULL, AV_LOG_WARNING, "chkpt1: %d\n", pktCnt);
