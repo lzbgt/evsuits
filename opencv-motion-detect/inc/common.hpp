@@ -181,8 +181,8 @@ namespace AVFormatCtxSerializer {
 
                 wholeSize += sizeof(mark_s) - 1;
                 // num streams
-                wholeSize += sizeof(ctx.nb_streams);
-                for(int i = 0; i < ctx.nb_streams; i++) {
+                wholeSize += sizeof(pCtx->nb_streams);
+                for(int i = 0; i < pCtx->nb_streams; i++) {
                     wholeSize += sizeof(AVStream);
                 }
 
@@ -191,7 +191,6 @@ namespace AVFormatCtxSerializer {
 
             int _decode(char *bytes, int len) {
             }
-
     };
 }
 
