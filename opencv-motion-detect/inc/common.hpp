@@ -9,6 +9,9 @@ extern "C" {
 #undef av_err2str
 #define av_err2str(errnum) av_make_error_string((char*)__builtin_alloca(AV_ERROR_MAX_STRING_SIZE), AV_ERROR_MAX_STRING_SIZE, errnum)
 
+#define PS_MARK_E "DEADBEEF"
+#define PS_MARK_S "BEEFDEAD"
+
 void logThrow(void * avcl, int lvl, const char *fmt, ...)
 {
     (void) avcl;
@@ -24,7 +27,9 @@ namespace AVPacketSerializer {
     int encode(AVPacket &pkt, char **bytes) {
         int cnt = 0;
         //data
-        int wholeSize = sizeof(pkt.size) + pkt.size;
+        char mark_s[] = PS_MARK_S;
+        char mark_e[] = PS_MARK_E;
+        int wholeSize = sizeof(mark_s) - 1 + sizeof(pkt.size) + pkt.size;
         //side data
         wholeSize +=sizeof(pkt.side_data_elems);
         if(pkt.side_data_elems != 0) {
@@ -34,9 +39,11 @@ namespace AVPacketSerializer {
         }
 
         // 4 + 8: wholeSize + DEADBEAF
-        wholeSize += sizeof(pkt.pts) * 5 + sizeof(pkt.flags) + sizeof(pkt.stream_index) + sizeof(wholeSize) + 8;
+        wholeSize += sizeof(pkt.pts) * 5 + sizeof(pkt.flags) + sizeof(pkt.stream_index) + sizeof(wholeSize) + sizeof(mark_e) -1;
         *bytes = (char*)malloc(wholeSize);
 
+        memcpy((*bytes)+cnt, mark_s, sizeof(mark_s) -1);
+        cnt += sizeof(mark_s) -1;
         // data
         memcpy((*bytes)+cnt, &(pkt.size), sizeof(pkt.size));
         cnt +=sizeof(pkt.size);
@@ -73,8 +80,8 @@ namespace AVPacketSerializer {
         cnt+=sizeof(pkt.stream_index);
         memcpy((*bytes )+cnt,&wholeSize, sizeof(wholeSize));
         cnt+=sizeof(wholeSize);
-        memcpy((*bytes )+cnt, (char*)"DEADBEEF", 8);
-        cnt+=8;
+        memcpy((*bytes )+cnt, mark_e, sizeof(mark_e) -1);
+        cnt+=sizeof(mark_e) -1;
         av_log_set_level(AV_LOG_DEBUG);
         assert(cnt == wholeSize);
         av_log(NULL, AV_LOG_DEBUG, "\n\n\npkt origin size %d, serialized size: %d, elems:%d\n\n\n", pkt.size, wholeSize, pkt.side_data_elems);
@@ -86,11 +93,15 @@ namespace AVPacketSerializer {
         //AVPacket *pkt = (AVPacket*)malloc(sizeof(AVPacket));
         int ret = 0;
         int got = 0;
-        if(strncmp("DEADBEEF", bytes + len - 8, 8) != 0) {
+        char mark_s[] = PS_MARK_S;
+        char mark_e[] = PS_MARK_E;
+        if(memcmp(mark_e, bytes + len - sizeof(mark_e) + 1, sizeof(mark_e) - 1) != 0 || memcmp(mark_s, bytes, sizeof(mark_s) - 1)) {
             av_log(NULL, AV_LOG_ERROR, "invalid packet");
             return -1;
         }
-        memcpy(&(pkt->size), bytes, sizeof(pkt->size));
+        //skip mark_s
+        got += sizeof(mark_s) - 1;
+        memcpy(&(pkt->size), bytes + got, sizeof(pkt->size));
         got += sizeof(pkt->size);
         av_new_packet(pkt, pkt->size);
         memcpy(pkt->data, bytes + got, pkt->size);
@@ -136,17 +147,52 @@ void mqPacketFree(void *data, void*hint) {
     free(data);
 }
 
-namespace AVFormatSerializer {
-    int encode(AVFormatContext &context, char **bytes) {
-        int ret = 0;
-        int wholeSize = 0;
-        int got = 0;
-        // num streams
-        wholeSize += sizeof(context.nb_streams);
-        for(int i = 0; i < wholeSize; i++) {
-
+namespace AVFormatCtxSerializer {
+    struct AVFormatCtx {
+        AVFormatCtx() {};
+        AVFormatCtx(char *bytes, int len) {
+            _decode(bytes, len);
         }
-    }
+
+        AVFormatCtx(AVFormatContext *pCtx):pCtx(pCtx) {
+        }
+
+        ~AVFormatCtx() {
+        }
+
+        int toBytes(char **bytes) {
+            return _encode(pCtx, bytes);
+        }
+
+        int fromBytes(char *bytes, int len) {
+            return _decode(bytes, len);
+        }
+
+        private:
+            int nb_streams;
+            AVStream *streams = NULL;
+            AVFormatContext * pCtx = NULL;
+            int _encode(AVFormatContext *ctx, char **bytes) {
+                int ret = 0;
+                int wholeSize = 0;
+                int got = 0;
+                char mark_s[] = PS_MARK_S;
+                char mark_e[] = PS_MARK_E;
+
+                wholeSize += sizeof(mark_s) - 1;
+                // num streams
+                wholeSize += sizeof(ctx.nb_streams);
+                for(int i = 0; i < ctx.nb_streams; i++) {
+                    wholeSize += sizeof(AVStream);
+                }
+
+                wholeSize += sizeof(wholeSize); 
+            }
+
+            int _decode(char *bytes, int len) {
+            }
+
+    };
 }
 
 #endif
