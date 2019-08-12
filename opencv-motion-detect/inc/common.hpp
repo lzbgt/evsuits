@@ -118,7 +118,9 @@ namespace PacketSerializer {
 
         int wholeSize = 0;
         memcpy(&wholeSize, bytes + got, 4);
-        av_log(NULL, AV_LOG_WARNING, "wholeSize: %d, %d", wholeSize, got);
+        got +=4;
+        got+=8;
+        av_log(NULL, AV_LOG_WARNING, "wholeSize: %d, %d\n", wholeSize, got);
 
         return ret;
     }

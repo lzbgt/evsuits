@@ -173,7 +173,12 @@ protected:
             pktCnt++;
             AVPacket packet;
             av_log(NULL, AV_LOG_WARNING, "chkpt1: %d\n", pktCnt);
-            PacketSerializer::decode((char*)zmq_msg_data(&msg), ret, &packet);
+            ret = PacketSerializer::decode((char*)zmq_msg_data(&msg), ret, &packet); {
+                if (ret < 0) {
+                    av_log(NULL, AV_LOG_ERROR, "packet decode failed.");
+                    continue;
+                }
+            }
             av_log(NULL, AV_LOG_WARNING, "chkpt2: %d\n", pktCnt);
             zmq_msg_close(&msg);
             // relay
@@ -181,12 +186,9 @@ protected:
             in_stream  = pAVFormatInput->streams[packet.stream_index];
             packet.stream_index = streamList[packet.stream_index];
             out_stream = pAVFormatRemux->streams[packet.stream_index];
-            av_log(NULL, AV_LOG_WARNING, "chkpt3: %d, sidx: %d\n", pktCnt, packet.stream_index);
             /* copy packet */
             packet.pts = av_rescale_q_rnd(packet.pts, in_stream->time_base, out_stream->time_base, AVRounding(AV_ROUND_NEAR_INF|AV_ROUND_PASS_MINMAX));
-            av_log(NULL, AV_LOG_WARNING, "chkpt3.1: %d, sidx: %d\n", pktCnt, packet.stream_index);
             packet.dts = av_rescale_q_rnd(packet.dts, in_stream->time_base, out_stream->time_base, AVRounding(AV_ROUND_NEAR_INF|AV_ROUND_PASS_MINMAX));
-            av_log(NULL, AV_LOG_WARNING, "chkpt3.2: %d, sidx: %d\n", pktCnt, packet.stream_index);
             packet.duration = av_rescale_q(packet.duration, in_stream->time_base, out_stream->time_base);
             packet.pos = -1;
             
@@ -196,8 +198,8 @@ protected:
             av_packet_unref(&packet);
             av_log(NULL, AV_LOG_WARNING, "chkpt6: %d\n", pktCnt);
             if (ret < 0) {
-                logThrow(NULL, AV_LOG_FATAL,  "Error muxing packet\n");
-                break;
+                av_log(NULL, AV_LOG_ERROR,  "Error muxing packet\n");
+                continue;
             }
         }
         av_write_trailer(pAVFormatRemux);
