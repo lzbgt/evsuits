@@ -86,37 +86,37 @@ protected:
             }
             AVStream *in_stream;
             AVPacket packet;
-            {
-                ret = av_read_frame(pAVFormatInput, &packet);
-                if (ret < 0) {
-                    av_log(NULL, AV_LOG_ERROR, "failed read packet: %s", av_err2str(ret));
-                    break;
-                }
-                in_stream  = pAVFormatInput->streams[packet.stream_index];
-                if (packet.stream_index >= numStreams || streamList[packet.stream_index] < 0) {
-                    av_packet_unref(&packet);
-                    continue;
-                }
-                pktCnt++;
-                packet.stream_index = streamList[packet.stream_index];
-
-                /* copy packet */
-                //packet.pts = av_rescale_q_rnd(packet.pts, in_stream->time_base, out_stream->time_base, AVRounding(AV_ROUND_NEAR_INF|AV_ROUND_PASS_MINMAX));
-                //packet.dts = av_rescale_q_rnd(packet.dts, in_stream->time_base, out_stream->time_base, AVRounding(AV_ROUND_NEAR_INF|AV_ROUND_PASS_MINMAX));
-                //packet.duration = av_rescale_q(packet.duration, in_stream->time_base, out_stream->time_base);
-                //packet.pos = -1;
-
-                // serialize packet to raw bytes
-                char * data = NULL;
-                //av_log(NULL, AV_LOG_WARNING, "chkpt1: %d\n", pktCnt);
-                int size = PacketSerializer::encode(packet, &data);
-                //av_log(NULL, AV_LOG_WARNING, "chkpt2: %d\n", pktCnt);
-                zmq_msg_t msg;
-                zmq_msg_init_data(&msg, (void*)data, size, mqPacketFree, NULL);
-                //av_log(NULL, AV_LOG_WARNING, "chkpt3: %d\n", pktCnt);
-                zmq_send_const(pPublisher, zmq_msg_data(&msg), size, 0);
-                //av_log(NULL, AV_LOG_WARNING, "chkpt4: %d\n", pktCnt);
+            zmq_msg_t msg;
+            
+            ret = av_read_frame(pAVFormatInput, &packet);
+            if (ret < 0) {
+                av_log(NULL, AV_LOG_ERROR, "failed read packet: %s", av_err2str(ret));
+                break;
             }
+            in_stream  = pAVFormatInput->streams[packet.stream_index];
+            if (packet.stream_index >= numStreams || streamList[packet.stream_index] < 0) {
+                av_packet_unref(&packet);
+                continue;
+            }
+            pktCnt++;
+            packet.stream_index = streamList[packet.stream_index];
+
+            /* copy packet */
+            //packet.pts = av_rescale_q_rnd(packet.pts, in_stream->time_base, out_stream->time_base, AVRounding(AV_ROUND_NEAR_INF|AV_ROUND_PASS_MINMAX));
+            //packet.dts = av_rescale_q_rnd(packet.dts, in_stream->time_base, out_stream->time_base, AVRounding(AV_ROUND_NEAR_INF|AV_ROUND_PASS_MINMAX));
+            //packet.duration = av_rescale_q(packet.duration, in_stream->time_base, out_stream->time_base);
+            //packet.pos = -1;
+
+            // serialize packet to raw bytes
+            char * data = NULL;
+            //av_log(NULL, AV_LOG_WARNING, "chkpt1: %d\n", pktCnt);
+            int size = PacketSerializer::encode(packet, &data);
+            //av_log(NULL, AV_LOG_WARNING, "chkpt2: %d\n", pktCnt);
+            zmq_msg_init_data(&msg, (void*)data, size, mqPacketFree, NULL);
+            //av_log(NULL, AV_LOG_WARNING, "chkpt3: %d\n", pktCnt);
+            zmq_send_const(pPublisher, zmq_msg_data(&msg), size, 0);
+            //av_log(NULL, AV_LOG_WARNING, "chkpt4: %d\n", pktCnt);
+            
 
             av_packet_unref(&packet);
         }
