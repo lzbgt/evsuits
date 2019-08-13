@@ -28,7 +28,7 @@ class PacketProducer: public TinyThread {
 private:
     void *pPubContext = NULL; // for packets publishing
     void *pPublisher = NULL;
-    AVFormatContext *pAVFormatInput = NULL; 
+    AVFormatContext *pAVFormatInput = NULL;
     string urlIn;
     int *streamList = NULL, numStreams = 0;
     
