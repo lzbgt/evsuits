@@ -29,7 +29,7 @@ namespace AVPacketSerializer {
         //data
         char mark_s[] = PS_MARK_S;
         char mark_e[] = PS_MARK_E;
-        int wholeSize = sizeof(mark_s) - 1 + sizeof(pkt.size) + pkt.size;
+        int wholeSize = strlen(PS_MARK_S) + sizeof(pkt.size) + pkt.size;
         //side data
         wholeSize +=sizeof(pkt.side_data_elems);
         if(pkt.side_data_elems != 0) {
@@ -39,11 +39,11 @@ namespace AVPacketSerializer {
         }
 
         // 4 + 8: wholeSize + DEADBEAF
-        wholeSize += sizeof(pkt.pts) * 5 + sizeof(pkt.flags) + sizeof(pkt.stream_index) + sizeof(wholeSize) + sizeof(mark_e) -1;
+        wholeSize += sizeof(pkt.pts) * 5 + sizeof(pkt.flags) + sizeof(pkt.stream_index) + sizeof(wholeSize) + strlen(PS_MARK_E);
         *bytes = (char*)malloc(wholeSize);
 
-        memcpy((*bytes)+cnt, mark_s, sizeof(mark_s) -1);
-        cnt += sizeof(mark_s) -1;
+        memcpy((*bytes)+cnt, mark_s, strlen(PS_MARK_S));
+        cnt += strlen(PS_MARK_S);
         // data
         memcpy((*bytes)+cnt, &(pkt.size), sizeof(pkt.size));
         cnt +=sizeof(pkt.size);
@@ -80,8 +80,8 @@ namespace AVPacketSerializer {
         cnt+=sizeof(pkt.stream_index);
         memcpy((*bytes )+cnt,&wholeSize, sizeof(wholeSize));
         cnt+=sizeof(wholeSize);
-        memcpy((*bytes )+cnt, mark_e, sizeof(mark_e) -1);
-        cnt+=sizeof(mark_e) -1;
+        memcpy((*bytes )+cnt, mark_e, strlen(PS_MARK_E));
+        cnt+=strlen(PS_MARK_E);
         av_log_set_level(AV_LOG_DEBUG);
         assert(cnt == wholeSize);
         av_log(NULL, AV_LOG_DEBUG, "\n\n\npkt origin size %d, serialized size: %d, elems:%d\n\n\n", pkt.size, wholeSize, pkt.side_data_elems);
@@ -95,12 +95,12 @@ namespace AVPacketSerializer {
         int got = 0;
         char mark_s[] = PS_MARK_S;
         char mark_e[] = PS_MARK_E;
-        if(memcmp(mark_e, bytes + len - sizeof(mark_e) + 1, sizeof(mark_e) - 1) != 0 || memcmp(mark_s, bytes, sizeof(mark_s) - 1)) {
+        if(memcmp(mark_e, bytes + len - strlen(PS_MARK_E), strlen(PS_MARK_E)) != 0 || memcmp(mark_s, bytes, strlen(PS_MARK_S))) {
             av_log(NULL, AV_LOG_ERROR, "invalid packet");
             return -1;
         }
         //skip mark_s
-        got += sizeof(mark_s) - 1;
+        got += strlen(PS_MARK_S);
         memcpy(&(pkt->size), bytes + got, sizeof(pkt->size));
         got += sizeof(pkt->size);
         av_new_packet(pkt, pkt->size);
@@ -148,50 +148,46 @@ void mqPacketFree(void *data, void*hint) {
 }
 
 namespace AVFormatCtxSerializer {
-    struct AVFormatCtx {
-        AVFormatCtx() {};
-        AVFormatCtx(char *bytes, int len) {
-            _decode(bytes, len);
+    int _encode(AVFormatContext *ctx, char **bytes) {
+        int ret = 0;
+        int wholeSize = 0;
+        int got = 0;
+        char mark_s[] = PS_MARK_S;
+        char mark_e[] = PS_MARK_E;
+        // calc total size
+        wholeSize += strlen(PS_MARK_S);
+        // num streams
+        wholeSize += sizeof(ctx->nb_streams);
+        wholeSize += sizeof(ctx->nb_streams);
+        for(int i = 0; i < ctx->nb_streams; i++) {
+            wholeSize += sizeof(AVStream);
+            wholeSize += sizeof(AVCodecParameters);
         }
+        wholeSize += sizeof(wholeSize);
+        wholeSize += strlen(PS_MARK_E);
 
-        AVFormatCtx(AVFormatContext *pCtx):pCtx(pCtx) {
+        // alloc memory
+        *bytes = (char *) malloc(wholeSize);
+        // populate
+        memcpy((*bytes) + got, PS_MARK_S, strlen(PS_MARK_S));
+        got += strlen(PS_MARK_S);
+        memcpy((*bytes) + got, (void*)&(ctx->nb_streams), sizeof(ctx->nb_streams));
+        got += sizeof(ctx->nb_streams);
+        for(int i = 0; i < ctx->nb_streams; i++) {
+            // 
+            memcpy((*bytes) + got, ctx->streams[i], sizeof(AVStream));
+            got += sizeof(AVStream);
+            //
+            memcpy((*bytes) + got, ctx->streams[i]->codecpar, sizeof(AVCodecParameters));
+            got += sizeof(AVCodecParameters);
         }
+        memcpy((*bytes) + got, &wholeSize, sizeof(wholeSize));
 
-        ~AVFormatCtx() {
-        }
+        
+    }
 
-        int toBytes(char **bytes) {
-            return _encode(pCtx, bytes);
-        }
-
-        int fromBytes(char *bytes, int len) {
-            return _decode(bytes, len);
-        }
-
-        private:
-            int nb_streams;
-            AVStream *streams = NULL;
-            AVFormatContext * pCtx = NULL;
-            int _encode(AVFormatContext *ctx, char **bytes) {
-                int ret = 0;
-                int wholeSize = 0;
-                int got = 0;
-                char mark_s[] = PS_MARK_S;
-                char mark_e[] = PS_MARK_E;
-
-                wholeSize += sizeof(mark_s) - 1;
-                // num streams
-                wholeSize += sizeof(pCtx->nb_streams);
-                for(int i = 0; i < pCtx->nb_streams; i++) {
-                    wholeSize += sizeof(AVStream);
-                }
-
-                wholeSize += sizeof(wholeSize); 
-            }
-
-            int _decode(char *bytes, int len) {
-            }
-    };
+    int _decode(char *bytes, int len) {
+    }
 }
 
 #endif
