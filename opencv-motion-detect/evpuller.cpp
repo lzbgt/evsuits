@@ -155,7 +155,7 @@ private:
                 spdlog::error(e.what());
             }
             if(bcnt) {
-                this_thread::sleep_for(chrono::milliseconds(1000*10));
+                this_thread::sleep_for(chrono::milliseconds(1000*20));
                 continue;
             }
 
@@ -174,7 +174,7 @@ private:
         int rc = zmq_bind(pPub, urlPub.c_str());
         if(rc != 0) {
             spdlog::error("failed create pub: {}, {}", zmq_strerror(rc), urlPub.c_str());
-            this_thread::sleep_for(chrono::milliseconds(100*10));
+            this_thread::sleep_for(chrono::milliseconds(1000*20));
             return -1;
         }
 
