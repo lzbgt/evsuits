@@ -224,7 +224,6 @@ namespace cloudutils {
         json jret;
         // find local info
         // request cloud info
-
         return jret;
     }
 }
