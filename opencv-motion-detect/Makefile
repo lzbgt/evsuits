@@ -27,12 +27,11 @@ evmgr: evmgr.cpp database.cpp inc/common.hpp inc/tinythread.hpp sqlite3.o
 evpusher: evpusher.cpp inc/common.hpp inc/tinythread.hpp
 	$(CPP) $(CPPFLAGS) -o evpusher evpusher.cpp $(LIBFFMPEG) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
 
-
 rtspr: rtsp-relay.cpp
 	$(CPP) $(CPPFLAGS) -o rtspr rtsp-relay.cpp $(LIBFFMPEG) $(LIBS)
 
-cvprog: prog1.cpp
-	$(CPP) $(CPPFLAGS) -o $(cvprog) $(cvsrc) $(LIBOPENCV)
+cvsample: cvsample.cpp
+	$(CPP) $(CPPFLAGS) -o cvsample cvsample.cpp $(LIBOPENCV)
 
 mux: demuxing_decoding.c
 	$(CC) $(CFLAGS) -o mux demuxing_decoding.c $(LIBFFMPEG)
