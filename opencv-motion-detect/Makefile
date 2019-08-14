@@ -9,7 +9,6 @@ LIBS=-lpthread
 SQLITE=vendor/sqlite/sqlite3.c
 HEADERS=-Iinc
 
-.PHONY: all
 all: evmgr evpuller evpusher
 
 .PHONY: libzmq
