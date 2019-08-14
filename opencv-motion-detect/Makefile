@@ -10,7 +10,7 @@ SQLITE=vendor/sqlite/sqlite3.c
 HEADERS=-Iinc
 
 .PHONY: libzmq
-all: evmgr evpuller evpusher
+all: evmgr evpuller evpusher evslicer evmlmotion
 
 .PHONY: libzmq
 libzmq:
@@ -30,6 +30,12 @@ evpuller: evpuller.cpp database.cpp inc/common.hpp inc/tinythread.hpp sqlite3.o
 evpusher: evpusher.cpp inc/common.hpp inc/tinythread.hpp database.cpp sqlite3.o
 	$(CPP) $(CPPFLAGS) -o evpusher evpusher.cpp database.cpp sqlite3.o $(LIBFFMPEG) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
 
+evslicer: evslicer.cpp inc/common.hpp inc/tinythread.hpp database.cpp sqlite3.o
+	$(CPP) $(CPPFLAGS) -o evslicer evslicer.cpp database.cpp sqlite3.o $(LIBFFMPEG) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
+
+evmlmotion: evmlmotion.cpp inc/common.hpp inc/tinythread.hpp database.cpp sqlite3.o
+	$(CPP) $(CPPFLAGS) -o evmlmotion evmlmotion.cpp database.cpp sqlite3.o $(LIBFFMPEG) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
+
 rtspr: rtsp-relay.cpp
 	$(CPP) $(CPPFLAGS) -o rtspr rtsp-relay.cpp $(LIBFFMPEG) $(LIBS)
 
@@ -41,4 +47,4 @@ mux: demuxing_decoding.c
 
 .PHONY: clean
 clean:
-	rm -fr evmgr evpuller evpusher *.dSYM *.out *.o
+	rm -fr evmgr evpuller evpusher evslicer evmlmotion *.dSYM *.out *.o
