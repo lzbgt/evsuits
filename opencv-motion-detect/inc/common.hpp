@@ -5,6 +5,7 @@ extern "C" {
 #include <libavutil/time.h>
 }
 #include <libavutil/timestamp.h>
+#include <spdlog/spdlog.h>
 
 #undef av_err2str
 #define av_err2str(errnum) av_make_error_string((char*)__builtin_alloca(AV_ERROR_MAX_STRING_SIZE), AV_ERROR_MAX_STRING_SIZE, errnum)
@@ -12,7 +13,7 @@ extern "C" {
 #define PS_MARK_E "DEADBEEF"
 #define PS_MARK_S "BEEFDEAD"
 
-void logThrow(void * avcl, int lvl, const char *fmt, ...)
+void avlogThrow(void * avcl, int lvl, const char *fmt, ...)
 {
     (void) avcl;
     (void) lvl;
@@ -80,9 +81,8 @@ namespace AVPacketSerializer {
         cnt+=sizeof(wholeSize);
         memcpy((*bytes )+cnt, PS_MARK_E, strlen(PS_MARK_E));
         cnt+=strlen(PS_MARK_E);
-        av_log_set_level(AV_LOG_DEBUG);
         assert(cnt == wholeSize);
-        av_log(NULL, AV_LOG_DEBUG, "\n\n\npkt origin size %d, serialized size: %d, elems:%d\n\n\n", pkt.size, wholeSize, pkt.side_data_elems);
+        spdlog::debug("pkt origin size {:d}, serialized size: {:d}, elems: {:d}", pkt.size, wholeSize, pkt.side_data_elems);
         return wholeSize;
     }
 
@@ -92,7 +92,7 @@ namespace AVPacketSerializer {
         int ret = 0;
         int got = 0;
         if(memcmp(PS_MARK_E, bytes + len - strlen(PS_MARK_E), strlen(PS_MARK_E)) != 0 || memcmp(PS_MARK_S, bytes, strlen(PS_MARK_S))) {
-            av_log(NULL, AV_LOG_ERROR, "invalid packet");
+            spdlog::error("invalid packet");
             return -1;
         }
         //skip mark_s
@@ -133,7 +133,7 @@ namespace AVPacketSerializer {
         memcpy(&wholeSize, bytes + got, sizeof(wholeSize));
         got += sizeof(wholeSize);
         got += 8;
-        av_log(NULL, AV_LOG_WARNING, "wholeSize: %d, %d\n", wholeSize, got);
+        spdlog::debug("wholeSize: {:d}, {:d}", wholeSize, got);
 
         return ret;
     }
@@ -178,13 +178,15 @@ namespace AVFormatCtxSerializer {
         memcpy((*bytes) + got, &wholeSize, sizeof(wholeSize));
         got += sizeof(wholeSize);
         memcpy((*bytes) + got, PS_MARK_E, strlen(PS_MARK_E));
+
+        return wholeSize;
     }
 
     int decode(char *bytes, int len, AVFormatContext *pCtx) {
         int ret = 0;
         int got = 0;
         if(memcmp(PS_MARK_S, bytes+got, strlen(PS_MARK_S)) !=0 && memcmp(PS_MARK_E, bytes+len-strlen(PS_MARK_E), strlen(PS_MARK_E)) != 0) {
-            av_log(NULL, AV_LOG_ERROR, "invalid packet");
+            spdlog::error("invalid packet");
             return -1;
         }
         got+=strlen(PS_MARK_S);

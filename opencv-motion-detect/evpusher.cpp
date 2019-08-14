@@ -14,17 +14,16 @@
 namespace fs = std::filesystem;
 #endif
 
-#include  "vendor/include/zmq.h"
-#include "inc/json.hpp"
-#include "inc/blockingconcurrentqueue.hpp"
-#include "inc/tinythread.hpp"
-#include "inc/common.hpp"
-
+#include "vendor/include/zmq.h"
+#include "json.hpp"
+#include "tinythread.hpp"
+#include "common.hpp"
+#include "database.h"
+#include "spdlog/spdlog.h"
 #define MAX_ZMQ_MSG_SIZE 1204 * 1024 * 2
 
 using namespace std;
 using json = nlohmann::json;
-using namespace moodycamel;
 
 class PacketPusher: public TinyThread {
 private:
@@ -42,6 +41,7 @@ private:
         //urlOut = getenv("URL_OUT");
         //urlIn=
         urlOut = (char*)"rtsp://40.73.41.176:554/test1";
+        return 0;
     }
     int setupMq()
     {
@@ -51,11 +51,11 @@ private:
         pSubscriber = zmq_socket(pSubContext, ZMQ_SUB);
         ret = zmq_setsockopt(pSubscriber, ZMQ_SUBSCRIBE, "", 0);
         if(ret != 0) {
-            logThrow(NULL, AV_LOG_FATAL, "failed connect to pub");
+            avlogThrow(NULL, AV_LOG_FATAL, "failed connect to pub");
         }
         ret = zmq_connect(pSubscriber, "tcp://localhost:5556");
         if(ret != 0) {
-            logThrow(NULL, AV_LOG_FATAL, "failed create sub");
+            avlogThrow(NULL, AV_LOG_FATAL, "failed create sub");
         }
         
         return 0;
@@ -77,10 +77,10 @@ private:
         AVDictionary *pOptsRemux = NULL, *pOptsInput = NULL, *pOptsOutput = NULL;
         urlIn = (char*)"rtsp://admin:FWBWTU@172.31.0.51/h264/ch1/sub/av_stream";
         if ((ret = avformat_open_input(&pAVFormatInput, urlIn, NULL, NULL)) < 0) {
-            logThrow(NULL, AV_LOG_FATAL,  "Could not open input file '%s'", urlIn);
+            avlogThrow(NULL, AV_LOG_FATAL,  "Could not open input file '%s'", urlIn);
         }
         if ((ret = avformat_find_stream_info(pAVFormatInput, NULL)) < 0) {
-            logThrow(NULL, AV_LOG_FATAL,  "Failed to retrieve input stream information");
+            avlogThrow(NULL, AV_LOG_FATAL,  "Failed to retrieve input stream information");
         }
 
         //avformat_close_input(&pAVFormatInput);
@@ -89,7 +89,7 @@ private:
 
         ret = avformat_alloc_output_context2(&pAVFormatRemux, NULL, "rtsp", urlOut);
         if (ret < 0) {
-            logThrow(NULL, AV_LOG_FATAL, "failed create avformatcontext for output: %s", av_err2str(ret));
+            avlogThrow(NULL, AV_LOG_FATAL, "failed create avformatcontext for output: %s", av_err2str(ret));
         }
 
         numStreams = pAVFormatInput->nb_streams;
@@ -97,7 +97,7 @@ private:
 
         if (!streamList) {
             ret = AVERROR(ENOMEM);
-            logThrow(NULL, AV_LOG_FATAL, "failed create avformatcontext for output: %s", av_err2str(AVERROR(ENOMEM)));
+            avlogThrow(NULL, AV_LOG_FATAL, "failed create avformatcontext for output: %s", av_err2str(AVERROR(ENOMEM)));
         }
 
         // find all video & audio streams for remuxing
@@ -113,40 +113,41 @@ private:
             streamList[i] = streamIdx++;
             out_stream = avformat_new_stream(pAVFormatRemux, NULL);
             if (!out_stream) {
-                logThrow(NULL, AV_LOG_FATAL,  "Failed allocating output stream\n");
+                avlogThrow(NULL, AV_LOG_FATAL,  "Failed allocating output stream\n");
                 ret = AVERROR_UNKNOWN;
 
             }
             ret = avcodec_parameters_copy(out_stream->codecpar, in_codecpar);
             if (ret < 0) {
-                logThrow(NULL, AV_LOG_FATAL,  "Failed to copy codec parameters\n");
+                avlogThrow(NULL, AV_LOG_FATAL,  "Failed to copy codec parameters\n");
             }
         }
 
         for(int i = 0; i < pAVFormatInput->nb_streams; i++ ) {
-            av_log(NULL, AV_LOG_INFO, "streamList[%d]: %d\n", i, streamList[i]);
+            spdlog::info("streamList[{:d}]: {:d}", i, streamList[i]);
         }
 
         av_dump_format(pAVFormatRemux, 0, urlOut, 1);
 
         if (!(pAVFormatRemux->oformat->flags & AVFMT_NOFILE)) {
-            logThrow(NULL, AV_LOG_FATAL,  "Failed allocating output stream\n");
+            avlogThrow(NULL, AV_LOG_FATAL,  "Failed allocating output stream\n");
             ret = avio_open2(&pAVFormatRemux->pb, urlOut, AVIO_FLAG_WRITE, NULL, &pOptsRemux);
             if (ret < 0) {
-                logThrow(NULL, AV_LOG_FATAL,  "Could not open output file '%s'", urlOut);
+                avlogThrow(NULL, AV_LOG_FATAL,  "Could not open output file '%s'", urlOut);
             }
         }
 
         // rtsp tcp
         if(av_dict_set(&pOptsRemux, "rtsp_transport", "tcp", 0) < 0) {
-            logThrow(NULL, AV_LOG_FATAL, "failed set output pOptsRemux");
+            avlogThrow(NULL, AV_LOG_FATAL, "failed set output pOptsRemux");
             ret = AVERROR_UNKNOWN;
         }
 
         ret = avformat_write_header(pAVFormatRemux, &pOptsRemux);
         if (ret < 0) {
-            logThrow(NULL, AV_LOG_FATAL,  "Error occurred when opening output file\n");
+            avlogThrow(NULL, AV_LOG_FATAL,  "Error occurred when opening output file\n");
         }
+        return ret;
     }
 protected:
     void run()
@@ -164,13 +165,13 @@ protected:
             }
             int ret =zmq_msg_init(&msg);
             if(ret != 0) {
-                av_log(NULL, AV_LOG_ERROR, "failed to init zmq msg");
+                spdlog::error("failed to init zmq msg");
                 continue;
             }
             // receive packet
             ret = zmq_recvmsg(pSubscriber, &msg, 0);
             if(ret < 0) {
-                av_log(NULL, AV_LOG_ERROR, "failed to recv zmq msg");
+                spdlog::error("failed to recv zmq msg");
                 continue;
             }
 
@@ -178,13 +179,13 @@ protected:
             pktCnt++;
             ret = AVPacketSerializer::decode((char*)zmq_msg_data(&msg), ret, &packet); {
                 if (ret < 0) {
-                    av_log(NULL, AV_LOG_ERROR, "packet decode failed.");
+                    spdlog::error("packet decode failed: {:d}", ret);
                     continue;
                 }
             }
             zmq_msg_close(&msg);
 
-            av_log(NULL, AV_LOG_ERROR, "packet stream indx: %d\n", packet.stream_index);
+            spdlog::error("packet stream indx: {:d}", packet.stream_index);
             // relay
             AVStream *in_stream =NULL, *out_stream = NULL;
             in_stream  = pAVFormatInput->streams[packet.stream_index];
@@ -193,29 +194,26 @@ protected:
 
             //calc pts
             {
-                av_log(NULL, AV_LOG_WARNING, "seq: %lld, pts: %lld, dts: %lld, dur: %lld, idx:%d\n", pktCnt, packet.pts, packet.dts, packet.duration, packet.stream_index);
+                spdlog::debug("seq: {:lld}, pts: {:lld}, dts: {:lld}, dur: {:lld}, idx: {:d}", pktCnt, packet.pts, packet.dts, packet.duration, packet.stream_index);
                 /* copy packet */
                 packet.pts = av_rescale_q_rnd(packet.pts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
                 packet.dts = av_rescale_q_rnd(packet.dts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
                 packet.duration = av_rescale_q(packet.duration, in_stream->time_base, out_stream->time_base);
                 packet.pos = -1;
-                av_log(NULL, AV_LOG_WARNING, "chkpt0.4: %lld\n", pktCnt);
             }
             
-            //av_log(NULL, AV_LOG_WARNING, "chkpt1: %d\n", pktCnt);
             ret = av_interleaved_write_frame(pAVFormatRemux, &packet);
-            //av_log(NULL, AV_LOG_WARNING, "chkpt2: %d\n", pktCnt);
             av_packet_unref(&packet);
             if (ret < 0) {
-                av_log(NULL, AV_LOG_ERROR,  "Error muxing packet\n");
+                spdlog::error("error muxing packet");
             }
         }
         av_write_trailer(pAVFormatRemux);
         if(!bStopSig && ret < 0) {
             //TOOD: reconnect
-            av_log(NULL, AV_LOG_ERROR, "TODO: failed, reconnecting");
+            spdlog::error("TODO: failed, reconnecting");
         }else {
-            av_log(NULL, AV_LOG_INFO, "exit on command");
+            spdlog::error("exit on command");
         }
     }
 

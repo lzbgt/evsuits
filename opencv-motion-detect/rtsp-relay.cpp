@@ -15,7 +15,7 @@ namespace fs = std::filesystem;
 #include "inc/blockingconcurrentqueue.hpp"
 
 using namespace std;
-void logThrow(void * avcl, int lvl, const char *fmt, ...) {
+void avlogThrow(void * avcl, int lvl, const char *fmt, ...) {
     (void) avcl;
     (void) lvl;
     va_list args;
@@ -48,17 +48,17 @@ int main(int argc, char **argv)
     urlOutput = argv[2];
 
     if ((ret = avformat_open_input(&pAVFormatInput, urlInput, NULL, NULL)) < 0) {
-        logThrow(NULL, AV_LOG_ERROR,  "Could not open input file '%s'", urlInput);
+        avlogThrow(NULL, AV_LOG_ERROR,  "Could not open input file '%s'", urlInput);
         goto end;
     }
     if ((ret = avformat_find_stream_info(pAVFormatInput, NULL)) < 0) {
-        logThrow(NULL, AV_LOG_ERROR,  "Failed to retrieve input stream information");
+        avlogThrow(NULL, AV_LOG_ERROR,  "Failed to retrieve input stream information");
         goto end;
     }
 
     ret = avformat_alloc_output_context2(&pAVFormatRemux, NULL, "rtsp", urlOutput);
     if (ret < 0) {
-        logThrow(NULL, AV_LOG_ERROR, "failed create avformatcontext for output: %s", av_err2str(ret));
+        avlogThrow(NULL, AV_LOG_ERROR, "failed create avformatcontext for output: %s", av_err2str(ret));
         goto end;
     }
 
@@ -84,13 +84,13 @@ int main(int argc, char **argv)
         streamList[i] = streamIdx++;
         out_stream = avformat_new_stream(pAVFormatRemux, NULL);
         if (!out_stream) {
-            logThrow(NULL, AV_LOG_ERROR,  "Failed allocating output stream\n");
+            avlogThrow(NULL, AV_LOG_ERROR,  "Failed allocating output stream\n");
             ret = AVERROR_UNKNOWN;
             goto end;
         }
         ret = avcodec_parameters_copy(out_stream->codecpar, in_codecpar);
         if (ret < 0) {
-            logThrow(NULL, AV_LOG_ERROR,  "Failed to copy codec parameters\n");
+            avlogThrow(NULL, AV_LOG_ERROR,  "Failed to copy codec parameters\n");
             goto end;
         }
     }
@@ -100,7 +100,7 @@ int main(int argc, char **argv)
     // find best video stream
     idxVideo = av_find_best_stream(pAVFormatInput, AVMEDIA_TYPE_VIDEO, -1, -1, &pCodec, 0);
     if(idxVideo < 0) {
-        logThrow(NULL, AV_LOG_ERROR, "failed find best video stream");
+        avlogThrow(NULL, AV_LOG_ERROR, "failed find best video stream");
         goto end;
     }
 
@@ -110,10 +110,10 @@ int main(int argc, char **argv)
     // wherever you want.
 
     if (!(pAVFormatRemux->oformat->flags & AVFMT_NOFILE)) {
-        logThrow(NULL, AV_LOG_ERROR,  "Failed allocating output stream\n");
+        avlogThrow(NULL, AV_LOG_ERROR,  "Failed allocating output stream\n");
         ret = avio_open2(&pAVFormatRemux->pb, urlOutput, AVIO_FLAG_WRITE, NULL, &pOptsRemux);
         if (ret < 0) {
-            logThrow(NULL, AV_LOG_ERROR,  "Could not open output file '%s'", urlOutput);
+            avlogThrow(NULL, AV_LOG_ERROR,  "Could not open output file '%s'", urlOutput);
             goto end;
         }
     }
@@ -124,14 +124,14 @@ int main(int argc, char **argv)
 
     // rtsp tcp
     if(av_dict_set(&pOptsRemux, "rtsp_transport", "tcp", 0) < 0) {
-        logThrow(NULL, AV_LOG_ERROR, "failed set output pOptsRemux");
+        avlogThrow(NULL, AV_LOG_ERROR, "failed set output pOptsRemux");
         ret = AVERROR_UNKNOWN;
         goto end;
     }
 
     ret = avformat_write_header(pAVFormatRemux, &pOptsRemux);
     if (ret < 0) {
-        logThrow(NULL, AV_LOG_ERROR,  "Error occurred when opening output file\n");
+        avlogThrow(NULL, AV_LOG_ERROR,  "Error occurred when opening output file\n");
         goto end;
     }
     while (1) {
@@ -158,7 +158,7 @@ int main(int argc, char **argv)
 
         ret = av_interleaved_write_frame(pAVFormatRemux, &packet);
         if (ret < 0) {
-            logThrow(NULL, AV_LOG_ERROR,  "Error muxing packet\n");
+            avlogThrow(NULL, AV_LOG_ERROR,  "Error muxing packet\n");
             break;
         }
         av_packet_unref(&packet);
@@ -173,7 +173,7 @@ end:
     avformat_free_context(pAVFormatRemux);
     av_freep(&streamList);
     if (ret < 0 && ret != AVERROR_EOF) {
-        logThrow(NULL, AV_LOG_ERROR,  "Error occurred: %s\n", av_err2str(ret));
+        avlogThrow(NULL, AV_LOG_ERROR,  "Error occurred: %s\n", av_err2str(ret));
         return 1;
     }
     return 0;

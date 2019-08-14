@@ -6,6 +6,8 @@ CFLAGS = -g -Wall
 LIBOPENCV = `pkg-config opencv --cflags --libs`
 LIBFFMPEG = `pkg-config libavformat libavutil libavcodec --cflags --libs`
 LIBS=-lpthread
+SQLITE=vendor/sqlite/sqlite3.c
+HEADERS=-Iinc
 
 .PHONY: all
 all: libzmq evmgr evpusher rtspr
@@ -14,11 +16,16 @@ all: libzmq evmgr evpusher rtspr
 libzmq:
 	cd vendor/libzmq && [ ! -f $(CURDIR)/vendor/lib/pkgconfig/libzmq.pc ] || ./autogen.sh && ./configure --prefix=$(CURDIR)/vendor
 	cd vendor/libzmq && make -j 4 && make install
-evmgr: evmgr.cpp inc/common.hpp inc/tinythread.hpp
-	$(CPP) $(CPPFLAGS) -o evmgr evmgr.cpp $(LIBFFMPEG) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
+
+# sqlite C object
+sqlite3.o: vendor/sqlite/sqlite3.c
+	gcc -D SQLITE_THREADSAFE=1 -c vendor/sqlite/sqlite3.c
+
+evmgr: evmgr.cpp database.cpp inc/common.hpp inc/tinythread.hpp sqlite3.o
+	$(CPP) $(CPPFLAGS) -o evmgr evmgr.cpp sqlite3.o database.cpp $(HEADERS) $(LIBFFMPEG) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
 
 evpusher: evpusher.cpp inc/common.hpp inc/tinythread.hpp
-	$(CPP) $(CPPFLAGS) -o evpusher evpusher.cpp $(LIBFFMPEG) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
+	$(CPP) $(CPPFLAGS) -o evpusher evpusher.cpp $(LIBFFMPEG) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
 
 
 rtspr: rtsp-relay.cpp

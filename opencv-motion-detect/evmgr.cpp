@@ -1,7 +1,6 @@
 #pragma GCC diagnostic ignored "-Wunused-private-field"
 #pragma GCC diagnostic ignored "-Wunused-variable"
 
-
 #include <stdlib.h>
 #include <string>
 #include <thread>
@@ -14,15 +13,14 @@
 namespace fs = std::filesystem;
 #endif
 
-#include  "vendor/include/zmq.h"
-#include "inc/json.hpp"
-#include "inc/blockingconcurrentqueue.hpp"
-#include "inc/tinythread.hpp"
-#include "inc/common.hpp"
+#include "vendor/include/zmq.h"
+#include "json.hpp"
+#include "tinythread.hpp"
+#include "common.hpp"
+#include "database.h"
 
 using namespace std;
 using json = nlohmann::json;
-using namespace moodycamel;
 
 class PacketProducer: public TinyThread {
 private:
@@ -47,10 +45,10 @@ protected:
         int ret = 0;
         setupMq();
         if ((ret = avformat_open_input(&pAVFormatInput, urlIn.c_str(), NULL, NULL)) < 0) {
-            logThrow(NULL, AV_LOG_FATAL,  "Could not open input file '%s'", urlIn.c_str());
+            spdlog::error("Could not open input file {}", urlIn);
         }
         if ((ret = avformat_find_stream_info(pAVFormatInput, NULL)) < 0) {
-            logThrow(NULL, AV_LOG_FATAL,  "Failed to retrieve input stream information");
+            spdlog::error("Failed to retrieve input stream information");
         }
 
         pAVFormatInput->flags = AVFMT_FLAG_NOBUFFER | AVFMT_FLAG_FLUSH_PACKETS;
@@ -60,7 +58,7 @@ protected:
 
         if (!streamList) {
             ret = AVERROR(ENOMEM);
-            logThrow(NULL, AV_LOG_FATAL, "failed create avformatcontext for output: %s", av_err2str(AVERROR(ENOMEM)));
+            spdlog::error("failed create avformatcontext for output: {}", av_err2str(AVERROR(ENOMEM)));
         }
 
         // find all video & audio streams for remuxing
@@ -90,7 +88,7 @@ protected:
             
             ret = av_read_frame(pAVFormatInput, &packet);
             if (ret < 0) {
-                av_log(NULL, AV_LOG_ERROR, "failed read packet: %s", av_err2str(ret));
+                spdlog::error("failed read packet: {}", av_err2str(ret));
                 break;
             }
             in_stream  = pAVFormatInput->streams[packet.stream_index];
@@ -109,13 +107,9 @@ protected:
 
             // serialize packet to raw bytes
             char * data = NULL;
-            //av_log(NULL, AV_LOG_WARNING, "chkpt1: %d\n", pktCnt);
             int size = AVPacketSerializer::encode(packet, &data);
-            //av_log(NULL, AV_LOG_WARNING, "chkpt2: %d\n", pktCnt);
             zmq_msg_init_data(&msg, (void*)data, size, mqPacketFree, NULL);
-            //av_log(NULL, AV_LOG_WARNING, "chkpt3: %d\n", pktCnt);
             zmq_send_const(pPublisher, zmq_msg_data(&msg), size, 0);
-            //av_log(NULL, AV_LOG_WARNING, "chkpt4: %d\n", pktCnt);
             
             av_packet_unref(&packet);
         }
@@ -137,7 +131,7 @@ protected:
 
         int rc = zmq_bind(pPublisher, "tcp://0.0.0.0:5556");
         if(rc != 0) {
-            logThrow(NULL, AV_LOG_FATAL, "failed create pub");
+            spdlog::error("failed create pub");
         }
 
         return 0;
@@ -186,7 +180,7 @@ private:
             numSlices = 6;
         }
 
-        av_log(NULL, AV_LOG_INFO, "in: %s", urlIn.c_str());
+        spdlog::info("in: {}", urlIn);
 
         tmp = getenv("SLICE_PATH");
         pathSlice = (tmp == NULL?string("slices"):string(tmp));
@@ -195,7 +189,7 @@ private:
 #ifdef __LINUX___
         if (!fs::exists(pathSlice.c_str())) {
             if (!fs::create_directory(pathSlice.c_str())) {
-                logThrow(NULL, AV_LOG_FATAL, "can't create directory: %s", pathSlice.c_str());
+                spdlog::error("can't create directory: {}", pathSlice.c_str());
                 exit(1);
             }
             fs::permissions(pathSlice.c_str(), fs::perms::all);
@@ -212,7 +206,7 @@ private:
         }
 
         if(urlIn == "" or urlOut == "") {
-            logThrow(NULL, AV_LOG_FATAL, "no input/output url");
+            spdlog::error("no input/output url");
             exit(1);
         }
     }
@@ -249,6 +243,9 @@ public:
 
 int main(int argc, char **argv)
 {
+    spdlog::set_level(spdlog::level::debug);
+    DB::exec(NULL, NULL, NULL ,NULL);
+    spdlog::info("hello");
     auto vp = EdgeVideoMgr();
     return 0;
 }
