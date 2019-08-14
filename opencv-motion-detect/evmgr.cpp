@@ -20,6 +20,13 @@ namespace fs = std::filesystem;
 
 using namespace std;
 
+/**
+ *  functions:
+ *  app update
+ *  control msg
+ *  
+ * 
+ **/
 
 
 int main(int argc, const char *argv[]){
