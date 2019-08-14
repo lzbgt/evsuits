@@ -15,7 +15,6 @@ namespace fs = std::filesystem;
 #endif
 
 #include "vendor/include/zmq.h"
-#include "json.hpp"
 #include "tinythread.hpp"
 #include "common.hpp"
 #include "database.h"
@@ -23,7 +22,6 @@ namespace fs = std::filesystem;
 #define MAX_ZMQ_MSG_SIZE 1204 * 1024 * 2
 
 using namespace std;
-using json = nlohmann::json;
 
 class PacketPusher: public TinyThread {
 private:

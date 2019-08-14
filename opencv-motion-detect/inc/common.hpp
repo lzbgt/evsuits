@@ -6,6 +6,8 @@ extern "C" {
 }
 #include <libavutil/timestamp.h>
 #include <spdlog/spdlog.h>
+#include <json.hpp>
+using json = nlohmann::json;
 
 #undef av_err2str
 #define av_err2str(errnum) av_make_error_string((char*)__builtin_alloca(AV_ERROR_MAX_STRING_SIZE), AV_ERROR_MAX_STRING_SIZE, errnum)
@@ -214,6 +216,16 @@ namespace AVFormatCtxSerializer {
             free(pCtx->streams[i]);
         }
         free(pCtx->streams);
+    }
+}
+
+namespace cloudutils {
+    json registry(const char *scn) {
+        json jret;
+        // find local info
+        // request cloud info
+
+        return jret;
     }
 }
 

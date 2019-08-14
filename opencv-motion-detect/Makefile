@@ -38,7 +38,8 @@ mux: demuxing_decoding.c
 	$(CC) $(CFLAGS) -o mux demuxing_decoding.c $(LIBFFMPEG)
 
 clean:
-	mkdir -p vendor/lib/pkgconfig/bak
-	mv vendor/lib/pkgconfig/*.pc vendor/lib/pkgconfig/bak
+	#mkdir -p vendor/lib/pkgconfig/bak
+	rm -fr *.dSYM
+	#mv vendor/lib/pkgconfig/*.pc vendor/lib/pkgconfig/bak
 	rm -fr rtspr evmgr evpusher *.dSYM vendor/lib/pkgconfig/*.pc
 	#cd vendor/libzmq && make clean

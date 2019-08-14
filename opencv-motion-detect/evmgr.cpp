@@ -14,13 +14,11 @@ namespace fs = std::filesystem;
 #endif
 
 #include "vendor/include/zmq.h"
-#include "json.hpp"
 #include "tinythread.hpp"
 #include "common.hpp"
 #include "database.h"
 
 using namespace std;
-using json = nlohmann::json;
 
 class PacketProducer: public TinyThread {
 private:
