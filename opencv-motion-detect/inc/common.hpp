@@ -220,9 +220,9 @@ namespace AVFormatCtxSerializer {
 }
 
 namespace cloudutils {
-    json registry(const char *scn) {
+    json registry(const char *gn, const char *scn, int iid) {
         json jret;
-        // find local info
+        // find local info in db
         // request cloud info
         return jret;
     }
