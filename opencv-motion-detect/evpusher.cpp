@@ -168,7 +168,7 @@ protected:
             // receive packet
             ret = zmq_recvmsg(pSubscriber, &msg, 0);
             if(ret < 0) {
-                spdlog::error("failed to recv zmq msg");
+                spdlog::error("failed to recv zmq msg: {}", zmq_strerror(ret));
                 continue;
             }
 
