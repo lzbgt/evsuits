@@ -153,7 +153,6 @@ protected:
         int ret = 0;
         bool bStopSig = false;
         zmq_msg_t msg;
-        av_log_set_level(AV_LOG_DEBUG);
         AVPacket packet;
         uint64_t pktCnt = 0;
         while (true) {
@@ -183,7 +182,7 @@ protected:
             }
             zmq_msg_close(&msg);
 
-            spdlog::error("packet stream indx: {:d}", packet.stream_index);
+            spdlog::debug("packet stream indx: {:d}", packet.stream_index);
             // relay
             AVStream *in_stream =NULL, *out_stream = NULL;
             in_stream  = pAVFormatInput->streams[packet.stream_index];
@@ -230,7 +229,7 @@ public:
 };
 
 int main(int argc, char *argv[]){
-    
+    av_log_set_level(AV_LOG_INFO);
     PacketPusher pusher;
     pusher.join();
 }

@@ -94,7 +94,9 @@ protected:
                 av_packet_unref(&packet);
                 continue;
             }
+
             pktCnt++;
+
             packet.stream_index = streamList[packet.stream_index];
 
             /* copy packet */
@@ -241,7 +243,8 @@ public:
 
 int main(int argc, char **argv)
 {
-    spdlog::set_level(spdlog::level::debug);
+    av_log_set_level(AV_LOG_INFO);
+    spdlog::set_level(spdlog::level::info);
     DB::exec(NULL, NULL, NULL ,NULL);
     spdlog::info("hello");
     auto vp = EdgeVideoMgr();

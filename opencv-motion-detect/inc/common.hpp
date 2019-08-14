@@ -40,7 +40,7 @@ namespace AVPacketSerializer {
         }
 
         // 4 + 8: wholeSize + DEADBEAF
-        wholeSize += sizeof(pkt.pts) * 5 + sizeof(pkt.flags) + sizeof(pkt.stream_index) + sizeof(wholeSize) + strlen(PS_MARK_E);
+        wholeSize += sizeof(pkt.pts) * 4 + sizeof(pkt.flags) + sizeof(pkt.stream_index) + sizeof(wholeSize) + strlen(PS_MARK_E);
         *bytes = (char*)malloc(wholeSize);
 
         memcpy((*bytes)+cnt, PS_MARK_S, strlen(PS_MARK_S));
@@ -73,8 +73,9 @@ namespace AVPacketSerializer {
         cnt+=sizeof(pkt.pos);
         memcpy((*bytes )+cnt, &(pkt.duration), sizeof(pkt.duration));
         cnt+=sizeof(pkt.duration);
-        memcpy((*bytes )+cnt, &(pkt.convergence_duration), sizeof(pkt.convergence_duration));
-        cnt+=sizeof(pkt.convergence_duration);
+        // deprecated
+        //memcpy((*bytes )+cnt, &(pkt.convergence_duration), sizeof(pkt.convergence_duration));
+        //cnt+=sizeof(pkt.convergence_duration);
         memcpy((*bytes )+cnt, &(pkt.flags), sizeof(pkt.flags));
         cnt+=sizeof(pkt.flags);
         memcpy((*bytes )+cnt, &(pkt.stream_index), sizeof(pkt.stream_index));
@@ -124,8 +125,9 @@ namespace AVPacketSerializer {
         got += sizeof(pkt->pos);
         memcpy(&(pkt->duration), bytes + got, sizeof(pkt->duration));
         got += sizeof(pkt->duration);
-        memcpy(&(pkt->convergence_duration), bytes + got, sizeof(pkt->convergence_duration));
-        got += sizeof(pkt->convergence_duration);
+        // deprecated
+        //memcpy(&(pkt->convergence_duration), bytes + got, sizeof(pkt->convergence_duration));
+        //got += sizeof(pkt->convergence_duration);
         memcpy(&(pkt->flags), bytes + got, sizeof(pkt->flags));
         got += sizeof(pkt->flags);
         memcpy(&(pkt->stream_index), bytes + got, sizeof(pkt->stream_index));
@@ -224,6 +226,20 @@ namespace cloudutils {
         json jret;
         // find local info in db
         // request cloud info
+
+        // moc
+        jret["iid"] = "MOCK_IID";
+        jret["scn"] = string(scn);
+        jret["ipc"] = "172.31.0.51";
+        jret["gn"] = "MOCK_GN";
+        jret["ga"] = "localhost";
+        if(scn != NULL && strcmp(scn, "evmgr")) {
+            jret["evmgr"] = "tcp://localhost:5556";
+        }else{
+            jret["evmgr"] = "tcp://0.0.0.0:5556";
+        }
+        jret["code"] = 0;
+
         return jret;
     }
 }
