@@ -9,6 +9,7 @@ LIBS=-lpthread
 SQLITE=vendor/sqlite/sqlite3.c
 HEADERS=-Iinc
 
+.PHONY: libzmq
 all: evmgr evpuller evpusher
 
 .PHONY: libzmq
@@ -38,5 +39,6 @@ cvsample: cvsample.cpp
 mux: demuxing_decoding.c
 	$(CC) $(CFLAGS) -o mux demuxing_decoding.c $(LIBFFMPEG)
 
+.PHONY: clean
 clean:
 	rm -fr evmgr evpuller evpusher *.dSYM *.out *.o
