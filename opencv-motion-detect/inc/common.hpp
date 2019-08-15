@@ -162,6 +162,12 @@ void mqPacketFree(void *data, void *hint)
 // AVFormatCtxSerializer
 namespace AVFormatCtxSerializer
 {
+/**
+ * memory layerout
+ * PS_MARK_S | NUM_STREAMS | AVSTREAM+AVCODEPAR | WHOLESIZE | PS_MARK_E
+ * */
+
+
 int encode(AVFormatContext *ctx, char **bytes)
 {
     int ret = 0;
@@ -171,11 +177,16 @@ int encode(AVFormatContext *ctx, char **bytes)
     wholeSize += strlen(PS_MARK_S);
     // num streams
     wholeSize += sizeof(ctx->nb_streams);
-    wholeSize += sizeof(ctx->nb_streams);
+    spdlog::info("encode sizeof streams: {:d}, {:d}", sizeof(ctx->nb_streams), ctx->nb_streams);
     for (int i = 0; i < ctx->nb_streams; i++)
     {
         wholeSize += sizeof(AVStream);
         wholeSize += sizeof(AVCodecParameters);
+        //extradata
+        wholeSize += sizeof(ctx->streams[i]->codecpar->extradata_size);
+        if(ctx->streams[i]->codecpar->extradata_size!=0){
+            wholeSize += ctx->streams[i]->codecpar->extradata_size;
+        }
     }
     wholeSize += sizeof(wholeSize);
     wholeSize += strlen(PS_MARK_E);
@@ -195,11 +206,19 @@ int encode(AVFormatContext *ctx, char **bytes)
         //
         memcpy((*bytes) + got, ctx->streams[i]->codecpar, sizeof(AVCodecParameters));
         got += sizeof(AVCodecParameters);
+        //extra
+        memcpy((*bytes) + got, &(ctx->streams[i]->codecpar->extradata_size), sizeof(int));
+        got += sizeof(int);
+        memcpy((*bytes) + got,ctx->streams[i]->codecpar->extradata, ctx->streams[i]->codecpar->extradata_size);
+        got += ctx->streams[i]->codecpar->extradata_size;
     }
     memcpy((*bytes) + got, &wholeSize, sizeof(wholeSize));
     got += sizeof(wholeSize);
     memcpy((*bytes) + got, PS_MARK_E, strlen(PS_MARK_E));
+    got += strlen(PS_MARK_E);
 
+    assert(wholeSize == got);
+    spdlog::info("encode wholesize: {}", got);
     return wholeSize;
 }
 
@@ -207,11 +226,13 @@ int decode(char *bytes, int len, AVFormatContext *pCtx)
 {
     int ret = 0;
     int got = 0;
-    if (memcmp(PS_MARK_S, bytes + got, strlen(PS_MARK_S)) != 0 && memcmp(PS_MARK_E, bytes + len - strlen(PS_MARK_E), strlen(PS_MARK_E)) != 0)
+    memcpy(&ret, bytes +len -strlen(PS_MARK_E) - sizeof(ret), sizeof(ret));
+    if ((memcmp(PS_MARK_S, bytes + got, strlen(PS_MARK_S)) != 0 && memcmp(PS_MARK_E, bytes + len - strlen(PS_MARK_E), strlen(PS_MARK_E)) != 0)||ret != len)
     {
-        spdlog::error("invalid packet");
+        spdlog::error("invalid packet: {} {}", ret, len);
         return -1;
     }
+    spdlog::info("decode len: {}", ret);
     got += strlen(PS_MARK_S);
     memcpy(&ret, bytes + got, sizeof(ret));
     got += sizeof(ret);
@@ -225,9 +246,20 @@ int decode(char *bytes, int len, AVFormatContext *pCtx)
         pCtx->streams[i]->codecpar = (AVCodecParameters *)malloc(sizeof(AVCodecParameters));
         memcpy(pCtx->streams[i]->codecpar, bytes + got, sizeof(AVCodecParameters));
         got += sizeof(AVCodecParameters);
+        // extra
+        memcpy(&ret, bytes + got, sizeof(int));
+        got += sizeof(int);
+        if(ret != 0) {
+            pCtx->streams[i]->codecpar->extradata_size = ret;
+            pCtx->streams[i]->codecpar->extradata = (uint8_t *)malloc(ret);
+            memcpy(pCtx->streams[i]->codecpar->extradata, bytes + got, ret);
+            got += ret;
+        }
     }
-
     memcpy(&ret, bytes + got, sizeof(ret));
+    got += sizeof(ret);
+    got += strlen(PS_MARK_E);
+    spdlog::debug("avformatctx decode: {:d} {:d} {:d}", ret, len, got);
     assert(ret == len);
     return ret;
 }
@@ -237,6 +269,9 @@ void freeCtx(AVFormatContext *pCtx)
     for (int i = 0; i < pCtx->nb_streams; i++)
     {
         free(pCtx->streams[i]->codecpar);
+        if(pCtx->streams[i]->codecpar->extradata_size != 0) {
+            free(pCtx->streams[i]->codecpar->extradata);
+        }
         free(pCtx->streams[i]);
     }
     free(pCtx->streams);
@@ -274,6 +309,15 @@ namespace cloudutils
             "port-rep":5557,
             "iid":2
          },
+         "evpusher":[
+            {
+               "sn":"ILS-2",
+               "addr":"localhost",
+               "iid":2,
+               "enabled":1,
+               "urlDest":"rtsp://40.73.41.176:554/test1"
+            }
+         ],
          "evslicer":[
             {
                "sn":"ILS-3",
@@ -293,7 +337,7 @@ namespace cloudutils
    }
 }
 */
-const char *config = "{\"code\":0,\"time\":0,\"data\":{\"ipc\":\"172.31.0.51\",\"username\":\"admin\",\"password\":\"FWBWTU\",\"services\":{\"evmgr\":{\"sn\":\"ILS-1\",\"addr\":\"0.0.0.0\",\"port-pub\":5556,\"port-rep\":5557,\"iid\":1},\"evpuller\":{\"sn\":\"ILS-2\",\"addr\":\"0.0.0.0\",\"port-pub\":5556,\"port-rep\":5557,\"iid\":2},\"evslicer\":[{\"sn\":\"ILS-3\",\"addr\":\"192.168.0.25\",\"iid\":3}],\"evml\":[{\"feature\":\"motion\",\"sn\":\"ILS-4\",\"addr\":\"192.168.0.26\",\"iid\":4}]}}}";
+const char *config = "{\"code\":0,\"time\":0,\"data\":{\"ipc\":\"172.31.0.51\",\"username\":\"admin\",\"password\":\"FWBWTU\",\"services\":{\"evmgr\":{\"sn\":\"ILS-1\",\"addr\":\"0.0.0.0\",\"port-pub\":5556,\"port-rep\":5557,\"iid\":1},\"evpuller\":{\"sn\":\"ILS-2\",\"addr\":\"0.0.0.0\",\"port-pub\":5556,\"port-rep\":5557,\"iid\":2},\"evpusher\":[{\"sn\":\"ILS-2\",\"addr\":\"localhost\",\"iid\":2,\"enabled\":1,\"urlDest\":\"rtsp://40.73.41.176:554/test1\"}],\"evslicer\":[{\"sn\":\"ILS-3\",\"addr\":\"192.168.0.25\",\"iid\":3}],\"evml\":[{\"feature\":\"motion\",\"sn\":\"ILS-4\",\"addr\":\"192.168.0.26\",\"iid\":4}]}}}";
 
 json registry(const char *sn, const char *scn, int iid)
 {

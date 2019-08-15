@@ -22,11 +22,14 @@ using namespace std;
 
 class RepSrv: public TinyThread {
     private:
+    string sn;
+    int iid;
     string urlRep;
-    void *pRepCtx = NULL; // for packets REP
-    void *pRep = NULL;
     const char * bytes;
     int len;
+    void *pRepCtx = NULL; // for packets REP
+    void *pRep = NULL;
+
     int teardownMq()
     {
         if(pRep != NULL) {
@@ -55,7 +58,7 @@ class RepSrv: public TinyThread {
     RepSrv() = delete;
     RepSrv(RepSrv &) = delete;
     RepSrv(RepSrv&&) = delete;
-    RepSrv(string urlRep, const char* formatBytes, int len):urlRep(urlRep), bytes(formatBytes), len(len){};
+    RepSrv(string sn, int iid, string urlRep, const char* formatBytes, int len):sn(sn), iid(iid),urlRep(urlRep), bytes(formatBytes), len(len){};
     ~RepSrv(){};
     protected:
     void run(){
@@ -72,6 +75,7 @@ class RepSrv: public TinyThread {
                 bStopSig = true;
                 break;
             }
+            spdlog::info("evpuller reqSrv {} {} waiting for req", sn, iid);
             int ret =zmq_msg_init(&msg1);
             ret = zmq_recvmsg(pRep, &msg1, 0);
             if(ret < 0) {
@@ -79,6 +83,7 @@ class RepSrv: public TinyThread {
                continue; 
             }
             zmq_msg_close(&msg1);
+            spdlog::info("evpuller {} {} reveived req", sn, iid);
             zmq_send_const(pRep, zmq_msg_data(&msg), len, 0);
         }
     }
@@ -89,8 +94,8 @@ private:
     void *pPubCtx = NULL; // for packets publishing
     void *pPub = NULL;
     AVFormatContext *pAVFormatInput = NULL;
-    string urlIn, urlPub, urlRep;
-    int *streamList = NULL, numStreams = 0;
+    string urlIn, urlPub, urlRep, sn;
+    int *streamList = NULL, numStreams = 0, iid;
 
 public:
     EvPuller()
@@ -133,7 +138,7 @@ protected:
         // serialize formatctx to bytes
         char *pBytes = NULL;
         ret = AVFormatCtxSerializer::encode(pAVFormatInput, &pBytes);
-        auto repSrv = RepSrv(urlRep, pBytes, ret);
+        auto repSrv = RepSrv(sn, iid, urlRep, pBytes, ret);
         repSrv.detach();
 
         // find all video & audio streams for remuxing
@@ -207,12 +212,13 @@ private:
     int init()
     {
         bool inited = false;
-
+        sn = "ILS-2";
+        iid = 2;
         while(!inited) {
             // TODO: read db to get sn
-            const char* sn = "ILS-2";
+            
             // req config
-            json jr = cloudutils::registry(sn, "evpuller", 0);
+            json jr = cloudutils::registry(sn.c_str(), "evpuller", iid);
             bool bcnt = false;
             try {
                 spdlog::info("registry: {:s}", jr.dump());
@@ -223,6 +229,7 @@ private:
                 urlIn = "rtsp://" + user + ":" + passwd + "@"+ ipc + "/h264/ch1/sub/av_stream";
                 urlPub = string("tcp://") +data["addr"].get<string>() + ":" + to_string(data["port-pub"]);
                 urlRep = string("tcp://") +data["addr"].get<string>() + ":" + to_string(data["port-rep"]);
+                spdlog::info("evpuller {} {} bind on {} for pub, {} for rep", sn, iid, urlPub, urlRep);
             }
             catch(exception &e) {
                 bcnt = true;

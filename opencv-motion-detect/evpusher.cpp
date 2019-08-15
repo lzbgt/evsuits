@@ -25,73 +25,147 @@ using namespace std;
 
 class PacketPusher: public TinyThread {
 private:
-    void *pSubContext = NULL; // for packets relay
-    void *pSubscriber = NULL;
-    char *urlOut = NULL;
-    char *urlIn = NULL;
+    void *pSubCtx = NULL, *pReqCtx = NULL; // for packets relay
+    void *pSub = NULL, *pReq = NULL;
+    string urlOut, urlPub, urlRep, sn;
+    int iid;
     bool enablePush = false;
     int *streamList = NULL;
     AVFormatContext *pAVFormatRemux = NULL;
     AVFormatContext *pAVFormatInput = NULL;
 
-    int init(){
+    int init()
+    {
+        bool inited = false;
+        // TODO: read db to get sn
+        sn = "ILS-2";
+        iid = 2;
+        while(!inited) {
+            // req config
+            json jr = cloudutils::registry(sn.c_str(), "evpusher", iid);
+            bool bcnt = false;
+            try {
+                spdlog::info("registry: {:s}", jr.dump());
+                json data = jr["data"]["services"]["evpuller"];
+                string addr = data["addr"].get<string>();
+                if(addr == "0.0.0.0") {
+                    addr = "localhost";
+                }
+                urlPub = string("tcp://") + addr + ":" + to_string(data["port-pub"]);
+                urlRep = string("tcp://") + addr + ":" + to_string(data["port-rep"]);
+                spdlog::info("evpusher {} {} will connect to {} for sub, {} for req", sn, iid, urlPub, urlRep);
 
-        urlOut = (char*)"rtsp://40.73.41.176:554/test1";
+                data = jr["data"]["services"]["evpusher"];
+                for(auto &j: data) {
+                    if(j["sn"] == sn && iid == j["iid"] && j["enabled"] != 0) {
+                        urlOut = j["urlDest"];
+                        break;
+                    }
+                }
+            }
+            catch(exception &e) {
+                bcnt = true;
+                spdlog::error("evpusher {} {} exception in EvPuller.init {:s} retrying", sn, iid, e.what());
+            }
+            if(bcnt || urlOut.empty()) {
+                // TODO: waiting for command
+                spdlog::warn("evpusher {} {} waiting for command", sn, iid);
+                this_thread::sleep_for(chrono::milliseconds(1000*20));
+                continue;
+            }
+
+            inited = true;
+        }
+
         return 0;
     }
     int setupMq()
     {
         teardownMq();
         int ret = 0;
-        pSubContext = zmq_ctx_new();
-        pSubscriber = zmq_socket(pSubContext, ZMQ_SUB);
-        ret = zmq_setsockopt(pSubscriber, ZMQ_SUBSCRIBE, "", 0);
+
+        // setup sub
+        pSubCtx = zmq_ctx_new();
+        pSub = zmq_socket(pSubCtx, ZMQ_SUB);
+        ret = zmq_setsockopt(pSub, ZMQ_SUBSCRIBE, "", 0);
         if(ret != 0) {
-            avlogThrow(NULL, AV_LOG_FATAL, "failed connect to pub");
+            spdlog::error("evpusher failed connect to pub: {}, {}", sn, iid);
+            return -1;
         }
-        ret = zmq_connect(pSubscriber, "tcp://localhost:5556");
+        ret = zmq_connect(pSub, urlPub.c_str());
         if(ret != 0) {
-            avlogThrow(NULL, AV_LOG_FATAL, "failed create sub");
+            spdlog::error("evpusher {} {} failed create sub", sn, iid);
+            return -2;
         }
+
+        // setup req
+        pReqCtx = zmq_ctx_new();
+        pReq = zmq_socket(pReqCtx, ZMQ_REQ);
+        spdlog::info("evpusher {} {} try create req to {}", sn, iid, urlRep);
+        ret = zmq_connect(pReq, urlRep.c_str());
         
+        if(ret != 0) {
+            spdlog::error("evpusher {} {} failed create req to {}", sn, iid, urlRep);
+            return -3;
+        }
+
+        spdlog::info("evpusher {} {} success setupMq", sn, iid);
+
         return 0;
     }
 
     int teardownMq()
     {
-        if(pSubscriber != NULL) {
-            zmq_close(pSubscriber);
+        if(pSub != NULL) {
+            zmq_close(pSub);
         }
-        if(pSubscriber != NULL) {
-            zmq_ctx_destroy(pSubscriber);
+        if(pSub != NULL) {
+            zmq_ctx_destroy(pSub);
         }
         return 0;
     }
 
-    int setupStream(){
-        int ret = 0, numStreams = 0, streamIdx = 0;
-        AVDictionary *pOptsRemux = NULL, *pOptsInput = NULL, *pOptsOutput = NULL;
-        urlIn = (char*)"rtsp://admin:FWBWTU@172.31.0.51/h264/ch1/sub/av_stream";
-        if ((ret = avformat_open_input(&pAVFormatInput, urlIn, NULL, NULL)) < 0) {
-            avlogThrow(NULL, AV_LOG_FATAL,  "Could not open input file '%s'", urlIn);
+    int setupStream()
+    {
+        int ret = 0;
+        AVDictionary *pOptsRemux = NULL;
+
+        // req avformatcontext packet
+        // send first packet to init connection
+        zmq_msg_t msg;
+        zmq_send(pReq, "hello", 5, 0);
+        spdlog::info("evpusher {} {} success send hello", sn, iid);
+        ret =zmq_msg_init(&msg);
+        if(ret != 0) {
+            spdlog::error("failed to init zmq msg");
+            exit(1);
         }
-        if ((ret = avformat_find_stream_info(pAVFormatInput, NULL)) < 0) {
-            avlogThrow(NULL, AV_LOG_FATAL,  "Failed to retrieve input stream information");
+        // receive packet
+        ret = zmq_recvmsg(pReq, &msg, 0);
+        spdlog::info("evpusher {} {} recv", sn, iid);
+        if(ret < 0) {
+            spdlog::error("evpusher {} {} failed to recv zmq msg: {}", sn, iid, zmq_strerror(ret));
+            exit(1);
         }
 
-        ret = avformat_alloc_output_context2(&pAVFormatRemux, NULL, "rtsp", urlOut);
+        pAVFormatInput = (AVFormatContext *)malloc(sizeof(AVFormatContext));
+        AVFormatCtxSerializer::decode((char *)zmq_msg_data(&msg), ret, pAVFormatInput);
+
+        ret = avformat_alloc_output_context2(&pAVFormatRemux, NULL, "rtsp", urlOut.c_str());
         if (ret < 0) {
-            avlogThrow(NULL, AV_LOG_FATAL, "failed create avformatcontext for output: %s", av_err2str(ret));
+            spdlog::error("evpusher {} {} failed create avformatcontext for output: %s", sn, iid, av_err2str(ret));
+            exit(1);
         }
 
-        numStreams = pAVFormatInput->nb_streams;
-        streamList = (int *)av_mallocz_array(numStreams, sizeof(*streamList));
-
+        streamList = (int *)av_mallocz_array(pAVFormatInput->nb_streams, sizeof(*streamList));
+        spdlog::info("evpusher {} {} numStreams: {:d}", sn, iid, pAVFormatInput->nb_streams);
         if (!streamList) {
             ret = AVERROR(ENOMEM);
-            avlogThrow(NULL, AV_LOG_FATAL, "failed create avformatcontext for output: %s", av_err2str(AVERROR(ENOMEM)));
+            spdlog::error("evpusher {} {} failed create avformatcontext for output: %s", sn, iid, av_err2str(AVERROR(ENOMEM)));
+            exit(1);
         }
 
+        int streamIdx = 0;
         // find all video & audio streams for remuxing
         for (int i = 0; i < pAVFormatInput->nb_streams; i++) {
             AVStream *out_stream;
@@ -105,13 +179,14 @@ private:
             streamList[i] = streamIdx++;
             out_stream = avformat_new_stream(pAVFormatRemux, NULL);
             if (!out_stream) {
-                avlogThrow(NULL, AV_LOG_FATAL,  "Failed allocating output stream\n");
+                spdlog::error("evpusher {} {} failed allocating output stream", sn, iid);
                 ret = AVERROR_UNKNOWN;
 
             }
             ret = avcodec_parameters_copy(out_stream->codecpar, in_codecpar);
+            spdlog::info("evpusher {} {}  copied codepar", sn, iid);
             if (ret < 0) {
-                avlogThrow(NULL, AV_LOG_FATAL,  "Failed to copy codec parameters\n");
+                spdlog::error("evpusher {} {}  failed to copy codec parameters", sn, iid);
             }
         }
 
@@ -119,25 +194,26 @@ private:
             spdlog::info("streamList[{:d}]: {:d}", i, streamList[i]);
         }
 
-        av_dump_format(pAVFormatRemux, 0, urlOut, 1);
+        av_dump_format(pAVFormatRemux, 0, urlOut.c_str(), 1);
 
         if (!(pAVFormatRemux->oformat->flags & AVFMT_NOFILE)) {
-            avlogThrow(NULL, AV_LOG_FATAL,  "Failed allocating output stream\n");
-            ret = avio_open2(&pAVFormatRemux->pb, urlOut, AVIO_FLAG_WRITE, NULL, &pOptsRemux);
+            spdlog::error("evpusher {} {} failed allocating output stream", sn ,iid);
+            ret = avio_open2(&pAVFormatRemux->pb, urlOut.c_str(), AVIO_FLAG_WRITE, NULL, &pOptsRemux);
             if (ret < 0) {
-                avlogThrow(NULL, AV_LOG_FATAL,  "Could not open output file '%s'", urlOut);
+                spdlog::error("evpusher {} {} could not open output file '%s'", sn, iid, urlOut);
+                exit(1);
             }
         }
 
         // rtsp tcp
         if(av_dict_set(&pOptsRemux, "rtsp_transport", "tcp", 0) < 0) {
-            avlogThrow(NULL, AV_LOG_FATAL, "failed set output pOptsRemux");
+            spdlog::error("evpusher {} {} failed set output pOptsRemux", sn, iid);
             ret = AVERROR_UNKNOWN;
         }
 
         ret = avformat_write_header(pAVFormatRemux, &pOptsRemux);
         if (ret < 0) {
-            avlogThrow(NULL, AV_LOG_FATAL,  "Error occurred when opening output file\n");
+            spdlog::error("evpusher {} {} error occurred when opening output file", sn, iid);
         }
         return ret;
     }
@@ -160,7 +236,7 @@ protected:
                 continue;
             }
             // receive packet
-            ret = zmq_recvmsg(pSubscriber, &msg, 0);
+            ret = zmq_recvmsg(pSub, &msg, 0);
             if(ret < 0) {
                 spdlog::error("failed to recv zmq msg: {}", zmq_strerror(ret));
                 continue;
@@ -168,7 +244,8 @@ protected:
 
             // decode
             pktCnt++;
-            ret = AVPacketSerializer::decode((char*)zmq_msg_data(&msg), ret, &packet); {
+            ret = AVPacketSerializer::decode((char*)zmq_msg_data(&msg), ret, &packet);
+            {
                 if (ret < 0) {
                     spdlog::error("packet decode failed: {:d}", ret);
                     continue;
@@ -192,7 +269,7 @@ protected:
                 packet.duration = av_rescale_q(packet.duration, in_stream->time_base, out_stream->time_base);
                 packet.pos = -1;
             }
-            
+
             ret = av_interleaved_write_frame(pAVFormatRemux, &packet);
             av_packet_unref(&packet);
             if (ret < 0) {
@@ -203,7 +280,8 @@ protected:
         if(!bStopSig && ret < 0) {
             //TOOD: reconnect
             spdlog::error("TODO: failed, reconnecting");
-        }else {
+        }
+        else {
             spdlog::error("exit on command");
         }
     }
@@ -212,7 +290,10 @@ public:
     PacketPusher()
     {
         init();
-        setupMq();
+        if(setupMq() < 0) {
+            // TODO: reconnect
+            exit(1);
+        }
         setupStream();
     }
 
@@ -222,8 +303,10 @@ public:
     }
 };
 
-int main(int argc, char *argv[]){
+int main(int argc, char *argv[])
+{
     av_log_set_level(AV_LOG_INFO);
+    spdlog::set_level(spdlog::level::debug);
     PacketPusher pusher;
     pusher.join();
 }
