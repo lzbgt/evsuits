@@ -31,7 +31,7 @@ private:
     void *pSubCtx = NULL, *pReqCtx = NULL; // for packets relay
     void *pSub = NULL, *pReq = NULL;
     string urlOut, urlPub, urlRep, sn;
-    int iid, ;
+    int iid, days, minutes, numSlices;
     bool enablePush = false;
     int *streamList = NULL;
     AVFormatContext *pAVFormatRemux = NULL;
@@ -64,9 +64,24 @@ private:
                         try{
                             j.at("path").get_to(urlOut);
                         }catch(exception &e) {
-                            spdlog::warn("evslicer {} {} exception get PATH for store file: {}", sn, iid, e.what());
+                            spdlog::warn("evslicer {} {} exception get params for storing slices: {}", sn, iid, e.what());
+                            urlOut = URLOUT_DEFAULT;
                         }
-                        
+                        try{
+                            j.at("days").get_to(days);
+                        }catch(exception &e) {
+                            spdlog::warn("evslicer {} {} exception get params for storing slices: {}", sn, iid, e.what());
+                            days = NUM_DAYS_DEFAULT;
+                        }
+                        try{
+                            j.at("minutes").get_to(minutes);
+                        }catch(exception &e) {
+                            spdlog::warn("evslicer {} {} exception get params for storing slices: {}", sn, iid, e.what());
+                            minutes = MINUTES_PER_SLICE_DEFAULT;
+                        }
+
+                        numSlices = 24 * days * 60 /minutes;
+                                   
                         break;
                     }
                 }
