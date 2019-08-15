@@ -23,7 +23,7 @@ namespace fs = std::filesystem;
 
 using namespace std;
 
-class PacketPusher: public TinyThread {
+class EvPusher: public TinyThread {
 private:
     void *pSubCtx = NULL, *pReqCtx = NULL; // for packets relay
     void *pSub = NULL, *pReq = NULL;
@@ -312,7 +312,7 @@ protected:
     }
 
 public:
-    PacketPusher()
+    EvPusher()
     {
         init();
         if(setupMq() < 0) {
@@ -322,7 +322,7 @@ public:
         setupStream();
     }
 
-    ~PacketPusher()
+    ~EvPusher()
     {
         teardownMq();
         // free avformatcontex
@@ -330,7 +330,6 @@ public:
             AVFormatCtxSerializer::freeCtx(pAVFormatInput);
             pAVFormatInput = NULL;
         }
-        
     }
 };
 
@@ -338,6 +337,6 @@ int main(int argc, char *argv[])
 {
     av_log_set_level(AV_LOG_INFO);
     spdlog::set_level(spdlog::level::debug);
-    PacketPusher pusher;
+    EvPusher pusher;
     pusher.join();
 }

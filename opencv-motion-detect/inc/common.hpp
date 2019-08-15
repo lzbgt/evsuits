@@ -322,7 +322,8 @@ namespace cloudutils
             {
                "sn":"ILS-3",
                "addr":"192.168.0.25",
-               "iid":3
+               "iid":3,
+               "path": "/var/lib/slices/"
             }
          ],
          "evml":[

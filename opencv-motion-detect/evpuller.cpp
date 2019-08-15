@@ -233,7 +233,7 @@ private:
             }
             catch(exception &e) {
                 bcnt = true;
-                spdlog::error("exception in EvPuller.init {:s} retrying", e.what());
+                spdlog::error("exception in EvPuller.init {:s}, retrying... ", e.what());
             }
             if(bcnt) {
                 this_thread::sleep_for(chrono::milliseconds(1000*20));
