@@ -118,10 +118,21 @@ private:
     {
         if(pSub != NULL) {
             zmq_close(pSub);
+            pSub = NULL;
         }
-        if(pSub != NULL) {
+        if(pSubCtx != NULL) {
+            zmq_ctx_destroy(pSubCtx);
+            pSubCtx = NULL;
+        }
+        if(pReq != NULL) {
+            zmq_close(pSub);
+            pReq = NULL;
+        }
+        if(pReqCtx != NULL) {
             zmq_ctx_destroy(pSub);
+            pReqCtx = NULL;
         }
+
         return 0;
     }
 
@@ -151,6 +162,18 @@ private:
         pAVFormatInput = (AVFormatContext *)malloc(sizeof(AVFormatContext));
         AVFormatCtxSerializer::decode((char *)zmq_msg_data(&msg), ret, pAVFormatInput);
 
+        // close req
+        {
+            if(pReq != NULL) {
+                zmq_close(pSub);
+                pReq = NULL;
+            }
+            if(pReqCtx != NULL) {
+                zmq_ctx_destroy(pSub);
+                pReqCtx = NULL;
+            }
+        }
+        
         ret = avformat_alloc_output_context2(&pAVFormatRemux, NULL, "rtsp", urlOut.c_str());
         if (ret < 0) {
             spdlog::error("evpusher {} {} failed create avformatcontext for output: %s", sn, iid, av_err2str(ret));
