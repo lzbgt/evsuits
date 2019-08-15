@@ -89,7 +89,7 @@ private:
     void *pPubCtx = NULL; // for packets publishing
     void *pPub = NULL;
     AVFormatContext *pAVFormatInput = NULL;
-    string urlIn, urlPub;
+    string urlIn, urlPub, urlRep;
     int *streamList = NULL, numStreams = 0;
 
 public:
@@ -130,6 +130,12 @@ protected:
             spdlog::error("failed create avformatcontext for output: {}", av_err2str(AVERROR(ENOMEM)));
         }
 
+        // serialize formatctx to bytes
+        char *pBytes = NULL;
+        ret = AVFormatCtxSerializer::encode(pAVFormatInput, &pBytes);
+        auto repSrv = RepSrv(urlRep, pBytes, ret);
+        repSrv.detach();
+
         // find all video & audio streams for remuxing
         int i = 0, streamIdx = 0;
         for (; i < pAVFormatInput->nb_streams; i++) {
@@ -144,10 +150,8 @@ protected:
             streamList[i] = streamIdx++;
         }
 
-        
-
         bool bStopSig = false;
-        int pktCnt = 0;
+        uint64_t pktCnt = 0;
         while (true) {
             if(checkStop() == true) {
                 bStopSig = true;
@@ -167,9 +171,11 @@ protected:
                 av_packet_unref(&packet);
                 continue;
             }
-
+            if(pktCnt % 1024 == 0) {
+                spdlog::info("pktCnt: {:d}", pktCnt);
+            }
+            
             pktCnt++;
-
             packet.stream_index = streamList[packet.stream_index];
 
             /* copy packet */
@@ -187,6 +193,7 @@ protected:
             av_packet_unref(&packet);
         }
 
+        free(pBytes);
         // TODO:
         if(ret < 0 && !bStopSig) {
             // reconnect
@@ -215,10 +222,11 @@ private:
                 json data = jr["data"]["services"]["evpuller"];
                 urlIn = "rtsp://" + user + ":" + passwd + "@"+ ipc + "/h264/ch1/sub/av_stream";
                 urlPub = string("tcp://") +data["addr"].get<string>() + ":" + to_string(data["port-pub"]);
+                urlRep = string("tcp://") +data["addr"].get<string>() + ":" + to_string(data["port-rep"]);
             }
             catch(exception &e) {
                 bcnt = true;
-                spdlog::error(e.what());
+                spdlog::error("exception in EvPuller.init {:s} retrying", e.what());
             }
             if(bcnt) {
                 this_thread::sleep_for(chrono::milliseconds(1000*20));

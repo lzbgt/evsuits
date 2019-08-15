@@ -256,7 +256,7 @@ namespace cloudutils
    "code":0,
    "time":0,
    "data":{
-      "ipc":"192.168.0.23",
+      "ipc":"172.31.0.51",
       "username":"admin",
       "password":"FWBWTU",
       "services":{
@@ -293,7 +293,7 @@ namespace cloudutils
    }
 }
 */
-const char *config = "{\"code\":0,\"time\":0,\"data\":{\"ipc\":\"192.168.0.23\",\"username\":\"admin\",\"password\":\"FWBWTU\",\"services\":{\"evmgr\":{\"sn\":\"ILS-1\",\"addr\":\"0.0.0.0\",\"port-pub\":5556,\"port-rep\":5557,\"iid\":1},\"evpuller\":{\"sn\":\"ILS-2\",\"addr\":\"0.0.0.0\",\"port-pub\":5556,\"port-rep\":5557,\"iid\":2},\"evslicer\":[{\"sn\":\"ILS-3\",\"addr\":\"192.168.0.25\",\"iid\":3}],\"evml\":[{\"feature\":\"motion\",\"sn\":\"ILS-4\",\"addr\":\"192.168.0.26\",\"iid\":4}]}}}";
+const char *config = "{\"code\":0,\"time\":0,\"data\":{\"ipc\":\"172.31.0.51\",\"username\":\"admin\",\"password\":\"FWBWTU\",\"services\":{\"evmgr\":{\"sn\":\"ILS-1\",\"addr\":\"0.0.0.0\",\"port-pub\":5556,\"port-rep\":5557,\"iid\":1},\"evpuller\":{\"sn\":\"ILS-2\",\"addr\":\"0.0.0.0\",\"port-pub\":5556,\"port-rep\":5557,\"iid\":2},\"evslicer\":[{\"sn\":\"ILS-3\",\"addr\":\"192.168.0.25\",\"iid\":3}],\"evml\":[{\"feature\":\"motion\",\"sn\":\"ILS-4\",\"addr\":\"192.168.0.26\",\"iid\":4}]}}}";
 
 json registry(const char *sn, const char *scn, int iid)
 {

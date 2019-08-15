@@ -34,10 +34,8 @@ private:
     AVFormatContext *pAVFormatRemux = NULL;
     AVFormatContext *pAVFormatInput = NULL;
 
-    int getEnv(){
-        // TODO:
-        //urlOut = getenv("URL_OUT");
-        //urlIn=
+    int init(){
+
         urlOut = (char*)"rtsp://40.73.41.176:554/test1";
         return 0;
     }
@@ -80,10 +78,6 @@ private:
         if ((ret = avformat_find_stream_info(pAVFormatInput, NULL)) < 0) {
             avlogThrow(NULL, AV_LOG_FATAL,  "Failed to retrieve input stream information");
         }
-
-        //avformat_close_input(&pAVFormatInput);
-
-        pAVFormatInput->flags = AVFMT_FLAG_NOBUFFER | AVFMT_FLAG_FLUSH_PACKETS;
 
         ret = avformat_alloc_output_context2(&pAVFormatRemux, NULL, "rtsp", urlOut);
         if (ret < 0) {
@@ -217,7 +211,7 @@ protected:
 public:
     PacketPusher()
     {
-        getEnv();
+        init();
         setupMq();
         setupStream();
     }
