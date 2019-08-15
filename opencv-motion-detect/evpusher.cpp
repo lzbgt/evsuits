@@ -164,12 +164,13 @@ private:
 
         // close req
         {
+            zmq_msg_close(&msg);
             if(pReq != NULL) {
-                zmq_close(pSub);
+                zmq_close(pReq);
                 pReq = NULL;
             }
             if(pReqCtx != NULL) {
-                zmq_ctx_destroy(pSub);
+                zmq_ctx_destroy(pReqCtx);
                 pReqCtx = NULL;
             }
         }
@@ -238,6 +239,7 @@ private:
         if (ret < 0) {
             spdlog::error("evpusher {} {} error occurred when opening output file", sn, iid);
         }
+
         return ret;
     }
 protected:
@@ -323,6 +325,12 @@ public:
     ~PacketPusher()
     {
         teardownMq();
+        // free avformatcontex
+        if(pAVFormatInput != NULL) {
+            AVFormatCtxSerializer::freeCtx(pAVFormatInput);
+            pAVFormatInput = NULL;
+        }
+        
     }
 };
 
