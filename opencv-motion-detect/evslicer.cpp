@@ -81,7 +81,6 @@ private:
                         }
 
                         numSlices = 24 * days * 60 /minutes;
-                                   
                         break;
                     }
                 }
