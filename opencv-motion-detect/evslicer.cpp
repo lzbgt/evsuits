@@ -7,6 +7,7 @@
 #include <iostream>
 #include <chrono>
 #include <future>
+#include <vector>
 
 #ifdef OS_LINUX
 #include <filesystem>
@@ -27,15 +28,16 @@ private:
 #define MINUTES_PER_SLICE_DEFAULT 10
 // 2 days, 10 minutes per record
 #define NUM_SLICES_DEFAULT (24 * NUM_DAYS_DEFAULT * 60 / MINUTES_PER_SLICE_DEFAULT)
-
     void *pSubCtx = NULL, *pReqCtx = NULL; // for packets relay
     void *pSub = NULL, *pReq = NULL;
     string urlOut, urlPub, urlRep, sn;
-    int iid, days, minutes, numSlices;
+    int iid, days, minutes, numSlices, lastSliceId;
     bool enablePush = false;
     int *streamList = NULL;
     AVFormatContext *pAVFormatRemux = NULL;
     AVFormatContext *pAVFormatInput = NULL;
+    // load from db
+    vector<int> *sliceIdxToName = NULL;
 
     int init()
     {
@@ -81,6 +83,11 @@ private:
                         }
 
                         numSlices = 24 * days * 60 /minutes;
+                        // alloc memory
+                        sliceIdxToName = new vector<int>(numSlices);
+                        // load db
+                        DB::exec(NULL, "select id, ts, last from slices;", DB::get_slices, sliceIdxToName);
+
                         break;
                     }
                 }
@@ -91,7 +98,7 @@ private:
             }
             if(bcnt || urlOut.empty()) {
                 // TODO: waiting for command
-                spdlog::warn("evpusher {} {} waiting for command", sn, iid);
+                spdlog::warn("evpusher {} {} waiting for command & retrying", sn, iid);
                 this_thread::sleep_for(chrono::milliseconds(1000*20));
                 continue;
             }

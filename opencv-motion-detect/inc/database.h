@@ -6,8 +6,8 @@ extern "C" {
 
 namespace DB {
     typedef     int (*callback)(void*,int,char**,char**);
-    int exec(char* fileName, const char* stmt, callback cb, void *pUserData);
+    int exec(void *pUserData, char* fileName, const char* stmt, callback cb);
+    int getSlices(void *pUser, int iid, const char *fileName);
 }
-
 
 #endif
