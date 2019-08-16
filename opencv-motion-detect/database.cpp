@@ -126,6 +126,7 @@ namespace DB {
 //   ex: 1, sn,  ILS112233, NULL, NULL
 //       2, evmgr, NULL, 1.2, 2019-09-02
 //       3, evpuller, NULL, 1.2, 2019-09-02
+//       4, evml-motion, NULL, 1.2, 2019-09-02
 
 // ipc: id, user, passwd, addr, status
 //   ex: 1, admin, FWBWTU, 172.31.0.51, 0
@@ -139,12 +140,13 @@ namespace DB {
     int setLocalConfig(json config, const char* fileName) {
         int ret; 
         string stmt;
-        // init tables;
-        stmt = "create table if not exists info(cls text, value text, version text, update datetime, primary key (cls, value));";
+        // init tables
+        stmt = "create table if not exists info(cls text, value text, version text, update datetime, primary key cls);";
         ret = exec(NULL, fileName, stmt.c_str(), NULL);
         if(ret != SQLITE_OK) {
             return ret;
         }
+        //
     }
 
     int getLocalConfig(json config) {
