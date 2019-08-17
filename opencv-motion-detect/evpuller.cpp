@@ -280,7 +280,7 @@ int main(int argc, char **argv)
 {
     av_log_set_level(AV_LOG_INFO);
     spdlog::set_level(spdlog::level::info);
-    DB::exec(NULL, NULL, NULL,NULL);
+    //DB::exec(NULL, NULL, NULL,NULL);
     auto evp = EvPuller();
     evp.join();
     return 0;

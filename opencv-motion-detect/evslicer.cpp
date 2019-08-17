@@ -53,7 +53,7 @@ private:
             bool bcnt = false;
             try {
                 spdlog::info("registry: {:s}", jr.dump());
-                json data = jr["data"]["services"]["evpuller"];
+                json data = jr["data"]["services"]["evslicer"];
                 string addr = data["addr"].get<string>();
                 if(addr == "0.0.0.0") {
                     addr = "localhost";
@@ -102,7 +102,7 @@ private:
             }
             catch(exception &e) {
                 bcnt = true;
-                spdlog::error("evslicer {} {} exception in EvPuller.init {:s},  retrying...", sn, iid, e.what());
+                spdlog::error("evslicer {} {} exception in evslicer.init {:s},  retrying...", sn, iid, e.what());
             }
             if(bcnt || urlOut.empty()) {
                 // TODO: waiting for command
