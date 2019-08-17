@@ -336,8 +336,9 @@ protected:
                     packet.duration = av_rescale_q(packet.duration, in_stream->time_base, out_stream->time_base);
                     packet.pos = -1;
                 }
-                if((packet.data[5] & 0x1F) == 0x05) {
-                    spdlog::debug("pktCnt: {}, keyframe: {:0x}", pktCnt, packet.data[5]);
+                // TODO:
+                if(packet.data[5] == 0x65 ) {
+                    spdlog::info("pktCnt: {}, keyframe: {:0x}", pktCnt, packet.data[5]);
                     if(keyPacket.buf != NULL) {
                         av_packet_unref(&keyPacket);
                         av_packet_ref(&keyPacket, &packet);
