@@ -40,7 +40,7 @@ private:
     // load from db
     vector<int> *sliceIdxToName = NULL;
     int *streamList = NULL;
-    int streamIdx = 0;
+    int streamIdx = -1;
 
     int init()
     {
@@ -253,114 +253,66 @@ protected:
         zmq_msg_t msg;
         AVPacket packet, keyPacket;
         av_init_packet(&keyPacket);
-        while (true) {
-            auto start = chrono::system_clock::now();
-            auto end = start;
-            string name = to_string(chrono::duration_cast<chrono::seconds>(start.time_since_epoch()).count()) + ".mp4";
-            name = urlOut + "/" + name;
-            ret = avformat_alloc_output_context2(&pAVFormatRemux, NULL, "mp4", name.c_str());
-            if (ret < 0) {
-                spdlog::error("evmlmotion {} {} failed create avformatcontext for output: %s", sn, iid, av_err2str(ret));
-                exit(1);
+        while(true) {
+            if(checkStop() == true) {
+                bStopSig = true;
+                break;
             }
-
-            for(int i =0; i < pAVFormatInput->nb_streams; i++) {
-                if(streamList[i] != -1) {
-                    out_stream = avformat_new_stream(pAVFormatRemux, NULL);
-                    if (!out_stream) {
-                        spdlog::error("evmlmotion {} {} failed allocating output stream 1", sn, iid);
-                        ret = AVERROR_UNKNOWN;
-                    }
-                    ret = avcodec_parameters_copy(out_stream->codecpar, pAVFormatInput->streams[i]->codecpar);
-                    if (ret < 0) {
-                        spdlog::error("evmlmotion {} {} failed to copy codec parameters", sn, iid);
-                    }
-                }
+            // business logic
+            int ret =zmq_msg_init(&msg);
+            ret = zmq_recvmsg(pSub, &msg, 0);
+            if(ret < 0) {
+                spdlog::error("failed to recv zmq msg: {}", zmq_strerror(ret));
+                continue;
             }
-
-            //av_dump_format(pAVFormatRemux, 0, name.c_str(), 1);
-            if (!(pAVFormatRemux->oformat->flags & AVFMT_NOFILE)) {
-                ret = avio_open2(&pAVFormatRemux->pb, name.c_str(), AVIO_FLAG_WRITE, NULL, &pOptsRemux);
+            ret = AVPacketSerializer::decode((char*)zmq_msg_data(&msg), ret, &packet);
+            {
                 if (ret < 0) {
-                    spdlog::error("evmlmotion {} {} could not open output file {}", sn, iid, name);
-                }
-            }
-
-            ret = avformat_write_header(pAVFormatRemux, &pOptsRemux);
-            if (ret < 0) {
-                spdlog::error("evmlmotion {} {} error occurred when opening output file", sn, iid);
-            }
-
-            if(keyPacket.buf != NULL) {
-                ret = av_interleaved_write_frame(pAVFormatRemux, &packet);
-                if (ret < 0) {
-                    spdlog::error("evmlmotion {} {} failed write last key packet", sn, iid);
-                }
-            }
-
-            spdlog::info("writing new slice {}", name.c_str());
-            while(chrono::duration_cast<chrono::seconds>(end-start).count() < minutes * 60) {
-                if(checkStop() == true) {
-                    bStopSig = true;
-                    break;
-                }
-                // business logic
-                int ret =zmq_msg_init(&msg);
-                ret = zmq_recvmsg(pSub, &msg, 0);
-                if(ret < 0) {
-                    spdlog::error("failed to recv zmq msg: {}", zmq_strerror(ret));
+                    spdlog::error("packet decode failed: {:d}", ret);
                     continue;
                 }
-                ret = AVPacketSerializer::decode((char*)zmq_msg_data(&msg), ret, &packet);
-                {
-                    if (ret < 0) {
-                        spdlog::error("packet decode failed: {:d}", ret);
-                        continue;
-                    }
-                }
+            }
 
-                zmq_msg_close(&msg);
+            zmq_msg_close(&msg);
 
-                AVStream *in_stream =NULL, *out_stream = NULL;
-                in_stream  = pAVFormatInput->streams[packet.stream_index];
-                packet.stream_index = streamList[packet.stream_index];
-                out_stream = pAVFormatRemux->streams[packet.stream_index];
-                //calc pts
-                {
-                    if(pktCnt % 1024 == 0) {
-                        spdlog::info("seq: {}, pts: {}, dts: {}, dur: {}, idx: {}", pktCnt, packet.pts, packet.dts, packet.duration, packet.stream_index);
-                    }
-                    pktCnt++;
-                    
-                    packet.pts = av_rescale_q_rnd(packet.pts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
-                    packet.dts = av_rescale_q_rnd(packet.dts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
-                    packet.duration = av_rescale_q(packet.duration, in_stream->time_base, out_stream->time_base);
-                    packet.pos = -1;
+            AVStream *in_stream =NULL, *out_stream = NULL;
+            in_stream  = pAVFormatInput->streams[packet.stream_index];
+            packet.stream_index = streamList[packet.stream_index];
+            out_stream = pAVFormatRemux->streams[packet.stream_index];
+            //calc pts
+            {
+                if(pktCnt % 1024 == 0) {
+                    spdlog::info("seq: {}, pts: {}, dts: {}, dur: {}, idx: {}", pktCnt, packet.pts, packet.dts, packet.duration, packet.stream_index);
                 }
-                // TODO:
-                if(packet.data[5] == 0x65 ) {
-                    spdlog::info("pktCnt: {}, keyframe: {:0x}", pktCnt, packet.data[5]);
-                    if(keyPacket.buf != NULL) {
-                        av_packet_unref(&keyPacket);
-                        av_packet_ref(&keyPacket, &packet);
-                    }
+                pktCnt++;
+                
+                packet.pts = av_rescale_q_rnd(packet.pts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
+                packet.dts = av_rescale_q_rnd(packet.dts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
+                packet.duration = av_rescale_q(packet.duration, in_stream->time_base, out_stream->time_base);
+                packet.pos = -1;
+            }
+            // TODO:
+            if(packet.data[5] == 0x65 ) {
+                spdlog::info("pktCnt: {}, keyframe: {:0x}", pktCnt, packet.data[5]);
+                if(keyPacket.buf != NULL) {
+                    av_packet_unref(&keyPacket);
+                    av_packet_ref(&keyPacket, &packet);
                 }
+            }
 
-                ret = av_interleaved_write_frame(pAVFormatRemux, &packet);
-                av_packet_unref(&packet);
-                if (ret < 0) {
-                    spdlog::error("error muxing packet");
-                }
-
-                end = chrono::system_clock::now();
-            }// while in slice
-            // write tail
-            av_write_trailer(pAVFormatRemux);
-            // close output context
-            if (pAVFormatRemux && !(pAVFormatRemux->oformat->flags & AVFMT_NOFILE))
-                avio_closep(&pAVFormatRemux->pb);
-            avformat_free_context(pAVFormatRemux);
-        }
+            ret = av_interleaved_write_frame(pAVFormatRemux, &packet);
+            av_packet_unref(&packet);
+            if (ret < 0) {
+                spdlog::error("error muxing packet");
+            }
+        }// while in slice
+        // write tail
+        av_write_trailer(pAVFormatRemux);
+        // close output context
+        if (pAVFormatRemux && !(pAVFormatRemux->oformat->flags & AVFMT_NOFILE))
+            avio_closep(&pAVFormatRemux->pb);
+        avformat_free_context(pAVFormatRemux);
+    
     }
 public:
     EvMLMotion() {
