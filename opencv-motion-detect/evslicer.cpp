@@ -25,7 +25,7 @@ class EvSlicer: public TinyThread {
 private:
 #define URLOUT_DEFAULT "slices"
 #define NUM_DAYS_DEFAULT 2
-#define MINUTES_PER_SLICE_DEFAULT 10
+#define MINUTES_PER_SLICE_DEFAULT 1
 // 2 days, 10 minutes per record
 #define NUM_SLICES_DEFAULT (24 * NUM_DAYS_DEFAULT * 60 / MINUTES_PER_SLICE_DEFAULT)
     void *pSubCtx = NULL, *pReqCtx = NULL; // for packets relay
@@ -38,7 +38,6 @@ private:
     AVDictionary *pOptsRemux = NULL;
     // load from db
     vector<int> *sliceIdxToName = NULL;
-    AVCodecParameters ** pArrAVCodecParameters = NULL;
     int *streamList = NULL;
 
     int init()
@@ -212,7 +211,7 @@ private:
             }
         }
 
-        // ret = avformat_alloc_output_context2(&pAVFormatRemux, NULL, "mp4", urlOut.c_str());
+        // ret = avformat_alloc_output_context2(&pAVFormatRemux, NULL, "mpg", urlOut.c_str());
         // if (ret < 0) {
         //     spdlog::error("evslicer {} {} failed create avformatcontext for output: %s", sn, iid, av_err2str(ret));
         //     exit(1);
@@ -223,22 +222,23 @@ private:
         int streamIdx = 0;
         // find all video & audio streams for remuxing
         streamList = (int *)av_mallocz_array(pAVFormatInput->nb_streams, sizeof(*streamList));
-        pArrAVCodecParameters = (AVCodecParameters**)malloc(pAVFormatInput->nb_streams * sizeof(AVCodecParameters*));
         for (int i = 0; i < pAVFormatInput->nb_streams; i++) {
             AVStream *out_stream;
             AVStream *in_stream = pAVFormatInput->streams[i];
             AVCodecParameters *in_codecpar = in_stream->codecpar;
             if (in_codecpar->codec_type != AVMEDIA_TYPE_AUDIO &&
                     in_codecpar->codec_type != AVMEDIA_TYPE_VIDEO) {
-                pArrAVCodecParameters[i] = NULL;
                 streamList[i] = -1;
                 continue;
             }
-            pArrAVCodecParameters[i] = in_codecpar;
             streamList[i] = streamIdx++;
         }
 
-        // av_dict_set(&pOptsRemux, "movflags", "frag_keyframe+empty_moov+default_base_moof", 0);
+        for(int i = 0; i < pAVFormatInput->nb_streams; i++ ) {
+            spdlog::info("streamList[{:d}]: {:d}", i, streamList[i]);
+        }
+
+        //av_dict_set(&pOptsRemux, "movflags", "frag_keyframe+empty_moov+default_base_moof", 0);
         return ret;
     }
 protected:
@@ -263,14 +263,13 @@ protected:
             }
 
             for(int i =0; i < pAVFormatInput->nb_streams; i++) {
-                if(pArrAVCodecParameters[i] != NULL) {
+                if(streamList[i] != -1) {
                     out_stream = avformat_new_stream(pAVFormatRemux, NULL);
                     if (!out_stream) {
                         spdlog::error("evslicer {} {} failed allocating output stream 1", sn, iid);
                         ret = AVERROR_UNKNOWN;
-
                     }
-                    ret = avcodec_parameters_copy(out_stream->codecpar, pArrAVCodecParameters[i]);
+                    ret = avcodec_parameters_copy(out_stream->codecpar, pAVFormatInput->streams[i]->codecpar);
                     spdlog::info("evslicer {} {}  copied codepar", sn, iid);
                     if (ret < 0) {
                         spdlog::error("evslicer {} {} failed to copy codec parameters", sn, iid);
@@ -278,22 +277,20 @@ protected:
                 }
             }
 
-            av_dump_format(pAVFormatRemux, 0, name.c_str(), 1);
+            //av_dump_format(pAVFormatRemux, 0, name.c_str(), 1);
             if (!(pAVFormatRemux->oformat->flags & AVFMT_NOFILE)) {
-                spdlog::error("evslicer {} {} failed allocating output stream 2", sn,iid);
                 ret = avio_open2(&pAVFormatRemux->pb, name.c_str(), AVIO_FLAG_WRITE, NULL, &pOptsRemux);
                 if (ret < 0) {
                     spdlog::error("evslicer {} {} could not open output file {}", sn, iid, name);
-                    exit(1);
                 }
             }
 
             ret = avformat_write_header(pAVFormatRemux, &pOptsRemux);
             if (ret < 0) {
-                    spdlog::error("evslicer {} {} error occurred when opening output file", sn, iid);
+                spdlog::error("evslicer {} {} error occurred when opening output file", sn, iid);
             }
 
-            while(chrono::duration_cast<chrono::seconds>(end-start).count() * 60 < minutes * 60) {
+            while(chrono::duration_cast<chrono::seconds>(end-start).count() < minutes * 60) {
                 if(checkStop() == true) {
                     bStopSig = true;
                     break;
@@ -312,17 +309,24 @@ protected:
                         continue;
                     }
                 }
+
                 zmq_msg_close(&msg);
-                // relay
+                if(packet.flags & AV_PKT_FLAG_KEY) {
+                    spdlog::info("pktCnt: {}, keyframe", pktCnt);
+                }
+                
+
                 AVStream *in_stream =NULL, *out_stream = NULL;
                 in_stream  = pAVFormatInput->streams[packet.stream_index];
                 packet.stream_index = streamList[packet.stream_index];
                 out_stream = pAVFormatRemux->streams[packet.stream_index];
-
                 //calc pts
                 {
-                    spdlog::debug("seq: {:lld}, pts: {:lld}, dts: {:lld}, dur: {:lld}, idx: {:d}", pktCnt, packet.pts, packet.dts, packet.duration, packet.stream_index);
-                    /* copy packet */
+                    if(pktCnt % 1024 == 0) {
+                        spdlog::info("seq: {}, pts: {}, dts: {}, dur: {}, idx: {}", pktCnt, packet.pts, packet.dts, packet.duration, packet.stream_index);
+                    }
+                    pktCnt++;
+                    
                     packet.pts = av_rescale_q_rnd(packet.pts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
                     packet.dts = av_rescale_q_rnd(packet.dts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
                     packet.duration = av_rescale_q(packet.duration, in_stream->time_base, out_stream->time_base);
@@ -334,7 +338,6 @@ protected:
                 if (ret < 0) {
                     spdlog::error("error muxing packet");
                 }
-                spdlog::debug("packet stream indx: {:d}", packet.stream_index);
 
                 end = chrono::steady_clock::now();
             }// while in slice
@@ -357,7 +360,7 @@ public:
 
 int main(int argc, const char *argv[])
 {
-    spdlog::set_level(spdlog::level::debug);
+    spdlog::set_level(spdlog::level::info);
     EvSlicer es;
     es.join();
     return 0;
