@@ -22,24 +22,19 @@ namespace fs = std::filesystem;
 
 using namespace std;
 
+#define URLOUT_DEFAULT "frames"
+
 class EvMLMotion: public TinyThread {
 private:
-#define URLOUT_DEFAULT "slices"
-#define NUM_DAYS_DEFAULT 2
-#define MINUTES_PER_SLICE_DEFAULT 1
-// 2 days, 10 minutes per record
-#define NUM_SLICES_DEFAULT (24 * NUM_DAYS_DEFAULT * 60 / MINUTES_PER_SLICE_DEFAULT)
     void *pSubCtx = NULL, *pReqCtx = NULL; // for packets relay
     void *pSub = NULL, *pReq = NULL;
     string urlOut, urlPub, urlRep, sn;
-    int iid, days, minutes, numSlices, lastSliceId;
+    int iid;
     bool enablePush = false;
-    AVFormatContext *pAVFormatRemux = NULL;
     AVFormatContext *pAVFormatInput = NULL;
+    AVCodecContext *pCodecCtx = NULL;
     AVDictionary *pOptsRemux = NULL;
     // load from db
-    vector<int> *sliceIdxToName = NULL;
-    int *streamList = NULL;
     int streamIdx = -1;
 
     int init()
@@ -64,48 +59,30 @@ private:
                 urlRep = string("tcp://") + addr + ":" + to_string(data["port-rep"]);
                 spdlog::info("evmlmotion {} {} will connect to {} for sub, {} for req", sn, iid, urlPub, urlRep);
 
-                data = jr["data"]["services"]["evmlmotion"];
+                data = jr["data"]["services"]["evml"];
                 for(auto &j: data) {
-                    if(j["sn"] == sn && iid == j["iid"] && j["enabled"] != 0) {
-                        try{
-                            j.at("path").get_to(urlOut);
-                        }catch(exception &e) {
-                            spdlog::warn("evmlmotion {} {} exception get params for storing slices: {}, using default: {}", sn, iid, e.what(), URLOUT_DEFAULT);
-                            urlOut = URLOUT_DEFAULT;
-                        }
-                        try{
-                            j.at("days").get_to(days);
-                        }catch(exception &e) {
-                            spdlog::warn("evmlmotion {} {} exception get params for storing slices: {}, using default: {}", sn, iid, e.what(), NUM_DAYS_DEFAULT);
-                            days = NUM_DAYS_DEFAULT;
-                        }
-                        try{
-                            j.at("minutes").get_to(minutes);
-                        }catch(exception &e) {
-                            spdlog::warn("evmlmotion {} {} exception get params for storing slices: {}, using default: {}", sn, iid, e.what(),MINUTES_PER_SLICE_DEFAULT);
-                            minutes = MINUTES_PER_SLICE_DEFAULT;
-                        }
-
-                        numSlices = 24 * days * 60 /minutes;
-                        // alloc memory
-                        sliceIdxToName = new vector<int>(numSlices);
-                        // load db
-                        // DB::exec(NULL, "select id, ts, last from slices;", DB::get_slices, sliceIdxToName);
-                        spdlog::info("mkdir -p {}", urlOut);
-                        ret = system((string("mkdir -p ") + urlOut).c_str());
-                        if(ret == -1) {
-                            spdlog::error("failed to create {} dir", urlOut);
-                            return -1;
-                        }
-
-                        break;
+                    try {
+                        j.at("path").get_to(urlOut);
                     }
+                    catch(exception &e) {
+                        spdlog::warn("evslicer {} {} exception get params for storing slices: {}, using default: {}", sn, iid, e.what(), URLOUT_DEFAULT);
+                        urlOut = URLOUT_DEFAULT;
+                    }
+                    ret = system(("mkdir -p " +urlOut).c_str());
+                    if(ret == -1) {
+                        spdlog::error("failed mkdir {}", urlOut);
+                        return -1;
+                    }
+                    //TODO
+                    break;
                 }
+
             }
             catch(exception &e) {
                 bcnt = true;
                 spdlog::error("evmlmotion {} {} exception in EvPuller.init {:s},  retrying...", sn, iid, e.what());
             }
+
             if(bcnt || urlOut.empty()) {
                 // TODO: waiting for command
                 spdlog::warn("evmlmotion {} {} waiting for command & retrying", sn, iid);
@@ -213,34 +190,100 @@ private:
             }
         }
 
-        // ret = avformat_alloc_output_context2(&pAVFormatRemux, NULL, "mpg", urlOut.c_str());
-        // if (ret < 0) {
-        //     spdlog::error("evmlmotion {} {} failed create avformatcontext for output: %s", sn, iid, av_err2str(ret));
-        //     exit(1);
-        // }
-
-        //spdlog::info("evmlmotion {} {} numStreams: {:d}", sn, iid, pAVFormatInput->nb_streams);
-
-        // find all video & audio streams for remuxing
-        streamList = (int *)av_mallocz_array(pAVFormatInput->nb_streams, sizeof(*streamList));
+        //  find video
         for (int i = 0; i < pAVFormatInput->nb_streams; i++) {
             AVStream *out_stream;
             AVStream *in_stream = pAVFormatInput->streams[i];
             AVCodecParameters *in_codecpar = in_stream->codecpar;
             if (in_codecpar->codec_type != AVMEDIA_TYPE_VIDEO) {
-                streamList[i] = -1;
                 continue;
             }
-            streamList[i] = streamIdx++;
+            streamIdx = i;
             break;
         }
 
-        for(int i = 0; i < pAVFormatInput->nb_streams; i++ ) {
-            spdlog::info("streamList[{:d}]: {:d}", i, streamList[i]);
+        if(streamIdx == -1) {
+            spdlog::error("no video stream found.");
+            return -1;
         }
 
-        //av_dict_set(&pOptsRemux, "movflags", "frag_keyframe+empty_moov+default_base_moof", 0);
+        AVCodec *pCodec = avcodec_find_decoder(pAVFormatInput->streams[streamIdx]->codecpar->codec_id);
+        if (pCodec==NULL) {
+            spdlog::error("ERROR unsupported codec!");
+            return -1;
+        }
+
+        pCodecCtx = avcodec_alloc_context3(pCodec);
+        if (!pCodecCtx) {
+            spdlog::error("failed to allocated memory for AVCodecContext");
+            return -1;
+        }
+        if (avcodec_parameters_to_context(pCodecCtx, pAVFormatInput->streams[streamIdx]->codecpar) < 0) {
+            spdlog::error("failed to copy codec params to codec context");
+            return -1;
+        }
+
+        if (avcodec_open2(pCodecCtx, pCodec, NULL) < 0) {
+            spdlog::error("failed to open codec through avcodec_open2");
+            return -1;
+        }
+
         return ret;
+    }
+
+    int decode_packet(AVPacket *pPacket, AVCodecContext *pCodecContext, AVFrame *pFrame)
+    {
+        int response = avcodec_send_packet(pCodecContext, pPacket);
+        if (response < 0) {
+            spdlog::error("Error while sending a packet to the decoder: {}", av_err2str(response));
+            return response;
+        }
+
+        while (response >= 0) {
+            // Return decoded output data (into a frame) from a decoder
+            // https://ffmpeg.org/doxygen/trunk/group__lavc__decoding.html#ga11e6542c4e66d3028668788a1a74217c
+            response = avcodec_receive_frame(pCodecContext, pFrame);
+            if (response == AVERROR(EAGAIN) || response == AVERROR_EOF) {
+                break;
+            }
+
+            if (response < 0) {
+                spdlog::error("Error while receiving a frame from the decoder: {}", av_err2str(response));
+                return response;
+            } else {
+                spdlog::info(
+                    "Frame {} (type={}, size={} bytes) pts {} key_frame {} [DTS {}]",
+                    pCodecContext->frame_number,
+                    av_get_picture_type_char(pFrame->pict_type),
+                    pFrame->pkt_size,
+                    pFrame->pts,
+                    pFrame->key_frame,
+                    pFrame->coded_picture_number
+                );
+
+    
+                // save a grayscale frame into a .pgm file
+                string name = urlOut + "/"+ to_string(chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count()) + ".pgm";
+                save_gray_frame(pFrame->data[0], pFrame->linesize[0], pFrame->width, pFrame->height, const_cast<char*>( name.c_str()));
+            }
+            spdlog::debug("ch4");
+        }
+        return 0;
+    }
+
+    void save_gray_frame(unsigned char *buf, int wrap, int xsize, int ysize, char *filename)
+    {
+        FILE *f;
+        int i;
+        f = fopen(filename,"w");
+        // writing the minimal required header for a pgm file format
+        // portable graymap format -> https://en.wikipedia.org/wiki/Netpbm_format#PGM_example
+        fprintf(f, "P5\n%d %d\n%d\n", xsize, ysize, 255);
+
+        // writing line by line
+        for (i = 0; i < ysize; i++)
+            fwrite(buf + i * wrap, 1, xsize, f);
+        fclose(f);
     }
 protected:
     void run()
@@ -249,15 +292,20 @@ protected:
         int ret = 0;
         int idx = 0;
         int pktCnt = 0;
-        AVStream * out_stream = NULL;
         zmq_msg_t msg;
-        AVPacket packet, keyPacket;
-        av_init_packet(&keyPacket);
+        AVPacket packet;
+
+        AVFrame *pFrame = av_frame_alloc();
+        if (!pFrame) {
+            spdlog::error("failed to allocated memory for AVFrame");
+            exit(1);
+        }
         while(true) {
             if(checkStop() == true) {
                 bStopSig = true;
                 break;
             }
+
             // business logic
             int ret =zmq_msg_init(&msg);
             ret = zmq_recvmsg(pSub, &msg, 0);
@@ -272,50 +320,28 @@ protected:
                     continue;
                 }
             }
-
             zmq_msg_close(&msg);
-
-            AVStream *in_stream =NULL, *out_stream = NULL;
-            in_stream  = pAVFormatInput->streams[packet.stream_index];
-            packet.stream_index = streamList[packet.stream_index];
-            out_stream = pAVFormatRemux->streams[packet.stream_index];
-            //calc pts
-            {
-                if(pktCnt % 1024 == 0) {
-                    spdlog::info("seq: {}, pts: {}, dts: {}, dur: {}, idx: {}", pktCnt, packet.pts, packet.dts, packet.duration, packet.stream_index);
-                }
-                pktCnt++;
-                
-                packet.pts = av_rescale_q_rnd(packet.pts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
-                packet.dts = av_rescale_q_rnd(packet.dts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
-                packet.duration = av_rescale_q(packet.duration, in_stream->time_base, out_stream->time_base);
-                packet.pos = -1;
+            if(pktCnt % 1024 == 0) {
+                spdlog::info("seq: {}, pts: {}, dts: {}, dur: {}, idx: {}", pktCnt, packet.pts, packet.dts, packet.duration, packet.stream_index);
             }
-            // TODO:
-            if(packet.data[5] == 0x65 ) {
-                spdlog::info("pktCnt: {}, keyframe: {:0x}", pktCnt, packet.data[5]);
-                if(keyPacket.buf != NULL) {
-                    av_packet_unref(&keyPacket);
-                    av_packet_ref(&keyPacket, &packet);
-                }
+            pktCnt++;
+
+            if (packet.stream_index == streamIdx) {
+                spdlog::debug("AVPacket.pts {}", packet.pts);
+                ret = decode_packet(&packet, pCodecCtx, pFrame);
+                if (ret < 0)
+                    break;
             }
 
-            ret = av_interleaved_write_frame(pAVFormatRemux, &packet);
             av_packet_unref(&packet);
             if (ret < 0) {
                 spdlog::error("error muxing packet");
             }
-        }// while in slice
-        // write tail
-        av_write_trailer(pAVFormatRemux);
-        // close output context
-        if (pAVFormatRemux && !(pAVFormatRemux->oformat->flags & AVFMT_NOFILE))
-            avio_closep(&pAVFormatRemux->pb);
-        avformat_free_context(pAVFormatRemux);
-    
+        }
     }
 public:
-    EvMLMotion() {
+    EvMLMotion()
+    {
         init();
         setupMq();
         setupStream();
@@ -325,7 +351,7 @@ public:
 
 int main(int argc, const char *argv[])
 {
-    spdlog::set_level(spdlog::level::info);
+    spdlog::set_level(spdlog::level::debug);
     EvMLMotion es;
     es.join();
     return 0;
