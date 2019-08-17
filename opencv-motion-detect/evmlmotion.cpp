@@ -14,6 +14,7 @@
 namespace fs = std::filesystem;
 #endif
 #include <cstdlib>
+#include <opencv2/opencv.hpp>
 #include "vendor/include/zmq.h"
 #include "tinythread.hpp"
 #include "common.hpp"
@@ -39,6 +40,7 @@ private:
     // load from db
     vector<int> *sliceIdxToName = NULL;
     int *streamList = NULL;
+    int streamIdx = 0;
 
     int init()
     {
@@ -219,19 +221,18 @@ private:
 
         //spdlog::info("evmlmotion {} {} numStreams: {:d}", sn, iid, pAVFormatInput->nb_streams);
 
-        int streamIdx = 0;
         // find all video & audio streams for remuxing
         streamList = (int *)av_mallocz_array(pAVFormatInput->nb_streams, sizeof(*streamList));
         for (int i = 0; i < pAVFormatInput->nb_streams; i++) {
             AVStream *out_stream;
             AVStream *in_stream = pAVFormatInput->streams[i];
             AVCodecParameters *in_codecpar = in_stream->codecpar;
-            if (in_codecpar->codec_type != AVMEDIA_TYPE_AUDIO &&
-                    in_codecpar->codec_type != AVMEDIA_TYPE_VIDEO) {
+            if (in_codecpar->codec_type != AVMEDIA_TYPE_VIDEO) {
                 streamList[i] = -1;
                 continue;
             }
             streamList[i] = streamIdx++;
+            break;
         }
 
         for(int i = 0; i < pAVFormatInput->nb_streams; i++ ) {
