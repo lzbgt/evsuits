@@ -253,9 +253,9 @@ protected:
         AVPacket packet, keyPacket;
         av_init_packet(&keyPacket);
         while (true) {
-            auto start = chrono::steady_clock::now();
+            auto start = chrono::system_clock::now();
             auto end = start;
-            string name = to_string(start.time_since_epoch().count()) + ".mp4";
+            string name = to_string(chrono::duration_cast<chrono::seconds>(start.time_since_epoch()).count()) + ".mp4";
             name = urlOut + "/" + name;
             ret = avformat_alloc_output_context2(&pAVFormatRemux, NULL, "mp4", name.c_str());
             if (ret < 0) {
@@ -351,7 +351,7 @@ protected:
                     spdlog::error("error muxing packet");
                 }
 
-                end = chrono::steady_clock::now();
+                end = chrono::system_clock::now();
             }// while in slice
             // write tail
             av_write_trailer(pAVFormatRemux);
