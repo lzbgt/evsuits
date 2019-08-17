@@ -68,19 +68,19 @@ private:
                         try{
                             j.at("path").get_to(urlOut);
                         }catch(exception &e) {
-                            spdlog::warn("evslicer {} {} exception get params for storing slices: {}", sn, iid, e.what());
+                            spdlog::warn("evslicer {} {} exception get params for storing slices: {}, using default: {}", sn, iid, e.what(), URLOUT_DEFAULT);
                             urlOut = URLOUT_DEFAULT;
                         }
                         try{
                             j.at("days").get_to(days);
                         }catch(exception &e) {
-                            spdlog::warn("evslicer {} {} exception get params for storing slices: {}", sn, iid, e.what());
+                            spdlog::warn("evslicer {} {} exception get params for storing slices: {}, using default: {}", sn, iid, e.what(), NUM_DAYS_DEFAULT);
                             days = NUM_DAYS_DEFAULT;
                         }
                         try{
                             j.at("minutes").get_to(minutes);
                         }catch(exception &e) {
-                            spdlog::warn("evslicer {} {} exception get params for storing slices: {}", sn, iid, e.what());
+                            spdlog::warn("evslicer {} {} exception get params for storing slices: {}, using default: {}", sn, iid, e.what(),MINUTES_PER_SLICE_DEFAULT);
                             minutes = MINUTES_PER_SLICE_DEFAULT;
                         }
 
@@ -250,7 +250,8 @@ protected:
         int pktCnt = 0;
         AVStream * out_stream = NULL;
         zmq_msg_t msg;
-        AVPacket packet;
+        AVPacket packet, keyPacket;
+        av_init_packet(&keyPacket);
         while (true) {
             auto start = chrono::steady_clock::now();
             auto end = start;
@@ -270,7 +271,6 @@ protected:
                         ret = AVERROR_UNKNOWN;
                     }
                     ret = avcodec_parameters_copy(out_stream->codecpar, pAVFormatInput->streams[i]->codecpar);
-                    spdlog::info("evslicer {} {}  copied codepar", sn, iid);
                     if (ret < 0) {
                         spdlog::error("evslicer {} {} failed to copy codec parameters", sn, iid);
                     }
@@ -290,6 +290,14 @@ protected:
                 spdlog::error("evslicer {} {} error occurred when opening output file", sn, iid);
             }
 
+            if(keyPacket.buf != NULL) {
+                ret = av_interleaved_write_frame(pAVFormatRemux, &packet);
+                if (ret < 0) {
+                    spdlog::error("evslicer {} {} failed write last key packet", sn, iid);
+                }
+            }
+
+            spdlog::info("writing new slice {}", name.c_str());
             while(chrono::duration_cast<chrono::seconds>(end-start).count() < minutes * 60) {
                 if(checkStop() == true) {
                     bStopSig = true;
@@ -311,10 +319,6 @@ protected:
                 }
 
                 zmq_msg_close(&msg);
-                if(packet.flags & AV_PKT_FLAG_KEY) {
-                    spdlog::info("pktCnt: {}, keyframe", pktCnt);
-                }
-                
 
                 AVStream *in_stream =NULL, *out_stream = NULL;
                 in_stream  = pAVFormatInput->streams[packet.stream_index];
@@ -331,6 +335,13 @@ protected:
                     packet.dts = av_rescale_q_rnd(packet.dts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
                     packet.duration = av_rescale_q(packet.duration, in_stream->time_base, out_stream->time_base);
                     packet.pos = -1;
+                }
+                if((packet.data[5] & 0x1F) == 0x05) {
+                    spdlog::debug("pktCnt: {}, keyframe: {:0x}", pktCnt, packet.data[5]);
+                    if(keyPacket.buf != NULL) {
+                        av_packet_unref(&keyPacket);
+                        av_packet_ref(&keyPacket, &packet);
+                    }
                 }
 
                 ret = av_interleaved_write_frame(pAVFormatRemux, &packet);
