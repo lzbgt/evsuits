@@ -260,7 +260,7 @@ private:
                 return response;
             }
             else {
-                spdlog::info(
+                spdlog::debug(
                     "Frame {} (type={}, size={} bytes) pts {} key_frame {} [DTS {}]",
                     pCodecContext->frame_number,
                     av_get_picture_type_char(pFrame->pict_type),
@@ -269,16 +269,12 @@ private:
                     pFrame->key_frame,
                     pFrame->coded_picture_number
                 );
-
-
-                // save a grayscale frame into a .pgm file
                 // string name = urlOut + "/"+ to_string(chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count()) + ".pgm";
                 if(detect) {
                     detectMotion(pCodecContext->pix_fmt,pFrame);
                 }
 
             }
-            spdlog::debug("ch4");
         }
         return 0;
     }
