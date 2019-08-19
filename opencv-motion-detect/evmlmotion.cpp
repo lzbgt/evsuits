@@ -23,6 +23,12 @@ namespace fs = std::filesystem;
 using namespace std;
 
 #define URLOUT_DEFAULT "frames"
+#define DEBUG
+
+#ifdef DEBUG
+// TODO: remove me
+cv::Mat matShow1, matShow2, matShow3;
+#endif
 
 class EvMLMotion: public TinyThread {
 private:
@@ -248,7 +254,8 @@ private:
             if (response < 0) {
                 spdlog::error("Error while receiving a frame from the decoder: {}", av_err2str(response));
                 return response;
-            } else {
+            }
+            else {
                 spdlog::info(
                     "Frame {} (type={}, size={} bytes) pts {} key_frame {} [DTS {}]",
                     pCodecContext->frame_number,
@@ -259,19 +266,71 @@ private:
                     pFrame->coded_picture_number
                 );
 
-    
+
                 // save a grayscale frame into a .pgm file
                 // string name = urlOut + "/"+ to_string(chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count()) + ".pgm";
-                detectMotion(pFrame);
+                detectMotion(pCodecContext->pix_fmt,pFrame);
             }
             spdlog::debug("ch4");
         }
         return 0;
     }
 
-    void detectMotion(AVFrame *pFrame)
+    void detectMotion(AVPixelFormat format,AVFrame *pFrame)
     {
+        static bool first = true;
+        static cv::Mat avg;
+        static vector<vector<cv::Point> > cnts;
+        cv::Mat origin, gray, thresh;
+        avcvhelpers::frame2mat(format, pFrame, origin);
+        cv::resize(origin, gray, cv::Size(500,500));
+        cv::cvtColor(gray, thresh, cv::COLOR_BGR2GRAY);
+        cv::GaussianBlur(thresh, gray, cv::Size(21, 21), cv::THRESH_BINARY);
+        if(first) {
+            // avg = cv::Mat::zeros(gray.size(), CV_32FC3);
+            avg = gray.clone();
+            first = false;
+            return;
+        }
+#ifdef DEBUG
+        matShow3 = gray.clone();
+#endif
 
+        // TODO: AVG
+        // cv::accumulateWeighted(gray, avg, 0.5);
+        cv::absdiff(gray, avg, thresh);
+
+#ifdef DEBUG
+        avg = gray.clone();
+#endif
+
+        // TODO:
+        cv::threshold(thresh, gray, 25, 255, cv::THRESH_BINARY);
+        cv::dilate(gray, thresh, cv::Mat(), cv::Point(-1,-1), 2);
+
+#ifdef DEBUG
+        matShow1 = thresh.clone();
+#endif
+
+        cv::findContours(thresh, cnts, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+        bool hasEvent = false;
+        for(int i =0; i < cnts.size(); i++) {
+            // TODO:
+            if(cv::contourArea(cnts[i]) < 200) {
+                // nothing
+            }
+            else {
+                hasEvent = true;
+#ifdef DEBUG
+                cv::putText(origin, "motion detected", cv::Point(10, 20), cv::FONT_HERSHEY_SIMPLEX, 0.75, cv::Scalar(0,0,255),2);
+#endif
+                break;
+            }
+        }
+
+#ifdef DEBUG
+        matShow2 = origin;
+#endif
     }
 protected:
     void run()
@@ -316,17 +375,20 @@ protected:
 
             if (packet.stream_index == streamIdx) {
                 spdlog::debug("AVPacket.pts {}", packet.pts);
+                // TODO
+                if(pktCnt < 18*5) {
+                    continue;
+                }
                 ret = decode_packet(&packet, pCodecCtx, pFrame);
-                if (ret < 0)
-                    break;
             }
 
-            av_frame_free(&pFrame);
             av_packet_unref(&packet);
             if (ret < 0) {
                 spdlog::error("error muxing packet");
             }
         }
+
+        av_frame_free(&pFrame);
     }
 public:
     EvMLMotion()
@@ -342,6 +404,25 @@ int main(int argc, const char *argv[])
 {
     spdlog::set_level(spdlog::level::debug);
     EvMLMotion es;
+
+#ifdef DEBUG
+    // TODO: remove
+    cv::namedWindow( "Display window", cv::WINDOW_AUTOSIZE );
+
+    es.detach();
+    // TODO: remove me
+    this_thread::sleep_for(chrono::seconds(5));
+    while(true) {
+        cv::imshow("evmlmotion1", matShow1);
+        cv::imshow("evmlmotion2", matShow2);
+        cv::imshow("evmlmotion3", matShow3);
+        if(cv::waitKey(200) == 27) {
+            break;
+        }
+
+    }
+#else
     es.join();
+#endif
     return 0;
 }

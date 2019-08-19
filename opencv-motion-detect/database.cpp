@@ -203,11 +203,11 @@ namespace DB {
 
 // ipc: id, user, passwd, addr, status
 //   ex: 1, admin, FWBWTU, 172.31.0.51, 0
-// evmgr: iid integer, cid <id_of_ipc>, addr text, status 
-// evpuller: iid, cid <id_of_ipc>, addr, pub, rep, status;
-// evpusher: iid, pid <id_of_puller>, urldest, enabled, status;
-// evslicer: iid, pid, urldest, days, miniutes, status;
-// evml:     iid, pid, cls, enabled, status
+// evmgr: iid integer, sn, cid <id_of_ipc>, addr text, status 
+// evpuller: iid, sn, cid <id_of_ipc>, addr, pub, rep, status;
+// evpusher: iid, sn, pid <id_of_puller>, urldest, enabled, status;
+// evslicer: iid, sn, pid, urldest, days, miniutes, status;
+// evml: iid, sn, pid, cls, enabled, status
 //
 //
 
