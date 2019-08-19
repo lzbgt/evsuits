@@ -24,8 +24,8 @@ using namespace std;
 class EvSlicer: public TinyThread {
 private:
 #define URLOUT_DEFAULT "slices"
-#define NUM_DAYS_DEFAULT 2
-#define MINUTES_PER_SLICE_DEFAULT 1
+#define NUM_DAYS_DEFAULT 5
+#define MINUTES_PER_SLICE_DEFAULT 2
 // 2 days, 10 minutes per record
 #define NUM_SLICES_DEFAULT (24 * NUM_DAYS_DEFAULT * 60 / MINUTES_PER_SLICE_DEFAULT)
     void *pSubCtx = NULL, *pReqCtx = NULL; // for packets relay
@@ -211,14 +211,6 @@ private:
             }
         }
 
-        // ret = avformat_alloc_output_context2(&pAVFormatRemux, NULL, "mpg", urlOut.c_str());
-        // if (ret < 0) {
-        //     spdlog::error("evslicer {} {} failed create avformatcontext for output: %s", sn, iid, av_err2str(ret));
-        //     exit(1);
-        // }
-
-        //spdlog::info("evslicer {} {} numStreams: {:d}", sn, iid, pAVFormatInput->nb_streams);
-
         int streamIdx = 0;
         // find all video & audio streams for remuxing
         streamList = (int *)av_mallocz_array(pAVFormatInput->nb_streams, sizeof(*streamList));
@@ -263,6 +255,7 @@ protected:
                 exit(1);
             }
 
+            // build output avformatctx
             for(int i =0; i < pAVFormatInput->nb_streams; i++) {
                 if(streamList[i] != -1) {
                     out_stream = avformat_new_stream(pAVFormatRemux, NULL);
@@ -290,6 +283,7 @@ protected:
                 spdlog::error("evslicer {} {} error occurred when opening output file", sn, iid);
             }
 
+            // TODO:
             if(keyPacket.buf != NULL) {
                 ret = av_interleaved_write_frame(pAVFormatRemux, &packet);
                 if (ret < 0) {
