@@ -64,7 +64,7 @@ private:
     DetectParam detPara = {25,200,-1,10,3,30};
     EventState evtState = EventState::NONE;
     chrono::system_clock::time_point evtStartTm, evtStartTmLast;
-    queue<json> *evtQueue;
+    queue<string> *evtQueue;
 
     // load from db
     int streamIdx = -1;
@@ -378,7 +378,7 @@ private:
                         p["type"] = "start";
                         p["ts"] = chrono::duration_cast<chrono::seconds>(evtStartTmLast.time_since_epoch()).count();
                         //p["frame"] = origin.clone();
-                        evtQueue->push(p);
+                        evtQueue->push(p.dump());
                     }
                 }else{
                     if(dura > detPara.pre){
@@ -408,7 +408,7 @@ private:
                         json p;
                         p["type"] = "end";
                         p["ts"] = chrono::duration_cast<chrono::seconds>(evtStartTmLast.time_since_epoch()).count() + (int)(detPara.post/2);
-                        evtQueue->push(p);
+                        evtQueue->push(p.dump());
                     }
                 }else{
                     spdlog::info("state: POST->IN");
@@ -482,7 +482,7 @@ protected:
     }
 public:
     EvMLMotion() = delete;
-    EvMLMotion(queue<json> *queue)
+    EvMLMotion(queue<string> *queue)
     {
         evtQueue = queue;
         init();
@@ -495,7 +495,7 @@ public:
 int main(int argc, const char *argv[])
 {
     spdlog::set_level(spdlog::level::info);
-    queue<json> evtQueue;
+    queue<string> evtQueue;
     EvMLMotion es(&evtQueue);
     es.detach();
 
@@ -512,19 +512,26 @@ int main(int argc, const char *argv[])
         cv::imshow("evmlmotion1", matShow1);
         cv::imshow("evmlmotion2", matShow2);
         cv::imshow("evmlmotion3", matShow3);
+        if(evtQueue.size() > 0) {
+            string p = evtQueue.front();
+            spdlog::info("event: {}", p);
+            evtQueue.pop();
+        }
         if(cv::waitKey(200) == 27) {
             break;
         }
     }
-#endif
+#else
     while(true) {
         if(evtQueue.size() > 0) {
-            json p = evtQueue.front();
+            string p = evtQueue.front();
+            spdlog::info("event: {}", p);
             evtQueue.pop();
-            spdlog::info("event: {}", p.dump());
         }else{
             this_thread::sleep_for(chrono::duration(chrono::seconds(2)));
         }
     }
+
+#endif
     return 0;
 }
