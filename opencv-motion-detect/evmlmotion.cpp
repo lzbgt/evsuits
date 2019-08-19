@@ -240,8 +240,6 @@ private:
         }
 
         while (response >= 0) {
-            // Return decoded output data (into a frame) from a decoder
-            // https://ffmpeg.org/doxygen/trunk/group__lavc__decoding.html#ga11e6542c4e66d3028668788a1a74217c
             response = avcodec_receive_frame(pCodecContext, pFrame);
             if (response == AVERROR(EAGAIN) || response == AVERROR_EOF) {
                 break;
@@ -276,8 +274,6 @@ private:
         FILE *f;
         int i;
         f = fopen(filename,"w");
-        // writing the minimal required header for a pgm file format
-        // portable graymap format -> https://en.wikipedia.org/wiki/Netpbm_format#PGM_example
         fprintf(f, "P5\n%d %d\n%d\n", xsize, ysize, 255);
 
         // writing line by line
