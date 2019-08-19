@@ -23,12 +23,16 @@ namespace fs = std::filesystem;
 using namespace std;
 
 #define URLOUT_DEFAULT "frames"
+#define NUM_PKT_IGNORE 18*2
+
 #define DEBUG
 
 #ifdef DEBUG
 // TODO: remove me
 cv::Mat matShow1, matShow2, matShow3;
 #endif
+
+bool gFirst = true;
 
 class EvMLMotion: public TinyThread {
 private:
@@ -237,7 +241,7 @@ private:
         return ret;
     }
 
-    int decode_packet(AVPacket *pPacket, AVCodecContext *pCodecContext, AVFrame *pFrame)
+    int decode_packet(bool detect, AVPacket *pPacket, AVCodecContext *pCodecContext, AVFrame *pFrame)
     {
         int response = avcodec_send_packet(pCodecContext, pPacket);
         if (response < 0) {
@@ -269,7 +273,10 @@ private:
 
                 // save a grayscale frame into a .pgm file
                 // string name = urlOut + "/"+ to_string(chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count()) + ".pgm";
-                detectMotion(pCodecContext->pix_fmt,pFrame);
+                if(detect) {
+                    detectMotion(pCodecContext->pix_fmt,pFrame);
+                }
+
             }
             spdlog::debug("ch4");
         }
@@ -338,7 +345,7 @@ protected:
         bool bStopSig = false;
         int ret = 0;
         int idx = 0;
-        int pktCnt = 0;
+        uint64_t pktCnt = 0;
         zmq_msg_t msg;
         AVPacket packet;
 
@@ -375,11 +382,14 @@ protected:
 
             if (packet.stream_index == streamIdx) {
                 spdlog::debug("AVPacket.pts {}", packet.pts);
-                // TODO
-                if(pktCnt < 18*5) {
-                    continue;
+                if(pktCnt < NUM_PKT_IGNORE && gFirst) {
+                    ret = decode_packet(false, &packet, pCodecCtx, pFrame);
                 }
-                ret = decode_packet(&packet, pCodecCtx, pFrame);
+                else {
+                    gFirst = false;
+                    ret = decode_packet(true, &packet, pCodecCtx, pFrame);
+                }
+
             }
 
             av_packet_unref(&packet);
@@ -402,7 +412,7 @@ public:
 
 int main(int argc, const char *argv[])
 {
-    spdlog::set_level(spdlog::level::debug);
+    spdlog::set_level(spdlog::level::info);
     EvMLMotion es;
 
 #ifdef DEBUG
@@ -411,15 +421,17 @@ int main(int argc, const char *argv[])
 
     es.detach();
     // TODO: remove me
-    this_thread::sleep_for(chrono::seconds(5));
     while(true) {
+        if(gFirst) {
+            this_thread::sleep_for(chrono::seconds(5));
+            continue;
+        }
         cv::imshow("evmlmotion1", matShow1);
         cv::imshow("evmlmotion2", matShow2);
         cv::imshow("evmlmotion3", matShow3);
         if(cv::waitKey(200) == 27) {
             break;
         }
-
     }
 #else
     es.join();
