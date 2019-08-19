@@ -14,10 +14,10 @@
 namespace fs = std::filesystem;
 #endif
 #include <cstdlib>
-#include <opencv2/opencv.hpp>
 #include "vendor/include/zmq.h"
 #include "tinythread.hpp"
 #include "common.hpp"
+#include "avcvhelpers.hpp"
 #include "database.h"
 
 using namespace std;
@@ -261,25 +261,17 @@ private:
 
     
                 // save a grayscale frame into a .pgm file
-                string name = urlOut + "/"+ to_string(chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count()) + ".pgm";
-                save_gray_frame(pFrame->data[0], pFrame->linesize[0], pFrame->width, pFrame->height, const_cast<char*>( name.c_str()));
+                // string name = urlOut + "/"+ to_string(chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count()) + ".pgm";
+                detectMotion(pFrame);
             }
             spdlog::debug("ch4");
         }
         return 0;
     }
 
-    void save_gray_frame(unsigned char *buf, int wrap, int xsize, int ysize, char *filename)
+    void detectMotion(AVFrame *pFrame)
     {
-        FILE *f;
-        int i;
-        f = fopen(filename,"w");
-        fprintf(f, "P5\n%d %d\n%d\n", xsize, ysize, 255);
 
-        // writing line by line
-        for (i = 0; i < ysize; i++)
-            fwrite(buf + i * wrap, 1, xsize, f);
-        fclose(f);
     }
 protected:
     void run()
@@ -329,6 +321,7 @@ protected:
                     break;
             }
 
+            av_frame_free(&pFrame);
             av_packet_unref(&packet);
             if (ret < 0) {
                 spdlog::error("error muxing packet");

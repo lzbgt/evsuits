@@ -4,7 +4,7 @@ CPPFLAGS = -g -Wall -std=gnu++1z
 CFLAGS = -g -Wall
 
 LIBOPENCV = `pkg-config opencv --cflags --libs`
-LIBFFMPEG = `pkg-config libavformat libavutil libavcodec --cflags --libs`
+LIBFFMPEG = `pkg-config libavformat libavutil libavcodec libswscale --cflags --libs`
 LIBS=-lpthread
 SQLITE=vendor/sqlite/sqlite3.c
 HEADERS=-Iinc
@@ -33,7 +33,7 @@ evpusher: evpusher.cpp inc/common.hpp inc/tinythread.hpp database.cpp sqlite3.o
 evslicer: evslicer.cpp inc/common.hpp inc/tinythread.hpp database.cpp sqlite3.o
 	$(CPP) $(CPPFLAGS) -o evslicer evslicer.cpp database.cpp sqlite3.o $(LIBFFMPEG) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
 
-evmlmotion: evmlmotion.cpp inc/common.hpp inc/tinythread.hpp database.cpp sqlite3.o
+evmlmotion: evmlmotion.cpp inc/common.hpp inc/avcvhelpers.hpp inc/tinythread.hpp database.cpp sqlite3.o
 	$(CPP) $(CPPFLAGS) -o evmlmotion evmlmotion.cpp database.cpp sqlite3.o $(LIBFFMPEG) $(HEADERS) $(LIBOPENCV) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc`  $(LIBS)
 
 rtspr: rtsp-relay.cpp

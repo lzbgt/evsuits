@@ -193,7 +193,7 @@ namespace DB {
 }
 */
 
-// tables: device, evmgr, evpuller, evpusher, evslice, evml, ipc, log
+// tables: info, evmgr, evpuller, evpusher, evslice, evml, ipc, log
 // schemas:
 // info: id, cls text, value text, version, update datetime
 //   ex: 1, sn,  ILS112233, NULL, NULL
@@ -203,11 +203,11 @@ namespace DB {
 
 // ipc: id, user, passwd, addr, status
 //   ex: 1, admin, FWBWTU, 172.31.0.51, 0
-// evmgr:
-// evpuller: iid, cid, addr, pub, rep, status;
-// evpusher: iid, cid, addr, urldest, enabled, status;
-// evslicer: iid, cid, addr, urldest, days, miniutes, status;
-// evml:     iid, cid, type, addr, enabled, status
+// evmgr: iid integer, cid <id_of_ipc>, addr text, status 
+// evpuller: iid, cid <id_of_ipc>, addr, pub, rep, status;
+// evpusher: iid, pid <id_of_puller>, urldest, enabled, status;
+// evslicer: iid, pid, urldest, days, miniutes, status;
+// evml:     iid, pid, cls, enabled, status
 //
 //
 
