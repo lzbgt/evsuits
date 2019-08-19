@@ -34,6 +34,15 @@ cv::Mat matShow1, matShow2, matShow3;
 
 bool gFirst = true;
 
+struct DetectParam {
+    int thre;
+    int area;
+    int fpsIn;
+    int fpsProc;
+    int pre;
+    int post;
+};
+
 class EvMLMotion: public TinyThread {
 private:
     void *pSubCtx = NULL, *pReqCtx = NULL; // for packets relay
@@ -44,6 +53,7 @@ private:
     AVFormatContext *pAVFormatInput = NULL;
     AVCodecContext *pCodecCtx = NULL;
     AVDictionary *pOptsRemux = NULL;
+    DetectParam detPara = {25,200,-1,10,3,30};
     // load from db
     int streamIdx = -1;
 
@@ -86,7 +96,6 @@ private:
                     //TODO
                     break;
                 }
-
             }
             catch(exception &e) {
                 bcnt = true;
@@ -216,8 +225,10 @@ private:
             spdlog::error("no video stream found.");
             return -1;
         }
-
-        AVCodec *pCodec = avcodec_find_decoder(pAVFormatInput->streams[streamIdx]->codecpar->codec_id);
+        
+        AVStream *pStream = pAVFormatInput->streams[streamIdx];
+        detPara.fpsIn = (int)(pStream->r_frame_rate.num/pStream->r_frame_rate.den);
+        AVCodec *pCodec = avcodec_find_decoder(pStream->codecpar->codec_id);
         if (pCodec==NULL) {
             spdlog::error("ERROR unsupported codec!");
             return -1;
@@ -228,7 +239,7 @@ private:
             spdlog::error("failed to allocated memory for AVCodecContext");
             return -1;
         }
-        if (avcodec_parameters_to_context(pCodecCtx, pAVFormatInput->streams[streamIdx]->codecpar) < 0) {
+        if (avcodec_parameters_to_context(pCodecCtx, pStream->codecpar) < 0) {
             spdlog::error("failed to copy codec params to codec context");
             return -1;
         }
@@ -333,7 +344,7 @@ private:
         matShow2 = origin;
 #endif
         // business logic for event
-        
+
     }
 protected:
     void run()
@@ -351,6 +362,7 @@ protected:
             exit(1);
         }
         while(true) {
+            auto start = chrono::system_clock::now();
             if(checkStop() == true) {
                 bStopSig = true;
                 break;
