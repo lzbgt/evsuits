@@ -273,7 +273,6 @@ private:
                 if(detect) {
                     detectMotion(pCodecContext->pix_fmt,pFrame);
                 }
-
             }
         }
         return 0;
@@ -329,11 +328,12 @@ private:
 #endif
                 break;
             }
-        }
-
+        } //end for
 #ifdef DEBUG
         matShow2 = origin;
 #endif
+        // business logic for event
+        
     }
 protected:
     void run()
