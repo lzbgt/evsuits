@@ -8,6 +8,7 @@
 #include <chrono>
 #include <future>
 #include <vector>
+#include <queue>
 
 #ifdef OS_LINUX
 #include <filesystem>
@@ -43,6 +44,13 @@ struct DetectParam {
     int post;
 };
 
+enum EventState {
+    NONE,
+    PRE,
+    IN,
+    POST
+};
+
 class EvMLMotion: public TinyThread {
 private:
     void *pSubCtx = NULL, *pReqCtx = NULL; // for packets relay
@@ -54,6 +62,10 @@ private:
     AVCodecContext *pCodecCtx = NULL;
     AVDictionary *pOptsRemux = NULL;
     DetectParam detPara = {25,200,-1,10,3,30};
+    EventState evtState = EventState::NONE;
+    chrono::system_clock::time_point evtStartTm, evtStartTmLast;
+    queue<json> *evtQueue;
+
     // load from db
     int streamIdx = -1;
 
@@ -225,7 +237,7 @@ private:
             spdlog::error("no video stream found.");
             return -1;
         }
-        
+
         AVStream *pStream = pAVFormatInput->streams[streamIdx];
         detPara.fpsIn = (int)(pStream->r_frame_rate.num/pStream->r_frame_rate.den);
         AVCodec *pCodec = avcodec_find_decoder(pStream->codecpar->codec_id);
@@ -308,7 +320,7 @@ private:
 #ifdef DEBUG
         matShow3 = gray.clone();
 #endif
-
+        evtStartTm = chrono::system_clock::now();
         // TODO: AVG
         // cv::accumulateWeighted(gray, avg, 0.5);
         cv::absdiff(gray, avg, thresh);
@@ -344,7 +356,68 @@ private:
         matShow2 = origin;
 #endif
         // business logic for event
-
+        auto dura = chrono::duration_cast<chrono::seconds>(evtStartTm - evtStartTmLast).count();
+        switch(evtState) {
+            case NONE: {
+                if(hasEvent) {
+                    evtState = PRE;
+                    spdlog::info("state: NONE->PRE");
+                    evtStartTmLast = evtStartTm;
+                }
+                break;
+            }
+            case PRE: {
+                if(hasEvent) {
+                    if(dura > detPara.pre) {
+                        spdlog::info("state: PRE->PRE");
+                        evtState = PRE;
+                    }else{
+                        evtState = IN;
+                        json p;
+                        spdlog::info("state: PRE->IN");
+                        p["type"] = "start";
+                        p["ts"] = chrono::duration_cast<chrono::seconds>(evtStartTmLast.time_since_epoch()).count();
+                        //p["frame"] = origin.clone();
+                        evtQueue->push(p);
+                    }
+                }else{
+                    if(dura > detPara.pre){
+                        evtState= NONE;
+                        spdlog::info("state: PRE->NONE");
+                    }
+                }
+                break;
+            }
+            case IN: {
+                if(!hasEvent){
+                    if(dura > (int)(detPara.post/2)){
+                        evtState = POST;
+                        spdlog::info("state: IN->POST");
+                    }
+                }else{
+                    evtStartTmLast = evtStartTm;
+                    spdlog::info("state: IN->IN");
+                }
+                break;
+            }
+            case POST: {
+                if(!hasEvent) {
+                    if(dura > detPara.post) {
+                        spdlog::info("state: POST->NONE");
+                        evtState = NONE;
+                        json p;
+                        p["type"] = "end";
+                        p["ts"] = chrono::duration_cast<chrono::seconds>(evtStartTmLast.time_since_epoch()).count() + (int)(detPara.post/2);
+                        evtQueue->push(p);
+                    }
+                }else{
+                    spdlog::info("state: POST->IN");
+                    evtState=IN;
+                    evtStartTmLast = evtStartTm;
+                }
+                break;
+            }
+        }
     }
 protected:
     void run()
@@ -397,7 +470,6 @@ protected:
                     gFirst = false;
                     ret = decode_packet(true, &packet, pCodecCtx, pFrame);
                 }
-
             }
 
             av_packet_unref(&packet);
@@ -409,8 +481,10 @@ protected:
         av_frame_free(&pFrame);
     }
 public:
-    EvMLMotion()
+    EvMLMotion() = delete;
+    EvMLMotion(queue<json> *queue)
     {
+        evtQueue = queue;
         init();
         setupMq();
         setupStream();
@@ -421,13 +495,14 @@ public:
 int main(int argc, const char *argv[])
 {
     spdlog::set_level(spdlog::level::info);
-    EvMLMotion es;
+    queue<json> evtQueue;
+    EvMLMotion es(&evtQueue);
+    es.detach();
 
 #ifdef DEBUG
     // TODO: remove
     cv::namedWindow( "Display window", cv::WINDOW_AUTOSIZE );
 
-    es.detach();
     // TODO: remove me
     while(true) {
         if(gFirst) {
@@ -441,8 +516,15 @@ int main(int argc, const char *argv[])
             break;
         }
     }
-#else
-    es.join();
 #endif
+    while(true) {
+        if(evtQueue.size() > 0) {
+            json p = evtQueue.front();
+            evtQueue.pop();
+            spdlog::info("event: {}", p.dump());
+        }else{
+            this_thread::sleep_for(chrono::duration(chrono::seconds(2)));
+        }
+    }
     return 0;
 }
