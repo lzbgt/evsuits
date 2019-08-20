@@ -2,10 +2,11 @@
     "time":0,
     "code":0,
     "data":{
-       "evmgr":{
+       "ILSEVMGR1":{
           "sn":"ILSEVMGR1",
           "addr":"172.31.0.76",
           "addr-cloud":"172.31.0.76",
+          "proto": "zmq",
           "port-cloud":5556,
           "port-router":5550,
           "status":1,

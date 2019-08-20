@@ -292,10 +292,11 @@ namespace cloudutils
    "time":0,
    "code":0,
    "data":{
-      "evmgr":{
+      "ILSEVMGR1":{
          "sn":"ILSEVMGR1",
          "addr":"172.31.0.76",
          "addr-cloud":"172.31.0.76",
+         "proto":"zmq",
          "port-cloud":5556,
          "port-router":5550,
          "status":1,
@@ -312,7 +313,7 @@ namespace cloudutils
                         "sn":"ILSEVPULLER1",
                         "addr":"172.31.0.76",
                         "iid":1,
-                        "port-pub":"5556",
+                        "port-pub":5556,
                         "status":1
                      }
                   ],
@@ -355,7 +356,7 @@ namespace cloudutils
    }
 }
 */
-const char *config = "{\"time\":0,\"code\":0,\"data\":{\"evmgr\":{\"sn\":\"ILSEVMGR1\",\"addr\":\"172.31.0.76\",\"addr-cloud\":\"172.31.0.76\",\"port-cloud\":5556,\"port-router\":5550,\"status\":1,\"ipcs\":[{\"addr\":\"172.31.0.51\",\"proto\":\"rtsp\",\"user\":\"admin\",\"password\":\"FWBWTU\",\"status\":1,\"modules\":{\"evpuller\":[{\"sn\":\"ILSEVPULLER1\",\"addr\":\"172.31.0.76\",\"iid\":1,\"port-pub\":\"5556\",\"status\":1}],\"evpusher\":[{\"sn\":\"ILSEVPUSHER1\",\"iid\":1,\"proto\":\"rtsp\",\"addrDest\":\"40.73.41.176\",\"portDest\":554,\"user\":\"\",\"password\":\"\",\"token\":\"\",\"enabled\":1,\"status\":1}],\"evslicer\":[{\"sn\":\"ILSEVSLICER1\",\"iid\":1,\"path\":\"slices\",\"enabled\":1,\"status\":1}],\"evml\":[{\"type\":\"motion\",\"sn\":\"ILSEVMLMOTION1\",\"iid\":1,\"enabled\":1,\"status\":1}]}}]}}}";
+const char *config = "{\"time\":0,\"code\":0,\"data\":{\"ILSEVMGR1\":{\"sn\":\"ILSEVMGR1\",\"addr\":\"172.31.0.76\",\"addr-cloud\":\"172.31.0.76\",\"proto\":\"zmq\",\"port-cloud\":5556,\"port-router\":5550,\"status\":1,\"ipcs\":[{\"addr\":\"172.31.0.51\",\"proto\":\"rtsp\",\"user\":\"admin\",\"password\":\"FWBWTU\",\"status\":1,\"modules\":{\"evpuller\":[{\"sn\":\"ILSEVPULLER1\",\"addr\":\"172.31.0.76\",\"iid\":1,\"port-pub\":5556,\"status\":1}],\"evpusher\":[{\"sn\":\"ILSEVPUSHER1\",\"iid\":1,\"proto\":\"rtsp\",\"addrDest\":\"40.73.41.176\",\"portDest\":554,\"user\":\"\",\"password\":\"\",\"token\":\"\",\"enabled\":1,\"status\":1}],\"evslicer\":[{\"sn\":\"ILSEVSLICER1\",\"iid\":1,\"path\":\"slices\",\"enabled\":1,\"status\":1}],\"evml\":[{\"type\":\"motion\",\"sn\":\"ILSEVMLMOTION1\",\"iid\":1,\"enabled\":1,\"status\":1}]}}]}}}";
 
 json registry(const char *sn, const char *scn, int iid)
 {
