@@ -105,7 +105,6 @@ private:
         iid = 2;
         while(!inited) {
             // TODO: read db to get sn
-
             // req config
             json jr = cloudutils::registry(sn.c_str(), "evpuller", iid);
             bool bcnt = false;
