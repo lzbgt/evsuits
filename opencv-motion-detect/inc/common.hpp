@@ -289,57 +289,73 @@ namespace cloudutils
  * */
 /*
 {
-   "code":0,
    "time":0,
+   "code":0,
    "data":{
-      "ipc":"172.31.0.51",
-      "username":"admin",
-      "password":"FWBWTU",
-      "services":{
-         "evmgr":{
-            "sn":"ILS-1",
-            "addr":"0.0.0.0",
-            "port-pub":5556,
-            "port-rep":5557,
-            "iid":1
-         },
-         "evpuller":{
-            "sn":"ILS-2",
-            "addr":"0.0.0.0",
-            "port-pub":5556,
-            "port-rep":5557,
-            "iid":2
-         },
-         "evpusher":[
+      "evmgr":{
+         "sn":"ILSEVMGR1",
+         "addr":"172.31.0.76",
+         "addr-cloud":"172.31.0.76",
+         "port-cloud":5556,
+         "port-router":5550,
+         "status":1,
+         "ipcs":[
             {
-               "sn":"ILS-2",
-               "addr":"localhost",
-               "iid":2,
-               "enabled":1,
-               "urlDest":"rtsp://40.73.41.176:554/test1"
-            }
-         ],
-         "evslicer":[
-            {
-               "sn":"ILS-3",
-               "addr":"192.168.0.25",
-               "iid":3,
-               "path": "/var/lib/slices/"
-            }
-         ],
-         "evml":[
-            {
-               "feature":"motion",
-               "sn":"ILS-4",
-               "addr":"192.168.0.26",
-               "iid":4
+               "addr":"172.31.0.51",
+               "proto":"rtsp",
+               "user":"admin",
+               "password":"FWBWTU",
+               "status":1,
+               "modules":{
+                  "evpuller":[
+                     {
+                        "sn":"ILSEVPULLER1",
+                        "addr":"172.31.0.76",
+                        "iid":1,
+                        "port-pub":"5556",
+                        "status":1
+                     }
+                  ],
+                  "evpusher":[
+                     {
+                        "sn":"ILSEVPUSHER1",
+                        "iid":1,
+                        "proto":"rtsp",
+                        "addrDest":"40.73.41.176",
+                        "portDest":554,
+                        "user":"",
+                        "password":"",
+                        "token":"",
+                        "enabled":1,
+                        "status":1
+                     }
+                  ],
+                  "evslicer":[
+                     {
+                        "sn":"ILSEVSLICER1",
+                        "iid":1,
+                        "path":"slices",
+                        "enabled":1,
+                        "status":1
+                     }
+                  ],
+                  "evml":[
+                     {
+                        "type":"motion",
+                        "sn":"ILSEVMLMOTION1",
+                        "iid":1,
+                        "enabled":1,
+                        "status":1
+                     }
+                  ]
+               }
             }
          ]
       }
    }
 }
 */
-const char *config = "{\"code\":0,\"time\":0,\"data\":{\"ipc\":\"172.31.0.51\",\"username\":\"admin\",\"password\":\"FWBWTU\",\"services\":{\"evmgr\":{\"sn\":\"ILS-1\",\"addr\":\"0.0.0.0\",\"port-pub\":5556,\"port-rep\":5557,\"iid\":1},\"evpuller\":{\"sn\":\"ILS-2\",\"addr\":\"0.0.0.0\",\"port-pub\":5556,\"port-rep\":5557,\"iid\":2},\"evpusher\":[{\"sn\":\"ILS-2\",\"addr\":\"localhost\",\"iid\":2,\"enabled\":1,\"urlDest\":\"rtsp://40.73.41.176:554/test1\"}],\"evslicer\":[{\"sn\":\"ILS-3\",\"addr\":\"192.168.0.25\",\"iid\":3}],\"evml\":[{\"feature\":\"motion\",\"sn\":\"ILS-4\",\"addr\":\"192.168.0.26\",\"iid\":4}]}}}";
+const char *config = "{\"time\":0,\"code\":0,\"data\":{\"evmgr\":{\"sn\":\"ILSEVMGR1\",\"addr\":\"172.31.0.76\",\"addr-cloud\":\"172.31.0.76\",\"port-cloud\":5556,\"port-router\":5550,\"status\":1,\"ipcs\":[{\"addr\":\"172.31.0.51\",\"proto\":\"rtsp\",\"user\":\"admin\",\"password\":\"FWBWTU\",\"status\":1,\"modules\":{\"evpuller\":[{\"sn\":\"ILSEVPULLER1\",\"addr\":\"172.31.0.76\",\"iid\":1,\"port-pub\":\"5556\",\"status\":1}],\"evpusher\":[{\"sn\":\"ILSEVPUSHER1\",\"iid\":1,\"proto\":\"rtsp\",\"addrDest\":\"40.73.41.176\",\"portDest\":554,\"user\":\"\",\"password\":\"\",\"token\":\"\",\"enabled\":1,\"status\":1}],\"evslicer\":[{\"sn\":\"ILSEVSLICER1\",\"iid\":1,\"path\":\"slices\",\"enabled\":1,\"status\":1}],\"evml\":[{\"type\":\"motion\",\"sn\":\"ILSEVMLMOTION1\",\"iid\":1,\"enabled\":1,\"status\":1}]}}]}}}";
 
 json registry(const char *sn, const char *scn, int iid)
 {
