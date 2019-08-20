@@ -24,9 +24,27 @@ using namespace std;
  *  functions:
  *  app update
  *  control msg
- *  
  * 
  **/
+
+class EvMgr:public TinyThread {
+    private:
+    void *pRouterCtx = NULL;
+    void *pRouter = NULL;
+
+    void init(){
+        
+    }
+    protected:
+    public:
+    EvMgr() {
+        init();
+    }
+    ~EvMgr(){
+
+    }
+
+};
 
 
 int main(int argc, const char *argv[]){

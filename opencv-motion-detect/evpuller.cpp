@@ -21,7 +21,7 @@ namespace fs = std::filesystem;
 using namespace std;
 
 class RepSrv: public TinyThread {
-    private:
+private:
     string sn;
     int iid;
     string urlRep;
@@ -40,7 +40,8 @@ class RepSrv: public TinyThread {
         }
         return 0;
     }
-    int setupMq(){
+    int setupMq()
+    {
         int ret = 0;
         pRepCtx = zmq_ctx_new();
 
@@ -54,14 +55,15 @@ class RepSrv: public TinyThread {
         return 0;
     }
 
-    public:
+public:
     RepSrv() = delete;
     RepSrv(RepSrv &) = delete;
     RepSrv(RepSrv&&) = delete;
-    RepSrv(string sn, int iid, string urlRep, const char* formatBytes, int len):sn(sn), iid(iid),urlRep(urlRep), bytes(formatBytes), len(len){};
-    ~RepSrv(){};
-    protected:
-    void run(){
+    RepSrv(string sn, int iid, string urlRep, const char* formatBytes, int len):sn(sn), iid(iid),urlRep(urlRep), bytes(formatBytes), len(len) {};
+    ~RepSrv() {};
+protected:
+    void run()
+    {
         bool bStopSig = false;
         if(setupMq() != 0) {
             exit(1);
@@ -79,8 +81,8 @@ class RepSrv: public TinyThread {
             int ret =zmq_msg_init(&msg1);
             ret = zmq_recvmsg(pRep, &msg1, 0);
             if(ret < 0) {
-               spdlog::error("failed to recv zmq msg: {}", zmq_strerror(ret));
-               continue; 
+                spdlog::error("failed to recv zmq msg: {}", zmq_strerror(ret));
+                continue;
             }
             zmq_msg_close(&msg1);
             spdlog::info("evpuller {} {} reveived req", sn, iid);
@@ -96,6 +98,69 @@ private:
     AVFormatContext *pAVFormatInput = NULL;
     string urlIn, urlPub, urlRep, sn;
     int *streamList = NULL, numStreams = 0, iid;
+    int init()
+    {
+        bool inited = false;
+        sn = "ILS-2";
+        iid = 2;
+        while(!inited) {
+            // TODO: read db to get sn
+
+            // req config
+            json jr = cloudutils::registry(sn.c_str(), "evpuller", iid);
+            bool bcnt = false;
+            try {
+                spdlog::info("registry: {:s}", jr.dump());
+                string ipc = jr["data"]["ipc"];
+                string user = jr["data"]["username"];
+                string passwd = jr["data"]["password"];
+                json data = jr["data"]["services"]["evpuller"];
+                urlIn = "rtsp://" + user + ":" + passwd + "@"+ ipc + "/h264/ch1/sub/av_stream";
+                urlPub = string("tcp://") +data["addr"].get<string>() + ":" + to_string(data["port-pub"]);
+                urlRep = string("tcp://") +data["addr"].get<string>() + ":" + to_string(data["port-rep"]);
+                spdlog::info("evpuller {} {} bind on {} for pub, {} for rep", sn, iid, urlPub, urlRep);
+            }
+            catch(exception &e) {
+                bcnt = true;
+                spdlog::error("exception in EvPuller.init {:s}, retrying... ", e.what());
+            }
+            if(bcnt) {
+                this_thread::sleep_for(chrono::milliseconds(1000*20));
+                continue;
+            }
+
+            inited = true;
+        }
+
+        return 0;
+    }
+
+    int setupMq()
+    {
+        teardownMq();
+        pPubCtx = zmq_ctx_new();
+        pPub = zmq_socket(pPubCtx, ZMQ_PUB);
+
+        int rc = zmq_bind(pPub, urlPub.c_str());
+        if(rc != 0) {
+            spdlog::error("failed create pub: {}, {}", zmq_strerror(rc), urlPub.c_str());
+            this_thread::sleep_for(chrono::milliseconds(1000*20));
+            return -1;
+        }
+
+        return 0;
+    }
+
+    int teardownMq()
+    {
+        if(pPub != NULL) {
+            zmq_close(pPub);
+        }
+        if(pPubCtx != NULL) {
+            zmq_ctx_destroy(pPubCtx);
+        }
+        return 0;
+    }
 
 public:
     EvPuller()
@@ -179,7 +244,7 @@ protected:
             if(pktCnt % 1024 == 0) {
                 spdlog::info("pktCnt: {:d}", pktCnt);
             }
-            
+
             pktCnt++;
             packet.stream_index = streamList[packet.stream_index];
 
@@ -207,71 +272,6 @@ protected:
             std::cout << "Task End" << std::endl;
         }
     }
-
-private:
-    int init()
-    {
-        bool inited = false;
-        sn = "ILS-2";
-        iid = 2;
-        while(!inited) {
-            // TODO: read db to get sn
-            
-            // req config
-            json jr = cloudutils::registry(sn.c_str(), "evpuller", iid);
-            bool bcnt = false;
-            try {
-                spdlog::info("registry: {:s}", jr.dump());
-                string ipc = jr["data"]["ipc"];
-                string user = jr["data"]["username"];
-                string passwd = jr["data"]["password"];
-                json data = jr["data"]["services"]["evpuller"];
-                urlIn = "rtsp://" + user + ":" + passwd + "@"+ ipc + "/h264/ch1/sub/av_stream";
-                urlPub = string("tcp://") +data["addr"].get<string>() + ":" + to_string(data["port-pub"]);
-                urlRep = string("tcp://") +data["addr"].get<string>() + ":" + to_string(data["port-rep"]);
-                spdlog::info("evpuller {} {} bind on {} for pub, {} for rep", sn, iid, urlPub, urlRep);
-            }
-            catch(exception &e) {
-                bcnt = true;
-                spdlog::error("exception in EvPuller.init {:s}, retrying... ", e.what());
-            }
-            if(bcnt) {
-                this_thread::sleep_for(chrono::milliseconds(1000*20));
-                continue;
-            }
-
-            inited = true;
-        }
-
-        return 0;
-    }
-
-    int setupMq()
-    {
-        teardownMq();
-        pPubCtx = zmq_ctx_new();
-        pPub = zmq_socket(pPubCtx, ZMQ_PUB);
-
-        int rc = zmq_bind(pPub, urlPub.c_str());
-        if(rc != 0) {
-            spdlog::error("failed create pub: {}, {}", zmq_strerror(rc), urlPub.c_str());
-            this_thread::sleep_for(chrono::milliseconds(1000*20));
-            return -1;
-        }
-
-        return 0;
-    }
-
-    int teardownMq()
-    {
-        if(pPub != NULL) {
-            zmq_close(pPub);
-        }
-        if(pPubCtx != NULL) {
-            zmq_ctx_destroy(pPubCtx);
-        }
-        return 0;
-    }
 };
 
 
@@ -285,4 +285,3 @@ int main(int argc, char **argv)
     evp.join();
     return 0;
 }
-
