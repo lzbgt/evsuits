@@ -500,10 +500,7 @@ int main(int argc, const char *argv[])
     es.detach();
 
 #ifdef DEBUG
-    // TODO: remove
     cv::namedWindow( "Display window", cv::WINDOW_AUTOSIZE );
-
-    // TODO: remove me
     while(true) {
         if(gFirst) {
             this_thread::sleep_for(chrono::seconds(5));
@@ -523,7 +520,7 @@ int main(int argc, const char *argv[])
     }
 #else
     while(true) {
-        if(evtQueue.size() > 0) {
+        if(evtQueue.size() >  0) {
             string p = evtQueue.front();
             spdlog::info("event: {}", p);
             evtQueue.pop();
