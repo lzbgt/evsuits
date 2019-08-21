@@ -48,6 +48,7 @@ protected:
         vector<vector<uint8_t> >body;
         // since identity is auto set
         body.push_back(str2body(mgrSn + ":0:0"));
+        body.push_back(str2body("")); // blank meta
         body.push_back(str2body(MSG_HELLO));
 
         ret = z_send_multiple(pDealer, body);
@@ -58,8 +59,7 @@ protected:
         }
 
         // init response msg
-        vector<uint8_t> msgBody;
-        msgBody.insert(msgBody.end(), (uint8_t *)bytes, (uint8_t *)bytes+len);
+        auto msgBody = data2body(const_cast<char*>(bytes), len);
         while (true) {
             if(checkStop() == true) {
                 bStopSig = true;
@@ -67,38 +67,37 @@ protected:
             }
 
             spdlog::info("evpuller repSrv {} {} waiting for req", devSn, iid);
-            // proto: [sender_id] [body]
+            // proto: [sender_id] [meta] [body]
             auto v = z_recv_multiple(pDealer);
-            if(v.size() == 0) {
+            if(v.size() != 3) {
                 //TODO:
+                spdlog::error("evpuller {} {},  repSrv received invalid message: {}", devSn, iid, v.size());
+                continue;
             }
             cout << endl<<endl;
             for(auto&j:v) {
                     cout <<body2str(j) << "; ";
             }
             cout << endl;
-            if(ret < 0) {
-                spdlog::error("evpuller {} {},  repSrv failed to recv msg: {}, {}", devSn, iid, v.size(), zmq_strerror(zmq_errno()));
-                continue;
-            }else if(v.size() != 2) {
-                spdlog::error("evpuller {} {},  repSrv received invalid msg, size: {}", devSn, iid, v.size());
-                continue;
-            }else{
-                //
+            try{
+                // rep framectx
+                // TODO: verify sender id
+                auto meta = json::parse(body2str(v[1]));
+                if(meta["type"].get<string>() == EV_PACKET_TYPE_AVFORMATCTX) {
+                    vector<vector<uint8_t> > rep;
+                    rep.push_back(v[0]);
+                    rep.push_back(v[1]);
+                    rep.push_back(msgBody);
+                    ret = z_send_multiple(pDealer, rep);
+                    if(ret < 0) {
+                        spdlog::error("evpuller {} {} failed send rep to requester {}: {}", devSn, iid, body2str(v[0]), zmq_strerror(zmq_errno()));
+                    }
+                }else{
+                    spdlog::error("evpuller {} {} unknown meta from {}: {}", devSn, iid, body2str(v[0]), body2str(v[1]));
+                }
+            }catch(exception &e) {
+                spdlog::error("evpuller {} {} excpetion parse request from {}: {}", devSn, iid, body2str(v[0]), body2str(v[1]));
             }
-
-
-            // vector<uint8_t> v;
-
-            // ret =zmq_msg_init(&msg1);
-            // ret = zmq_recvmsg(pDealer, &msg1, 0);
-            // if(ret < 0) {
-            //     spdlog::error("failed to recv zmq msg: {}", zmq_strerror(ret));
-            //     continue;
-            // }
-            // zmq_msg_close(&msg1);
-            // spdlog::info("evpuller {} {} reveived req", devSn, iid);
-            // zmq_send_const(pDealer, zmq_msg_data(&data), len, 0);
         }
     }
 public:

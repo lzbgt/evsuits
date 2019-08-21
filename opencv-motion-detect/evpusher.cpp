@@ -144,6 +144,7 @@ private:
         vector<vector<uint8_t> >body;
         // since identity is auto set
         body.push_back(str2body(mgrSn+":0:0"));
+        body.push_back(str2body("")); // blank meta
         body.push_back(str2body(MSG_HELLO));
 
         ret = z_send_multiple(pDealer, body);
@@ -169,24 +170,40 @@ private:
         spdlog::info("evpusher {} {} send hello to puller: {}", devSn, iid, pullerGid);
         vector<vector<uint8_t> > body;
         body.push_back(str2body(pullerGid));
+        json meta;
+        meta["type"] = EV_PACKET_TYPE_AVFORMATCTX;
+        body.push_back(str2body(meta.dump()));
         body.push_back(str2body(MSG_HELLO));
-        ret = z_send_multiple(pDealer, body);
-        if(ret < 0) {
-            spdlog::error("evpusher {} {}, failed to send hello to puller: {}", devSn, iid, zmq_strerror(zmq_errno()));
-            return ret;
-        }
-        spdlog::info("evpusher {} {} success send hello", devSn, iid);
+        bool gotFormat = false;
+        while(!gotFormat) {
+            ret = z_send_multiple(pDealer, body);
+            if(ret < 0) {
+                spdlog::error("evpusher {} {}, failed to send hello to puller: {}", devSn, iid, zmq_strerror(zmq_errno()));
+                continue;
+            }
+            spdlog::info("evpusher {} {} success send hello", devSn, iid);
 
-        // expect response with avformatctx
-        auto v = z_recv_multiple(pDealer);
-        if(v.size() != 3) {
-            spdlog::error("evpusher {} {}, failed to receive avformatctx: {},{}", devSn, iid, v.size(), zmq_strerror(zmq_errno()));
-            return ret;
+            // expect response with avformatctx
+            auto v = z_recv_multiple(pDealer);
+            if(v.size() != 3) {
+                spdlog::error("evpusher {} {}, received bad size zmq msg for avformatctx: {}", devSn, iid, v.size());
+            }else if(body2str(v[0]) != pullerGid) {
+                spdlog::error("evpusher {} {}, invalid sender for avformatctx: {}, should be: {}", devSn, iid, body2str(v[0]), pullerGid);
+            }else{
+                try{
+                    auto cmd = json::parse(body2str(v[1]));
+                    if(cmd["type"].get<string>() == EV_PACKET_TYPE_AVFORMATCTX){
+                        pAVFormatInput = (AVFormatContext *)malloc(sizeof(AVFormatContext));
+                        AVFormatCtxSerializer::decode((char *)(v[2].data()), v[2].size(), pAVFormatInput);
+                        gotFormat = true;
+                    }    
+                }catch(exception &e) {
+                    spdlog::error("evpusher {} {}, exception in parsing avformatctx packet: {}", devSn, iid, e.what());
+                }
+            }
         }
-
-        pAVFormatInput = (AVFormatContext *)malloc(sizeof(AVFormatContext));
-        AVFormatCtxSerializer::decode((char *)v.back().data(), ret, pAVFormatInput);
         
+        //
         ret = avformat_alloc_output_context2(&pAVFormatRemux, NULL, "rtsp", urlOut.c_str());
         if (ret < 0) {
             spdlog::error("evpusher {} {} failed create avformatcontext for output: %s", devSn, iid, av_err2str(ret));

@@ -94,8 +94,8 @@ private:
         }
         cout <<endl;
 
-        // ID_SENDER, ID_TARGET, MSG
-        if(body.size() != 3) {
+        // ID_SENDER, ID_TARGET, meta ,MSG
+        if(body.size() != 4) {
             spdlog::warn("evmgr {} dropped a message, since its size is incorrect: {}", devSn, body.size());
             return 0;
         }
@@ -107,6 +107,7 @@ private:
             v.push_back(body[1]);
             v.push_back(body[0]);
             v.push_back(body[2]);
+            v.push_back(body[3]);
             ret = z_send_multiple(pRouter, v);
             if(ret < 0) {
                 spdlog::error("evmgr {} failed to send multiple: {}", devSn, zmq_strerror(zmq_errno()));

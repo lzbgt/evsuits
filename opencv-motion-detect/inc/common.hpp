@@ -230,7 +230,7 @@ int decode(char *bytes, int len, AVFormatContext *pCtx)
     memcpy(&ret, bytes +len -strlen(PS_MARK_E) - sizeof(ret), sizeof(ret));
     if ((memcmp(PS_MARK_S, bytes + got, strlen(PS_MARK_S)) != 0 && memcmp(PS_MARK_E, bytes + len - strlen(PS_MARK_E), strlen(PS_MARK_E)) != 0)||ret != len)
     {
-        spdlog::error("invalid packet: {} {}", ret, len);
+        spdlog::error("invalid avformatctx: {} {}", ret, len);
         return -1;
     }
     spdlog::info("decode len: {}", ret);
