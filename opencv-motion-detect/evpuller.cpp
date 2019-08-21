@@ -48,7 +48,7 @@ protected:
         vector<vector<uint8_t> >body;
         // since identity is auto set
         body.push_back(str2body(mgrSn));
-        body.push_back(str2body("hello"));
+        body.push_back(str2body(MSG_HELLO));
 
         ret = z_send_multiple(pDealer, body);
         if(ret < 0) {
@@ -65,20 +65,26 @@ protected:
                 bStopSig = true;
                 break;
             }
-            vector<vector<uint8_t> > v;
+
             spdlog::info("evpuller repSrv {} {} waiting for req", devSn, iid);
-            // proto: [sender] [body]
-            ret = z_recv_multiple(pDealer, v);
+            // proto: [sender_id] [body]
+            auto v = z_recv_multiple(pDealer);
+            if(v.size() == 0) {
+                //TODO:
+            }
             cout << endl<<endl;
             for(auto&j:v) {
                     cout <<body2str(j) << "; ";
             }
             cout << endl;
-            if(ret < 0|| v.size() !=2) {
+            if(ret < 0) {
                 spdlog::error("evpuller {} {},  repSrv failed to recv msg: {}, {}", devSn, iid, v.size(), zmq_strerror(zmq_errno()));
                 continue;
+            }else if(v.size() != 2) {
+                spdlog::error("evpuller {} {},  repSrv received invalid msg, size: {}", devSn, iid, v.size());
+                continue;
             }else{
-
+                //
             }
 
 
@@ -113,7 +119,7 @@ private:
     void *pDealerCtx = NULL;
     void *pDealer = NULL;
     AVFormatContext *pAVFormatInput = NULL;
-    string urlIn, urlPub, urlDealer, mgrSn, devSn;
+    string urlIn, urlPub, urlDealer, mgrSn, devSn, pullerGid;
     int *streamList = NULL, numStreams = 0, iid;
     json config;
 
@@ -179,8 +185,8 @@ private:
                 ret = mqErrorMsg("evpuller", devSn, iid, "failed to bind zmq", zmq_bind(pPub, urlPub.c_str()));
                 pDealerCtx = zmq_ctx_new();
                 pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
-                string ident = devSn+":evpuller:" + to_string(iid);
-                ret += mqErrorMsg("evpuller", devSn, iid, "failed to set socksopt", zmq_setsockopt(pDealer, ZMQ_IDENTITY, ident.c_str(), ident.size()));
+                pullerGid = devSn+":evpuller:" + to_string(iid);
+                ret += mqErrorMsg("evpuller", devSn, iid, "failed to set socksopt", zmq_setsockopt(pDealer, ZMQ_IDENTITY, pullerGid.c_str(), pullerGid.size()));
                 ret += mqErrorMsg("evpuller", devSn, iid, "failed to connect to router " + urlDealer, zmq_connect(pDealer, urlDealer.c_str()));
                 if(ret < 0) {
                     this_thread::sleep_for(chrono::seconds(3));

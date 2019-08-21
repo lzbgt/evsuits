@@ -88,25 +88,26 @@ private:
         int ret = 0;
         zmq_msg_t msg;
 
+        cout<<endl<<endl;
+        for(auto &j:body) {
+            cout<<body2str(j) << "; ";
+        }
+        cout <<endl;
+
         // ID_SENDER, ID_TARGET, MSG
         if(body.size() != 3) {
             spdlog::error("evmgr {} illegal message received, frame num: {}", devSn, body.size());
-            cout<<endl<<endl;
-            for(auto &j:body) {
-                cout<<body2str(j) << "; ";
-            }
-            cout <<endl;
             return -1;
         }
 
         // if need forward
         if(memcmp((void*)(body[1].data()), devSn.data(), body[1].size()) != 0) {
+            spdlog::info("evmgr {} route msg from {} to {}", devSn, body2str(body[0]), body2str(body[1]));
             vector<vector<uint8_t> >v;
             v.push_back(body[1]);
             v.push_back(body[0]);
             v.push_back(body[2]);
             ret = z_send_multiple(pRouter, v);
-            spdlog::info("evmgr {} route msg from {} to {}", devSn, body2str(body[0]), body2str(body[1]));
             if(ret < 0) {
                 spdlog::error("evmgr {} failed to send multiple: {}", devSn, zmq_strerror(zmq_errno()));
             }
@@ -128,9 +129,8 @@ protected:
                 bStopSig = true;
                 break;
             }
-            vector<vector<uint8_t> >body;
-            ret = z_recv_multiple(pRouter, body);
-            if(ret < 0) {
+            auto body = z_recv_multiple(pRouter);
+            if(body.size() == 0) {
                 spdlog::error("evmgr {} failed to receive multiple msg: {}", devSn, zmq_strerror(zmq_errno()));
                 continue;   
             }

@@ -140,6 +140,19 @@ private:
             return -4;
         }
 
+        // send hello to router
+        vector<vector<uint8_t> >body;
+        // since identity is auto set
+        body.push_back(str2body(mgrSn));
+        body.push_back(str2body(MSG_HELLO));
+
+        ret = z_send_multiple(pDealer, body);
+        if(ret < 0) {
+            spdlog::error("evpusher {} {} failed to send multiple: {}", devSn, iid, zmq_strerror(zmq_errno()));
+            //TODO:
+            return -1;
+        }
+
         spdlog::info("evpusher {} {} success setupMq", devSn, iid);
 
         return 0;
@@ -173,31 +186,26 @@ private:
         AVDictionary *pOptsRemux = NULL;
 
         // req avformatcontext packet
-        // send first packet to init connection
-        // zmq_send(pDealer, "hello", 5, 0);
+        // send hello to puller
         vector<vector<uint8_t> > body;
-        // json msgBody;
         body.push_back(str2body(pullerGid));
-        cout << "\n\npullGid: " << pullerGid << endl;
-        // msgBody["cmd"] = EVMGRCMD_REQ_FORMAT;
-        body.push_back(str2body("hello-puller"));
+        body.push_back(str2body(MSG_HELLO));
         ret = z_send_multiple(pDealer, body);
         if(ret < 0) {
-            spdlog::error("evpusher {} {}, failed to send EVMGRCMD_REQ_FORMAT: {}", devSn, iid, zmq_strerror(zmq_errno()));
+            spdlog::error("evpusher {} {}, failed to send hello: {}", devSn, iid, zmq_strerror(zmq_errno()));
             return ret;
         }
         spdlog::info("evpusher {} {} success send hello", devSn, iid);
 
         // expect response with avformatctx
-        body.clear();
-        ret = z_recv_multiple(pDealer, body);
-        if(ret < 0||body.size() != 3) {
-            spdlog::error("evpusher {} {}, failed to receive avformatctx: {},{}", devSn, iid, body.size(), zmq_strerror(zmq_errno()));
+        auto v = z_recv_multiple(pDealer);
+        if(v.size() != 3) {
+            spdlog::error("evpusher {} {}, failed to receive avformatctx: {},{}", devSn, iid, v.size(), zmq_strerror(zmq_errno()));
             return ret;
         }
 
         pAVFormatInput = (AVFormatContext *)malloc(sizeof(AVFormatContext));
-        AVFormatCtxSerializer::decode((char *)body.back().data(), ret, pAVFormatInput);
+        AVFormatCtxSerializer::decode((char *)v.back().data(), ret, pAVFormatInput);
         
         ret = avformat_alloc_output_context2(&pAVFormatRemux, NULL, "rtsp", urlOut.c_str());
         if (ret < 0) {
