@@ -27,7 +27,7 @@ class EvPusher: public TinyThread {
 private:
     void *pSubCtx = NULL, *pDealerCtx = NULL; // for packets relay
     void *pSub = NULL, *pDealer = NULL;
-    string urlOut, urlPub, urlRep, sn;
+    string urlOut, urlPub, urlDealer, devSn, pullerGid, mgrSn;
     int iid;
     bool enablePush = false;
     int *streamList = NULL;
@@ -38,43 +38,67 @@ private:
     int init()
     {
         bool inited = false;
-        // TODO: read db to get sn
-        sn = "ILS-2";
-        iid = 2;
+        // TODO: read db to get devSn
+        devSn = "ILSEVPUSHER1";
+        iid = 1;
         while(!inited) {
-            // req config
-            onfig = cloudutils::registry(sn.c_str(), "evpusher", iid);
-            bool bcnt = false;
-            try {
-                spdlog::info("registry: {:s}", config.dump());
-                json data = config["data"]["services"]["evpuller"];
-                string addr = data["addr"].get<string>();
-                if(addr == "0.0.0.0") {
-                    addr = "localhost";
-                }
-                urlPub = string("tcp://") + addr + ":" + to_string(data["port-pub"]);
-                urlRep = string("tcp://") + addr + ":" + to_string(data["port-rep"]);
-                spdlog::info("evpusher {} {} will connect to {} for sub, {} for req", sn, iid, urlPub, urlRep);
+            // TODO: req config
+            bool found = false;
+            try{
+                config = json::parse(cloudutils::config);
+                spdlog::info("config: {:s}", config.dump());
+                json evpusher;
+                json evmgr;
+                json ipc;
+                
+                json data = config["data"];
+                for (auto& [key, value] : data.items()) {
+                    //std::cout << key << " : " << dynamic_cast<json&>(value).dump() << "\n";
+                    evmgr = value;
+                    json ipcs = evmgr["ipcs"];
+                    for(auto &j: ipcs) {
+                        json pullers = j["modules"]["evpusher"];
+                        for(auto &p:pullers) {
+                            if(p["devSn"] == devSn && p["iid"] == iid) {
+                                evpusher = p;
+                                break;
+                            }
+                        }
+                        if(evpusher.size() != 0) {
+                            ipc = j;
+                            break;
+                        }
+                    }
 
-                data = config["data"]["services"]["evpusher"];
-                for(auto &j: data) {
-                    if(j["sn"] == sn && iid == j["iid"] && j["enabled"] != 0) {
-                        urlOut = j["urlDest"];
+                    if(ipc.size()!=0 && evpusher.size()!=0) {
+                        found = true;
                         break;
                     }
                 }
+
+                if(!found) {
+                    spdlog::error("evpusher {} {} no valid config found. retrying load config...", devSn, iid);
+                    this_thread::sleep_for(chrono::seconds(3));
+                    continue;
+                }
+
+                // TODO: currently just take the first puller, but should test connectivity
+                json evpuller = ipc["modules"]["evpuller"][0];
+                pullerGid = evpuller["sn"].get<string>() + ":evpuller:" + to_string(evpuller["iid"]);
+                mgrSn = evmgr["sn"];
+
+                urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(evpuller["port-pub"]);
+                urlDealer = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(evmgr["port-router"]);
+                spdlog::info("evpusher {} {} will connect to {} for sub, {} for router", devSn, iid, urlPub, urlDealer);
+                // TODO: multiple protocols support
+                urlOut = evpusher["urlDest"].get<string>();
             }
             catch(exception &e) {
-                bcnt = true;
-                spdlog::error("evpusher {} {} exception in EvPuller.init {:s} retrying", sn, iid, e.what());
+                spdlog::error("evpusher {} {} exception in EvPuller.init {:s} retrying", devSn, iid, e.what());
+                    this_thread::sleep_for(chrono::seconds(3));
+                    continue;
             }
-            if(bcnt || urlOut.empty()) {
-                // TODO: waiting for command
-                spdlog::warn("evpusher {} {} waiting for command", sn, iid);
-                this_thread::sleep_for(chrono::milliseconds(1000*20));
-                continue;
-            }
-
+            
             inited = true;
         }
 
@@ -90,27 +114,27 @@ private:
         pSub = zmq_socket(pSubCtx, ZMQ_SUB);
         ret = zmq_setsockopt(pSub, ZMQ_SUBSCRIBE, "", 0);
         if(ret != 0) {
-            spdlog::error("evpusher failed connect to pub: {}, {}", sn, iid);
+            spdlog::error("evpusher failed connect to pub: {}, {}", devSn, iid);
             return -1;
         }
         ret = zmq_connect(pSub, urlPub.c_str());
         if(ret != 0) {
-            spdlog::error("evpusher {} {} failed create sub", sn, iid);
+            spdlog::error("evpusher {} {} failed create sub", devSn, iid);
             return -2;
         }
 
         // setup req
         pDealerCtx = zmq_ctx_new();
         pDealer = zmq_socket(pDealerCtx, ZMQ_REQ);
-        spdlog::info("evpusher {} {} try create req to {}", sn, iid, urlRep);
-        ret = zmq_connect(pDealer, urlRep.c_str());
+        spdlog::info("evpusher {} {} try create req to {}", devSn, iid, urlDealer);
+        ret = zmq_connect(pDealer, urlDealer.c_str());
         
         if(ret != 0) {
-            spdlog::error("evpusher {} {} failed create req to {}", sn, iid, urlRep);
+            spdlog::error("evpusher {} {} failed create req to {}", devSn, iid, urlDealer);
             return -3;
         }
 
-        spdlog::info("evpusher {} {} success setupMq", sn, iid);
+        spdlog::info("evpusher {} {} success setupMq", devSn, iid);
 
         return 0;
     }
@@ -146,7 +170,7 @@ private:
         // send first packet to init connection
         zmq_msg_t msg;
         zmq_send(pDealer, "hello", 5, 0);
-        spdlog::info("evpusher {} {} success send hello", sn, iid);
+        spdlog::info("evpusher {} {} success send hello", devSn, iid);
         ret =zmq_msg_init(&msg);
         if(ret != 0) {
             spdlog::error("failed to init zmq msg");
@@ -154,9 +178,9 @@ private:
         }
         // receive packet
         ret = zmq_recvmsg(pDealer, &msg, 0);
-        spdlog::info("evpusher {} {} recv", sn, iid);
+        spdlog::info("evpusher {} {} recv", devSn, iid);
         if(ret < 0) {
-            spdlog::error("evpusher {} {} failed to recv zmq msg: {}", sn, iid, zmq_strerror(ret));
+            spdlog::error("evpusher {} {} failed to recv zmq msg: {}", devSn, iid, zmq_strerror(ret));
             exit(1);
         }
 
@@ -178,15 +202,15 @@ private:
         
         ret = avformat_alloc_output_context2(&pAVFormatRemux, NULL, "rtsp", urlOut.c_str());
         if (ret < 0) {
-            spdlog::error("evpusher {} {} failed create avformatcontext for output: %s", sn, iid, av_err2str(ret));
+            spdlog::error("evpusher {} {} failed create avformatcontext for output: %s", devSn, iid, av_err2str(ret));
             exit(1);
         }
 
         streamList = (int *)av_mallocz_array(pAVFormatInput->nb_streams, sizeof(*streamList));
-        spdlog::info("evpusher {} {} numStreams: {:d}", sn, iid, pAVFormatInput->nb_streams);
+        spdlog::info("evpusher {} {} numStreams: {:d}", devSn, iid, pAVFormatInput->nb_streams);
         if (!streamList) {
             ret = AVERROR(ENOMEM);
-            spdlog::error("evpusher {} {} failed create avformatcontext for output: %s", sn, iid, av_err2str(AVERROR(ENOMEM)));
+            spdlog::error("evpusher {} {} failed create avformatcontext for output: %s", devSn, iid, av_err2str(AVERROR(ENOMEM)));
             exit(1);
         }
 
@@ -204,14 +228,14 @@ private:
             streamList[i] = streamIdx++;
             out_stream = avformat_new_stream(pAVFormatRemux, NULL);
             if (!out_stream) {
-                spdlog::error("evpusher {} {} failed allocating output stream", sn, iid);
+                spdlog::error("evpusher {} {} failed allocating output stream", devSn, iid);
                 ret = AVERROR_UNKNOWN;
 
             }
             ret = avcodec_parameters_copy(out_stream->codecpar, in_codecpar);
-            spdlog::info("evpusher {} {}  copied codepar", sn, iid);
+            spdlog::info("evpusher {} {}  copied codepar", devSn, iid);
             if (ret < 0) {
-                spdlog::error("evpusher {} {}  failed to copy codec parameters", sn, iid);
+                spdlog::error("evpusher {} {}  failed to copy codec parameters", devSn, iid);
             }
         }
 
@@ -222,23 +246,23 @@ private:
         av_dump_format(pAVFormatRemux, 0, urlOut.c_str(), 1);
 
         if (!(pAVFormatRemux->oformat->flags & AVFMT_NOFILE)) {
-            spdlog::error("evpusher {} {} failed allocating output stream", sn ,iid);
+            spdlog::error("evpusher {} {} failed allocating output stream", devSn ,iid);
             ret = avio_open2(&pAVFormatRemux->pb, urlOut.c_str(), AVIO_FLAG_WRITE, NULL, &pOptsRemux);
             if (ret < 0) {
-                spdlog::error("evpusher {} {} could not open output file '%s'", sn, iid, urlOut);
+                spdlog::error("evpusher {} {} could not open output file '%s'", devSn, iid, urlOut);
                 exit(1);
             }
         }
 
         // rtsp tcp
         if(av_dict_set(&pOptsRemux, "rtsp_transport", "tcp", 0) < 0) {
-            spdlog::error("evpusher {} {} failed set output pOptsRemux", sn, iid);
+            spdlog::error("evpusher {} {} failed set output pOptsRemux", devSn, iid);
             ret = AVERROR_UNKNOWN;
         }
 
         ret = avformat_write_header(pAVFormatRemux, &pOptsRemux);
         if (ret < 0) {
-            spdlog::error("evpusher {} {} error occurred when opening output file", sn, iid);
+            spdlog::error("evpusher {} {} error occurred when opening output file", devSn, iid);
         }
 
         return ret;
