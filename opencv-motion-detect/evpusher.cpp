@@ -22,12 +22,13 @@ namespace fs = std::filesystem;
 #define MAX_ZMQ_MSG_SIZE 1204 * 1024 * 2
 
 using namespace std;
+using namespace zmqhelper;
 
 class EvPusher: public TinyThread {
 private:
     void *pSubCtx = NULL, *pDealerCtx = NULL; // for packets relay
     void *pSub = NULL, *pDealer = NULL;
-    string urlOut, urlPub, urlDealer, devSn, pullerGid, mgrSn;
+    string urlOut, urlPub, urlDealer, devSn, pullerGid, mgrSn, pusherGid;
     int iid;
     bool enablePush = false;
     int *streamList = NULL;
@@ -41,6 +42,7 @@ private:
         // TODO: read db to get devSn
         devSn = "ILSEVPUSHER1";
         iid = 1;
+        pusherGid = devSn + ":evpusher:" + to_string(iid);
         while(!inited) {
             // TODO: req config
             bool found = false;
@@ -59,7 +61,7 @@ private:
                     for(auto &j: ipcs) {
                         json pullers = j["modules"]["evpusher"];
                         for(auto &p:pullers) {
-                            if(p["devSn"] == devSn && p["iid"] == iid) {
+                            if(p["sn"] == devSn && p["iid"] == iid) {
                                 evpusher = p;
                                 break;
                             }
@@ -77,7 +79,7 @@ private:
                 }
 
                 if(!found) {
-                    spdlog::error("evpusher {} {} no valid config found. retrying load config...", devSn, iid);
+                    spdlog::error("evpusher {} {}: no valid config found. retrying load config...", devSn, iid);
                     this_thread::sleep_for(chrono::seconds(3));
                     continue;
                 }
@@ -114,24 +116,28 @@ private:
         pSub = zmq_socket(pSubCtx, ZMQ_SUB);
         ret = zmq_setsockopt(pSub, ZMQ_SUBSCRIBE, "", 0);
         if(ret != 0) {
-            spdlog::error("evpusher failed connect to pub: {}, {}", devSn, iid);
+            spdlog::error("evpusher {} {} failed set setsockopt: {}", devSn, iid, urlPub);
             return -1;
         }
         ret = zmq_connect(pSub, urlPub.c_str());
         if(ret != 0) {
-            spdlog::error("evpusher {} {} failed create sub", devSn, iid);
+            spdlog::error("evpusher {} {} failed connect pub: {}", devSn, iid, urlPub);
             return -2;
         }
 
         // setup req
         pDealerCtx = zmq_ctx_new();
-        pDealer = zmq_socket(pDealerCtx, ZMQ_REQ);
+        pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
         spdlog::info("evpusher {} {} try create req to {}", devSn, iid, urlDealer);
-        ret = zmq_connect(pDealer, urlDealer.c_str());
-        
-        if(ret != 0) {
-            spdlog::error("evpusher {} {} failed create req to {}", devSn, iid, urlDealer);
+        ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, pusherGid.c_str(), pusherGid.size());
+        if(ret < 0) {
+            spdlog::error("evpusher {} {} failed setsockopts router: {}", devSn, iid, urlDealer);
             return -3;
+        }
+        ret = zmq_connect(pDealer, urlDealer.c_str());
+        if(ret != 0) {
+            spdlog::error("evpusher {} {} failed connect dealer: {}", devSn, iid, urlDealer);
+            return -4;
         }
 
         spdlog::info("evpusher {} {} success setupMq", devSn, iid);
@@ -168,37 +174,30 @@ private:
 
         // req avformatcontext packet
         // send first packet to init connection
-        zmq_msg_t msg;
-        zmq_send(pDealer, "hello", 5, 0);
-        spdlog::info("evpusher {} {} success send hello", devSn, iid);
-        ret =zmq_msg_init(&msg);
-        if(ret != 0) {
-            spdlog::error("failed to init zmq msg");
-            exit(1);
-        }
-        // receive packet
-        ret = zmq_recvmsg(pDealer, &msg, 0);
-        spdlog::info("evpusher {} {} recv", devSn, iid);
+        // zmq_send(pDealer, "hello", 5, 0);
+        vector<vector<uint8_t> > body;
+        // json msgBody;
+        body.push_back(str2body(pullerGid));
+        cout << "\n\npullGid: " << pullerGid << endl;
+        // msgBody["cmd"] = EVMGRCMD_REQ_FORMAT;
+        body.push_back(str2body("hello-puller"));
+        ret = z_send_multiple(pDealer, body);
         if(ret < 0) {
-            spdlog::error("evpusher {} {} failed to recv zmq msg: {}", devSn, iid, zmq_strerror(ret));
-            exit(1);
+            spdlog::error("evpusher {} {}, failed to send EVMGRCMD_REQ_FORMAT: {}", devSn, iid, zmq_strerror(zmq_errno()));
+            return ret;
+        }
+        spdlog::info("evpusher {} {} success send hello", devSn, iid);
+
+        // expect response with avformatctx
+        body.clear();
+        ret = z_recv_multiple(pDealer, body);
+        if(ret < 0||body.size() != 3) {
+            spdlog::error("evpusher {} {}, failed to receive avformatctx: {},{}", devSn, iid, body.size(), zmq_strerror(zmq_errno()));
+            return ret;
         }
 
         pAVFormatInput = (AVFormatContext *)malloc(sizeof(AVFormatContext));
-        AVFormatCtxSerializer::decode((char *)zmq_msg_data(&msg), ret, pAVFormatInput);
-
-        // close req
-        {
-            zmq_msg_close(&msg);
-            if(pDealer != NULL) {
-                zmq_close(pDealer);
-                pDealer = NULL;
-            }
-            if(pDealerCtx != NULL) {
-                zmq_ctx_destroy(pDealerCtx);
-                pDealerCtx = NULL;
-            }
-        }
+        AVFormatCtxSerializer::decode((char *)body.back().data(), ret, pAVFormatInput);
         
         ret = avformat_alloc_output_context2(&pAVFormatRemux, NULL, "rtsp", urlOut.c_str());
         if (ret < 0) {

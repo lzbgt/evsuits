@@ -44,15 +44,6 @@ protected:
     {
         int ret = 0;
         bool bStopSig = false;
-
-        zmq_msg_t msg;
-        zmq_msg_t msg1;
-        ret = zmq_msg_init(&msg);
-        ret += zmq_msg_init_data(&msg, (void*)bytes, len, NULL, NULL);
-        if(ret < 0) {
-            spdlog::error("evpuller {} {} failed to init msg: {}", devSn, iid, zmq_strerror(zmq_errno()));
-            return;
-        }
         // declare ready to router
         vector<vector<uint8_t> >body;
         // since identity is auto set
@@ -66,21 +57,42 @@ protected:
             return;
         }
 
+        // init response msg
+        vector<uint8_t> msgBody;
+        msgBody.insert(msgBody.end(), (uint8_t *)bytes, (uint8_t *)bytes+len);
         while (true) {
             if(checkStop() == true) {
                 bStopSig = true;
                 break;
             }
-            spdlog::info("evpuller reqSrv {} {} waiting for req", devSn, iid);
-            ret =zmq_msg_init(&msg1);
-            ret = zmq_recvmsg(pDealer, &msg1, 0);
-            if(ret < 0) {
-                spdlog::error("failed to recv zmq msg: {}", zmq_strerror(ret));
-                continue;
+            vector<vector<uint8_t> > v;
+            spdlog::info("evpuller repSrv {} {} waiting for req", devSn, iid);
+            // proto: [sender] [body]
+            ret = z_recv_multiple(pDealer, v);
+            cout << endl<<endl;
+            for(auto&j:v) {
+                    cout <<body2str(j) << "; ";
             }
-            zmq_msg_close(&msg1);
-            spdlog::info("evpuller {} {} reveived req", devSn, iid);
-            zmq_send_const(pDealer, zmq_msg_data(&msg), len, 0);
+            cout << endl;
+            if(ret < 0|| v.size() !=2) {
+                spdlog::error("evpuller {} {},  repSrv failed to recv msg: {}, {}", devSn, iid, v.size(), zmq_strerror(zmq_errno()));
+                continue;
+            }else{
+
+            }
+
+
+            // vector<uint8_t> v;
+
+            // ret =zmq_msg_init(&msg1);
+            // ret = zmq_recvmsg(pDealer, &msg1, 0);
+            // if(ret < 0) {
+            //     spdlog::error("failed to recv zmq msg: {}", zmq_strerror(ret));
+            //     continue;
+            // }
+            // zmq_msg_close(&msg1);
+            // spdlog::info("evpuller {} {} reveived req", devSn, iid);
+            // zmq_send_const(pDealer, zmq_msg_data(&data), len, 0);
         }
     }
 public:
