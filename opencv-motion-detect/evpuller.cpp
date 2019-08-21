@@ -13,12 +13,13 @@
 namespace fs = std::filesystem;
 #endif
 
-#include "vendor/include/zmq.h"
+#include <zmqhelper.hpp>
 #include "tinythread.hpp"
 #include "common.hpp"
 #include "database.h"
 
 using namespace std;
+using namespace zmqhelper;
 
 int mqErrorMsg(string cls, string devSn, int iid, string extraInfo, int ret)
 {
@@ -38,42 +39,31 @@ private:
     const char * bytes;
     int len;
     void *pDealer=NULL;
-    // void *pRepCtx = NULL; // for packets REP
-    // void *pRep = NULL;
-
-    int init()
-    {
-        // int ret = 0;
-        // pRepCtx = zmq_ctx_new();
-        // pRep = zmq_socket(pRepCtx, ZMQ_REP);
-        // ret = zmq_bind(pRep, urlRep.c_str());
-        // if(ret < 0) {
-        //     spdlog::error("failed to bind rep: {}, {}", zmq_strerror(ret), urlRep.c_str());
-        //     this_thread::sleep_for(chrono::seconds(20));
-        //     return -1;
-        // }
-        return 0;
-    }
 protected:
     void run()
     {
+        int ret = 0;
         bool bStopSig = false;
 
         zmq_msg_t msg;
         zmq_msg_t msg1;
-        int ret =zmq_msg_init(&msg);
-        zmq_msg_init_data(&msg, (void*)bytes, len, NULL, NULL);
+        ret = zmq_msg_init(&msg);
+        ret += zmq_msg_init_data(&msg, (void*)bytes, len, NULL, NULL);
+        if(ret < 0) {
+            spdlog::error("evpuller {} {} failed to init msg: {}", devSn, iid, zmq_strerror(zmq_errno()));
+            return;
+        }
         // declare ready to router
-        vector<string>body;
-        body.push_back(mgrSn);
-        body.push_back("hello");
-        int cnt = 0;
-        for(auto &i:body) {
-            zmq_msg_init(&msg1);
-            zmq_msg_init_data(&msg1, (void*)i.c_str(), i.size(), NULL, NULL);
-            mqErrorMsg("evpuller", devSn,iid, "failed to send zmq msg", zmq_send_const(pDealer, zmq_msg_data(&msg1), i.size(), cnt==(body.size()-1)?0:ZMQ_SNDMORE));
-            zmq_msg_close(&msg1);
-            cnt++;
+        vector<vector<uint8_t> >body;
+        // since identity is auto set
+        body.push_back(str2body(mgrSn));
+        body.push_back(str2body("hello"));
+
+        ret = z_send_multiple(pDealer, body);
+        if(ret < 0) {
+            spdlog::error("evpuller {} {} failed to send multiple: {}", devSn, iid, zmq_strerror(zmq_errno()));
+            //TODO:
+            return;
         }
 
         while (true) {
@@ -82,7 +72,7 @@ protected:
                 break;
             }
             spdlog::info("evpuller reqSrv {} {} waiting for req", devSn, iid);
-            int ret =zmq_msg_init(&msg1);
+            ret =zmq_msg_init(&msg1);
             ret = zmq_recvmsg(pDealer, &msg1, 0);
             if(ret < 0) {
                 spdlog::error("failed to recv zmq msg: {}", zmq_strerror(ret));
@@ -97,19 +87,11 @@ public:
     RepSrv() = delete;
     RepSrv(RepSrv &) = delete;
     RepSrv(RepSrv&&) = delete;
-    RepSrv(string mgrSn, string devSn, int iid, const char* formatBytes, int len, void *pDealer):mgrSn(mgrSn),devSn(devSn), iid(iid), bytes(formatBytes), len(len), pDealer(pDealer)
-    {
-        init();
-    };
-    ~RepSrv()
-    {
-        // if(pRep != NULL) {
-        //     zmq_close(pRep);
-        // }
-        // if(pRepCtx != NULL) {
-        //     zmq_ctx_destroy(pRepCtx);
-        // }
-    };
+    RepSrv(string mgrSn, string devSn, int iid, const char* formatBytes,
+           int len, void *pDealer):mgrSn(mgrSn),devSn(devSn), iid(iid), bytes(formatBytes),
+        len(len), pDealer(pDealer) {};
+
+    ~RepSrv() {};
 };
 
 class EvPuller: public TinyThread {

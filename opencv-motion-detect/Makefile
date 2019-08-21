@@ -7,7 +7,7 @@ LIBOPENCV = `pkg-config opencv --cflags --libs`
 LIBFFMPEG = `pkg-config libavformat libavutil libavcodec libswscale --cflags --libs`
 LIBS=-lpthread
 SQLITE=vendor/sqlite/sqlite3.c
-HEADERS=-Iinc
+HEADERS=-Iinc -Ivendor/include
 
 .PHONY: libzmq
 all: evmgr evpuller evpusher evslicer evmlmotion
