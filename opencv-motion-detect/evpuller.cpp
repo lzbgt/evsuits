@@ -20,8 +20,18 @@ namespace fs = std::filesystem;
 
 using namespace std;
 
+int mqErrorMsg(string cls, string devSn, int iid, string extraInfo, int ret)
+{
+    if(ret < 0) {
+        spdlog::error("{} {} {}, {}: {} ", cls, devSn, iid, extraInfo, zmq_strerror(zmq_errno()));
+    }
+
+    return ret;
+}
+
 class RepSrv: public TinyThread {
 private:
+    string mgrSn;
     string devSn;
     int iid;
     string urlRep;
@@ -30,7 +40,7 @@ private:
     void *pDealer=NULL;
     // void *pRepCtx = NULL; // for packets REP
     // void *pRep = NULL;
-    
+
     int init()
     {
         // int ret = 0;
@@ -44,23 +54,6 @@ private:
         // }
         return 0;
     }
-public:
-    RepSrv() = delete;
-    RepSrv(RepSrv &) = delete;
-    RepSrv(RepSrv&&) = delete;
-    RepSrv(string devSn, int iid, const char* formatBytes, int len, void *pDealer):devSn(devSn), iid(iid), bytes(formatBytes), len(len), pDealer(pDealer)
-    {
-        init();
-    };
-    ~RepSrv()
-    {
-        // if(pRep != NULL) {
-        //     zmq_close(pRep);
-        // }
-        // if(pRepCtx != NULL) {
-        //     zmq_ctx_destroy(pRepCtx);
-        // }
-    };
 protected:
     void run()
     {
@@ -70,6 +63,19 @@ protected:
         zmq_msg_t msg1;
         int ret =zmq_msg_init(&msg);
         zmq_msg_init_data(&msg, (void*)bytes, len, NULL, NULL);
+        // declare ready to router
+        vector<string>body;
+        body.push_back(mgrSn);
+        body.push_back("hello");
+        int cnt = 0;
+        for(auto &i:body) {
+            zmq_msg_init(&msg1);
+            zmq_msg_init_data(&msg1, (void*)i.c_str(), i.size(), NULL, NULL);
+            mqErrorMsg("evpuller", devSn,iid, "failed to send zmq msg", zmq_send_const(pDealer, zmq_msg_data(&msg1), i.size(), cnt==(body.size()-1)?0:ZMQ_SNDMORE));
+            zmq_msg_close(&msg1);
+            cnt++;
+        }
+
         while (true) {
             if(checkStop() == true) {
                 bStopSig = true;
@@ -87,6 +93,23 @@ protected:
             zmq_send_const(pDealer, zmq_msg_data(&msg), len, 0);
         }
     }
+public:
+    RepSrv() = delete;
+    RepSrv(RepSrv &) = delete;
+    RepSrv(RepSrv&&) = delete;
+    RepSrv(string mgrSn, string devSn, int iid, const char* formatBytes, int len, void *pDealer):mgrSn(mgrSn),devSn(devSn), iid(iid), bytes(formatBytes), len(len), pDealer(pDealer)
+    {
+        init();
+    };
+    ~RepSrv()
+    {
+        // if(pRep != NULL) {
+        //     zmq_close(pRep);
+        // }
+        // if(pRepCtx != NULL) {
+        //     zmq_ctx_destroy(pRepCtx);
+        // }
+    };
 };
 
 class EvPuller: public TinyThread {
@@ -96,18 +119,9 @@ private:
     void *pDealerCtx = NULL;
     void *pDealer = NULL;
     AVFormatContext *pAVFormatInput = NULL;
-    string urlIn, urlPub, urlDealer, devSn;
+    string urlIn, urlPub, urlDealer, mgrSn, devSn;
     int *streamList = NULL, numStreams = 0, iid;
     json config;
-
-    int mqErrorMsg(string cls, string devSn, int iid, string extraInfo, int ret)
-    {
-        if(ret < 0) {
-            spdlog::error("{} {} {}, {}: {} ", cls, devSn, iid, extraInfo, zmq_strerror(zmq_errno()));
-        }
-
-        return ret;
-    }
 
     int init()
     {
@@ -157,6 +171,7 @@ private:
                     continue;
                 }
 
+                mgrSn = evmgr["sn"];
                 string user = ipc["user"];
                 string passwd = ipc["password"];
                 urlIn = "rtsp://" + user + ":" + passwd + "@" + ipc["addr"].get<string>() + "/h264/ch1/sub/av_stream";
@@ -217,7 +232,7 @@ protected:
         // serialize formatctx to bytes
         char *pBytes = NULL;
         ret = AVFormatCtxSerializer::encode(pAVFormatInput, &pBytes);
-        auto repSrv = RepSrv(devSn, iid, pBytes, ret, pDealer);
+        auto repSrv = RepSrv(mgrSn, devSn, iid, pBytes, ret, pDealer);
         repSrv.detach();
 
         // find all video & audio streams for remuxing

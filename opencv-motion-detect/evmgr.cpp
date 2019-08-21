@@ -83,19 +83,30 @@ private:
         return ret;
     }
 
-    void handleMsg(string body[]) {
+    void handleMsg(vector<string> body) {
         zmq_msg_t msg;
+        // dump
+        string dump;
+        for(auto &i: body) {
+             dump += i + ";";
+        }
+        cout <<endl;
+
+        if(body.size() != 3) {
+            spdlog::error("evmgr {} illegal message received: {}", devSn, dump);
+        }
+
         if(body[0] != devSn) {
             for(int i =0; i < 3; i++) {
-                spdlog::info("evmgr {}, msg idRcv is {}, forwarding...", devSn, body[0]);
+                spdlog::info("evmgr {}, msg body is {}; {}; {}; forwarding...", devSn, body[0], body[1], body[2]);
                 zmq_msg_init(&msg);
-                zmq_msg_init_data(&msg, (void*)body[0].c_str(), body[0].size(), NULL, NULL);
-                mqErrorMsg("evmgr", devSn, "failed to send zmq msg", zmq_send_const(pRouter, zmq_msg_data(&msg), body[0].size(), i ==2?0:ZMQ_SNDMORE));
+                zmq_msg_init_data(&msg, (void*)body[i].c_str(), body[i].size(), NULL, NULL);
+                mqErrorMsg("evmgr", devSn, "failed to send zmq msg", zmq_send_const(pRouter, zmq_msg_data(&msg), body[i].size(), i ==2?0:ZMQ_SNDMORE));
                 zmq_msg_close(&msg);
             }
         }else{
             // TODO: report msg
-            spdlog::info("evmgr {} subsystem report msg received: {} {} {}", devSn, body[0], body[1], body[2]);
+            spdlog::info("evmgr {} subsystem report msg received: {}; {}; {}", devSn, body[0], body[1], body[2]);
         }
     }
 
@@ -109,29 +120,28 @@ protected:
                 bStopSig = true;
                 break;
             }
-            string msgBody[3];
-            int64_t more = 0;
+            vector<string>body;
+            int64_t more = 1;
             // business logic
-            int i = 0;
-            for(; i < 3; i++) {
+            int cnt = 0;
+            char *tmp;
+
+            while(more > 0) {
+                cnt++;
                 mqErrorMsg("evmgr", devSn, "failed to init zmq msg", zmq_msg_init(&msg));
-                mqErrorMsg("evmgr", devSn, "failed to recv zmq msg", zmq_recvmsg(pRouter, &msg, 0));
-                msgBody[i] = string((char *)zmq_msg_data(&msg));
+                ret = mqErrorMsg("evmgr", devSn, "failed to recv zmq msg", zmq_recvmsg(pRouter, &msg, 0));
+                tmp = new char[ret+1];
+                memcpy(tmp, zmq_msg_data(&msg), ret);
+                tmp[ret] = 0;
+                body.push_back(string(tmp));
+                delete tmp;
                 zmq_msg_close(&msg);
-                spdlog::debug("evmgr {} received[{}]: {} ", devSn, i, msgBody[i]);
+                spdlog::debug("evmgr {} received[{}]: {} ", devSn, cnt, body.back());
                 size_t more_size = sizeof (more);
                 mqErrorMsg("evmgr", devSn, "failed to get zmq sockopt", zmq_getsockopt(pRouter, ZMQ_RCVMORE, &more, &more_size));
-                if(!more) {
-                    break;
-                }
             }
-            if(i >= 3 ) {
-                // full proto msg received.
-                handleMsg(msgBody);
-            }else{
-                spdlog::warn("partial msg recved, maybe hello msg: {}, {}, {}", msgBody[0], msgBody[1], msgBody[2]);
-            }
-
+            // full proto msg received.
+            handleMsg(body);
         }
     }
 public:
