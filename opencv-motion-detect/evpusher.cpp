@@ -14,7 +14,7 @@
 namespace fs = std::filesystem;
 #endif
 
-#include "vendor/include/zmq.h"
+#include "zmqhelper.hpp"
 #include "tinythread.hpp"
 #include "common.hpp"
 #include "database.h"
@@ -25,14 +25,15 @@ using namespace std;
 
 class EvPusher: public TinyThread {
 private:
-    void *pSubCtx = NULL, *pReqCtx = NULL; // for packets relay
-    void *pSub = NULL, *pReq = NULL;
+    void *pSubCtx = NULL, *pDealerCtx = NULL; // for packets relay
+    void *pSub = NULL, *pDealer = NULL;
     string urlOut, urlPub, urlRep, sn;
     int iid;
     bool enablePush = false;
     int *streamList = NULL;
     AVFormatContext *pAVFormatRemux = NULL;
     AVFormatContext *pAVFormatInput = NULL;
+    json config;
 
     int init()
     {
@@ -42,11 +43,11 @@ private:
         iid = 2;
         while(!inited) {
             // req config
-            json jr = cloudutils::registry(sn.c_str(), "evpusher", iid);
+            onfig = cloudutils::registry(sn.c_str(), "evpusher", iid);
             bool bcnt = false;
             try {
-                spdlog::info("registry: {:s}", jr.dump());
-                json data = jr["data"]["services"]["evpuller"];
+                spdlog::info("registry: {:s}", config.dump());
+                json data = config["data"]["services"]["evpuller"];
                 string addr = data["addr"].get<string>();
                 if(addr == "0.0.0.0") {
                     addr = "localhost";
@@ -55,7 +56,7 @@ private:
                 urlRep = string("tcp://") + addr + ":" + to_string(data["port-rep"]);
                 spdlog::info("evpusher {} {} will connect to {} for sub, {} for req", sn, iid, urlPub, urlRep);
 
-                data = jr["data"]["services"]["evpusher"];
+                data = config["data"]["services"]["evpusher"];
                 for(auto &j: data) {
                     if(j["sn"] == sn && iid == j["iid"] && j["enabled"] != 0) {
                         urlOut = j["urlDest"];
@@ -99,10 +100,10 @@ private:
         }
 
         // setup req
-        pReqCtx = zmq_ctx_new();
-        pReq = zmq_socket(pReqCtx, ZMQ_REQ);
+        pDealerCtx = zmq_ctx_new();
+        pDealer = zmq_socket(pDealerCtx, ZMQ_REQ);
         spdlog::info("evpusher {} {} try create req to {}", sn, iid, urlRep);
-        ret = zmq_connect(pReq, urlRep.c_str());
+        ret = zmq_connect(pDealer, urlRep.c_str());
         
         if(ret != 0) {
             spdlog::error("evpusher {} {} failed create req to {}", sn, iid, urlRep);
@@ -124,13 +125,13 @@ private:
             zmq_ctx_destroy(pSubCtx);
             pSubCtx = NULL;
         }
-        if(pReq != NULL) {
+        if(pDealer != NULL) {
             zmq_close(pSub);
-            pReq = NULL;
+            pDealer = NULL;
         }
-        if(pReqCtx != NULL) {
+        if(pDealerCtx != NULL) {
             zmq_ctx_destroy(pSub);
-            pReqCtx = NULL;
+            pDealerCtx = NULL;
         }
 
         return 0;
@@ -144,7 +145,7 @@ private:
         // req avformatcontext packet
         // send first packet to init connection
         zmq_msg_t msg;
-        zmq_send(pReq, "hello", 5, 0);
+        zmq_send(pDealer, "hello", 5, 0);
         spdlog::info("evpusher {} {} success send hello", sn, iid);
         ret =zmq_msg_init(&msg);
         if(ret != 0) {
@@ -152,7 +153,7 @@ private:
             exit(1);
         }
         // receive packet
-        ret = zmq_recvmsg(pReq, &msg, 0);
+        ret = zmq_recvmsg(pDealer, &msg, 0);
         spdlog::info("evpusher {} {} recv", sn, iid);
         if(ret < 0) {
             spdlog::error("evpusher {} {} failed to recv zmq msg: {}", sn, iid, zmq_strerror(ret));
@@ -165,13 +166,13 @@ private:
         // close req
         {
             zmq_msg_close(&msg);
-            if(pReq != NULL) {
-                zmq_close(pReq);
-                pReq = NULL;
+            if(pDealer != NULL) {
+                zmq_close(pDealer);
+                pDealer = NULL;
             }
-            if(pReqCtx != NULL) {
-                zmq_ctx_destroy(pReqCtx);
-                pReqCtx = NULL;
+            if(pDealerCtx != NULL) {
+                zmq_ctx_destroy(pDealerCtx);
+                pDealerCtx = NULL;
             }
         }
         
