@@ -47,7 +47,7 @@ protected:
         // declare ready to router
         vector<vector<uint8_t> >body;
         // since identity is auto set
-        body.push_back(str2body(mgrSn));
+        body.push_back(str2body(mgrSn + ":0:0"));
         body.push_back(str2body(MSG_HELLO));
 
         ret = z_send_multiple(pDealer, body);
@@ -328,7 +328,7 @@ public:
 int main(int argc, char **argv)
 {
     av_log_set_level(AV_LOG_INFO);
-    spdlog::set_level(spdlog::level::info);
+    spdlog::set_level(spdlog::level::debug);
     //DB::exec(NULL, NULL, NULL,NULL);
     auto evp = EvPuller();
     evp.join();

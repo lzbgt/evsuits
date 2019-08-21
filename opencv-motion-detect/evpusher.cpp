@@ -108,7 +108,6 @@ private:
     }
     int setupMq()
     {
-        teardownMq();
         int ret = 0;
 
         // setup sub
@@ -125,7 +124,7 @@ private:
             return -2;
         }
 
-        // setup req
+        // setup dealer
         pDealerCtx = zmq_ctx_new();
         pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
         spdlog::info("evpusher {} {} try create req to {}", devSn, iid, urlDealer);
@@ -141,9 +140,10 @@ private:
         }
 
         // send hello to router
+        spdlog::info("evpusher {} {} send hello to router: {}", devSn, iid, mgrSn);
         vector<vector<uint8_t> >body;
         // since identity is auto set
-        body.push_back(str2body(mgrSn));
+        body.push_back(str2body(mgrSn+":0:0"));
         body.push_back(str2body(MSG_HELLO));
 
         ret = z_send_multiple(pDealer, body);
@@ -158,27 +158,6 @@ private:
         return 0;
     }
 
-    int teardownMq()
-    {
-        if(pSub != NULL) {
-            zmq_close(pSub);
-            pSub = NULL;
-        }
-        if(pSubCtx != NULL) {
-            zmq_ctx_destroy(pSubCtx);
-            pSubCtx = NULL;
-        }
-        if(pDealer != NULL) {
-            zmq_close(pSub);
-            pDealer = NULL;
-        }
-        if(pDealerCtx != NULL) {
-            zmq_ctx_destroy(pSub);
-            pDealerCtx = NULL;
-        }
-
-        return 0;
-    }
 
     int setupStream()
     {
@@ -187,12 +166,13 @@ private:
 
         // req avformatcontext packet
         // send hello to puller
+        spdlog::info("evpusher {} {} send hello to puller: {}", devSn, iid, pullerGid);
         vector<vector<uint8_t> > body;
         body.push_back(str2body(pullerGid));
         body.push_back(str2body(MSG_HELLO));
         ret = z_send_multiple(pDealer, body);
         if(ret < 0) {
-            spdlog::error("evpusher {} {}, failed to send hello: {}", devSn, iid, zmq_strerror(zmq_errno()));
+            spdlog::error("evpusher {} {}, failed to send hello to puller: {}", devSn, iid, zmq_strerror(zmq_errno()));
             return ret;
         }
         spdlog::info("evpusher {} {} success send hello", devSn, iid);
@@ -347,16 +327,28 @@ public:
     EvPusher()
     {
         init();
-        if(setupMq() < 0) {
-            // TODO: reconnect
-            exit(1);
-        }
+        setupMq();
         setupStream();
     }
 
     ~EvPusher()
     {
-        teardownMq();
+        if(pSub != NULL) {
+            zmq_close(pSub);
+            pSub = NULL;
+        }
+        if(pSubCtx != NULL) {
+            zmq_ctx_destroy(pSubCtx);
+            pSubCtx = NULL;
+        }
+        if(pDealer != NULL) {
+            zmq_close(pSub);
+            pDealer = NULL;
+        }
+        if(pDealerCtx != NULL) {
+            zmq_ctx_destroy(pSub);
+            pDealerCtx = NULL;
+        }
         // free avformatcontex
         if(pAVFormatInput != NULL) {
             AVFormatCtxSerializer::freeCtx(pAVFormatInput);

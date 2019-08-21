@@ -96,12 +96,12 @@ private:
 
         // ID_SENDER, ID_TARGET, MSG
         if(body.size() != 3) {
-            spdlog::error("evmgr {} illegal message received, frame num: {}", devSn, body.size());
-            return -1;
+            spdlog::warn("evmgr {} dropped a message, since its size is incorrect: {}", devSn, body.size());
+            return 0;
         }
 
         // if need forward
-        if(memcmp((void*)(body[1].data()), devSn.data(), body[1].size()) != 0) {
+        if(memcmp((void*)(body[1].data()), (devSn +":0:0").data(), body[1].size()) != 0) {
             spdlog::info("evmgr {} route msg from {} to {}", devSn, body2str(body[0]), body2str(body[1]));
             vector<vector<uint8_t> >v;
             v.push_back(body[1]);
@@ -159,6 +159,7 @@ public:
 int main(int argc, const char *argv[])
 {
     EvMgr mgr;
+    spdlog::set_level(spdlog::level::debug);
     mgr.join();
     return 0;
 }

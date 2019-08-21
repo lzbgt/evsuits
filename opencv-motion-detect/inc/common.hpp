@@ -94,7 +94,7 @@ int encode(AVPacket &pkt, char **bytes)
     memcpy((*bytes) + cnt, PS_MARK_E, strlen(PS_MARK_E));
     cnt += strlen(PS_MARK_E);
     assert(cnt == wholeSize);
-    spdlog::debug("pkt origin size {:d}, serialized size: {:d}, elems: {:d}", pkt.size, wholeSize, pkt.side_data_elems);
+    av_log(NULL, AV_LOG_DEBUG, "pkt origin size %d, serialized size: %d, elems: %d", pkt.size, wholeSize, pkt.side_data_elems);
     return wholeSize;
 }
 

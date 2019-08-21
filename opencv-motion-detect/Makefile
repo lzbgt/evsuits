@@ -1,7 +1,7 @@
 CC = gcc
 CPP = g++
-CPPFLAGS = -g -Wall -std=gnu++1z
-CFLAGS = -g -Wall
+CPPFLAGS = -Wall -std=gnu++1z
+CFLAGS = -Wall
 
 LIBOPENCV = `pkg-config opencv --cflags --libs`
 LIBFFMPEG = `pkg-config libavformat libavutil libavcodec libswscale --cflags --libs`
