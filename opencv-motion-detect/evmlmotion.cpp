@@ -494,7 +494,6 @@ private:
 protected:
     void run()
     {
-        cout << endl << "in run" << endl;
         bool bStopSig = false;
         int ret = 0;
         int idx = 0;
@@ -516,9 +515,7 @@ protected:
 
             // business logic
             int ret =zmq_msg_init(&msg);
-            cout << "ck1" <<endl;
             ret = zmq_recvmsg(pSub, &msg, 0);
-            cout << "ck2" << endl;
             if(ret < 0) {
                 spdlog::error("failed to recv zmq msg: {}", zmq_strerror(ret));
                 continue;
@@ -564,7 +561,6 @@ public:
         setupMq();
         getInputFormat();
         setupStream();
-        cout << "exit ctor" << endl;
     };
     ~EvMLMotion() {
         if(pSub != NULL) {
