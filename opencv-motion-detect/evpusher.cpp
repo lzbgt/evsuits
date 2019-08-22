@@ -1,7 +1,6 @@
 #pragma GCC diagnostic ignored "-Wunused-private-field"
 #pragma GCC diagnostic ignored "-Wunused-variable"
 
-
 #include <stdlib.h>
 #include <string>
 #include <thread>
@@ -47,13 +46,13 @@ private:
         while(!inited) {
             // TODO: req config
             bool found = false;
-            try{
+            try {
                 config = json::parse(cloudutils::config);
                 spdlog::info("config: {:s}", config.dump());
                 json evpusher;
                 json evmgr;
                 json ipc;
-                
+
                 json data = config["data"];
                 for (auto& [key, value] : data.items()) {
                     //std::cout << key << " : " << dynamic_cast<json&>(value).dump() << "\n";
@@ -98,18 +97,19 @@ private:
             }
             catch(exception &e) {
                 spdlog::error("evpusher {} {} exception in EvPuller.init {:s} retrying", devSn, iid, e.what());
-                    this_thread::sleep_for(chrono::seconds(3));
-                    continue;
+                this_thread::sleep_for(chrono::seconds(3));
+                continue;
             }
-            
+
             inited = true;
         }
 
         return 0;
     }
 
-    int ping(){
-         // send hello to router
+    int ping()
+    {
+        // send hello to router
         int ret = 0;
         vector<vector<uint8_t> >body;
         // since identity is auto set
@@ -121,10 +121,11 @@ private:
         if(ret < 0) {
             spdlog::error("evpusher {} {} failed to send multiple: {}", devSn, iid, zmq_strerror(zmq_errno()));
             //TODO:
-        }else{
+        }
+        else {
             spdlog::info("evpusher {} {} sent hello to router: {}", devSn, iid, mgrSn);
         }
-        
+
         return ret;
     }
 
@@ -162,7 +163,7 @@ private:
         }
         //ping
         ret = ping();
-        thPing = thread([&,this](){
+        thPing = thread([&,this]() {
             while(true) {
                 this_thread::sleep_for(chrono::seconds(EV_HEARTBEAT_SECONDS-2));
                 ping();
@@ -174,7 +175,8 @@ private:
         return ret;
     }
 
-    int getInputFormat(){
+    int getInputFormat()
+    {
         int ret = 0;
         // req avformatcontext packet
         // send hello to puller
@@ -193,7 +195,7 @@ private:
                 spdlog::error("evpusher {} {}, failed to send hello to puller: {}", devSn, iid, zmq_strerror(zmq_errno()));
                 continue;
             }
-            
+
             // expect response with avformatctx
             auto v = z_recv_multiple(pDealer);
             if(v.size() != 3) {
@@ -201,24 +203,28 @@ private:
                 if(ret != 0) {
                     if(failedCnt % 100 == 0) {
                         spdlog::error("evpusher {} {}, error receive avformatctx: {}, {}", devSn, iid, v.size(), zmq_strerror(ret));
-                        spdlog::info("evpusher {} {} retry connect to peers", devSn, iid);     
+                        spdlog::info("evpusher {} {} retry connect to peers", devSn, iid);
                     }
                     this_thread::sleep_for(chrono::seconds(5));
-                    failedCnt++;      
-                }else{
+                    failedCnt++;
+                }
+                else {
                     spdlog::error("evpusher {} {}, received bad size zmq msg for avformatctx: {}", devSn, iid, v.size());
-                }               
-            }else if(body2str(v[0]) != pullerGid) {
+                }
+            }
+            else if(body2str(v[0]) != pullerGid) {
                 spdlog::error("evpusher {} {}, invalid sender for avformatctx: {}, should be: {}", devSn, iid, body2str(v[0]), pullerGid);
-            }else{
-                try{
+            }
+            else {
+                try {
                     auto cmd = json::parse(body2str(v[1]));
-                    if(cmd["type"].get<string>() == EV_MSG_META_AVFORMATCTX){
+                    if(cmd["type"].get<string>() == EV_MSG_META_AVFORMATCTX) {
                         pAVFormatInput = (AVFormatContext *)malloc(sizeof(AVFormatContext));
                         AVFormatCtxSerializer::decode((char *)(v[2].data()), v[2].size(), pAVFormatInput);
                         gotFormat = true;
-                    }    
-                }catch(exception &e) {
+                    }
+                }
+                catch(exception &e) {
                     spdlog::error("evpusher {} {}, exception in parsing avformatctx packet: {}", devSn, iid, e.what());
                 }
             }
@@ -277,7 +283,7 @@ private:
         av_dump_format(pAVFormatRemux, 0, urlOut.c_str(), 1);
 
         if (!(pAVFormatRemux->oformat->flags & AVFMT_NOFILE)) {
-            spdlog::error("evpusher {} {} failed allocating output stream", devSn ,iid);
+            spdlog::error("evpusher {} {} failed allocating output stream", devSn,iid);
             ret = avio_open2(&pAVFormatRemux->pb, urlOut.c_str(), AVIO_FLAG_WRITE, NULL, &pOptsRemux);
             if (ret < 0) {
                 spdlog::error("evpusher {} {} could not open output file '%s'", devSn, iid, urlOut);
@@ -299,14 +305,14 @@ private:
         return ret;
     }
 
-    void freeStream(){
-                    // close output context
-        if(pAVFormatRemux)
-        {
+    void freeStream()
+    {
+        // close output context
+        if(pAVFormatRemux) {
             if(pAVFormatRemux->pb) {
                 avio_closep(&pAVFormatRemux->pb);
             }
-            
+
             avformat_free_context(pAVFormatRemux);
         }
         pAVFormatRemux = NULL;
@@ -362,22 +368,21 @@ protected:
             out_stream = pAVFormatRemux->streams[packet.stream_index];
 
             //calc pts
-            {
-                if(pktCnt % (18*60*5) == 0) {
-                    spdlog::info("seq: {:lld}, pts: {:lld}, dts: {:lld}, dur: {:lld}, idx: {:d}", pktCnt, packet.pts, packet.dts, packet.duration, packet.stream_index);
-                }
-                /* copy packet */
-                if(pktCnt == 0) {
-                    packet.pts = 0;
-                    packet.dts = 0;
-                    packet.duration = 0;
-                    packet.pos = -1;
-                }else{
-                    packet.pts = av_rescale_q_rnd(packet.pts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
-                    packet.dts = av_rescale_q_rnd(packet.dts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
-                    packet.duration = av_rescale_q(packet.duration, in_stream->time_base, out_stream->time_base);
-                    packet.pos = -1;
-                }
+            if(pktCnt % (18*60*5) == 0) {
+                spdlog::info("seq: {:lld}, pts: {:lld}, dts: {:lld}, dur: {:lld}, idx: {:d}", pktCnt, packet.pts, packet.dts, packet.duration, packet.stream_index);
+            }
+            /* copy packet */
+            if(pktCnt == 0) {
+                packet.pts = 0;
+                packet.dts = 0;
+                packet.duration = 0;
+                packet.pos = -1;
+            }
+            else {
+                packet.pts = av_rescale_q_rnd(packet.pts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
+                packet.dts = av_rescale_q_rnd(packet.dts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
+                packet.duration = av_rescale_q(packet.duration, in_stream->time_base, out_stream->time_base);
+                packet.pos = -1;
             }
 
             ret = av_interleaved_write_frame(pAVFormatRemux, &packet);
@@ -392,7 +397,7 @@ protected:
                     getInputFormat();
                     setupStream();
                     pktCnt = 0;
-                    continue;          
+                    continue;
                 }
             }
         }
