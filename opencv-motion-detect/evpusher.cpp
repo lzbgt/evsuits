@@ -140,11 +140,10 @@ private:
         }
 
         // send hello to router
-        spdlog::info("evpusher {} {} send hello to router: {}", devSn, iid, mgrSn);
         vector<vector<uint8_t> >body;
         // since identity is auto set
         body.push_back(str2body(mgrSn+":0:0"));
-        body.push_back(str2body("")); // blank meta
+        body.push_back(str2body(EV_MSG_META_PING)); // blank meta
         body.push_back(str2body(MSG_HELLO));
 
         ret = z_send_multiple(pDealer, body);
@@ -154,7 +153,7 @@ private:
             return -1;
         }
 
-        spdlog::info("evpusher {} {} success setupMq", devSn, iid);
+        spdlog::info("evpusher {} {} sent hello to router: {}", devSn, iid, mgrSn);
 
         return 0;
     }
@@ -171,28 +170,38 @@ private:
         vector<vector<uint8_t> > body;
         body.push_back(str2body(pullerGid));
         json meta;
-        meta["type"] = EV_PACKET_TYPE_AVFORMATCTX;
+        meta["type"] = EV_MSG_META_AVFORMATCTX;
         body.push_back(str2body(meta.dump()));
         body.push_back(str2body(MSG_HELLO));
         bool gotFormat = false;
+        uint64_t failedCnt = 0;
         while(!gotFormat) {
             ret = z_send_multiple(pDealer, body);
             if(ret < 0) {
                 spdlog::error("evpusher {} {}, failed to send hello to puller: {}", devSn, iid, zmq_strerror(zmq_errno()));
                 continue;
             }
-            spdlog::info("evpusher {} {} success send hello", devSn, iid);
-
+            
             // expect response with avformatctx
             auto v = z_recv_multiple(pDealer);
             if(v.size() != 3) {
-                spdlog::error("evpusher {} {}, received bad size zmq msg for avformatctx: {}", devSn, iid, v.size());
+                ret = zmq_errno();
+                if(ret != 0) {
+                    if(failedCnt % 100 == 0) {
+                        spdlog::error("evpusher {} {}, error receive avformatctx: {}, {}", devSn, iid, v.size(), zmq_strerror(ret));
+                        spdlog::info("evpusher {} {} retry connect to peers", devSn, iid);     
+                    }
+                    this_thread::sleep_for(chrono::seconds(5));
+                    failedCnt++;      
+                }else{
+                    spdlog::error("evpusher {} {}, received bad size zmq msg for avformatctx: {}", devSn, iid, v.size());
+                }               
             }else if(body2str(v[0]) != pullerGid) {
                 spdlog::error("evpusher {} {}, invalid sender for avformatctx: {}, should be: {}", devSn, iid, body2str(v[0]), pullerGid);
             }else{
                 try{
                     auto cmd = json::parse(body2str(v[1]));
-                    if(cmd["type"].get<string>() == EV_PACKET_TYPE_AVFORMATCTX){
+                    if(cmd["type"].get<string>() == EV_MSG_META_AVFORMATCTX){
                         pAVFormatInput = (AVFormatContext *)malloc(sizeof(AVFormatContext));
                         AVFormatCtxSerializer::decode((char *)(v[2].data()), v[2].size(), pAVFormatInput);
                         gotFormat = true;
@@ -316,7 +325,9 @@ protected:
 
             //calc pts
             {
-                spdlog::debug("seq: {:lld}, pts: {:lld}, dts: {:lld}, dur: {:lld}, idx: {:d}", pktCnt, packet.pts, packet.dts, packet.duration, packet.stream_index);
+                if(pktCnt % (18*60*5) == 0) {
+                    spdlog::info("seq: {:lld}, pts: {:lld}, dts: {:lld}, dur: {:lld}, idx: {:d}", pktCnt, packet.pts, packet.dts, packet.duration, packet.stream_index);
+                }
                 /* copy packet */
                 packet.pts = av_rescale_q_rnd(packet.pts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
                 packet.dts = av_rescale_q_rnd(packet.dts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
@@ -327,7 +338,8 @@ protected:
             ret = av_interleaved_write_frame(pAVFormatRemux, &packet);
             av_packet_unref(&packet);
             if (ret < 0) {
-                spdlog::error("error muxing packet");
+                spdlog::error("error muxing packet: {}", av_err2str(ret));
+                exit(1);
             }
         }
         av_write_trailer(pAVFormatRemux);
@@ -377,7 +389,7 @@ public:
 int main(int argc, char *argv[])
 {
     av_log_set_level(AV_LOG_INFO);
-    spdlog::set_level(spdlog::level::debug);
+    spdlog::set_level(spdlog::level::info);
     EvPusher pusher;
     pusher.join();
 }

@@ -39,25 +39,27 @@ private:
     const char * bytes;
     int len;
     void *pDealer=NULL;
+    void sendPing(){
+        int ret = 0;
+        vector<vector<uint8_t> >body;
+        // since identity is auto set
+        body.push_back(str2body(mgrSn + ":0:0"));
+        body.push_back(str2body(EV_MSG_META_PING));
+        body.push_back(str2body(MSG_HELLO));
+
+        ret = z_send_multiple(pDealer, body);
+        if(ret < 0) {
+            spdlog::error("evpuller {} {} failed to send multiple: {}", devSn, iid, zmq_strerror(zmq_errno()));
+            return;
+        }
+    }
 protected:
     void run()
     {
         int ret = 0;
         bool bStopSig = false;
         // declare ready to router
-        vector<vector<uint8_t> >body;
-        // since identity is auto set
-        body.push_back(str2body(mgrSn + ":0:0"));
-        body.push_back(str2body("")); // blank meta
-        body.push_back(str2body(MSG_HELLO));
-
-        ret = z_send_multiple(pDealer, body);
-        if(ret < 0) {
-            spdlog::error("evpuller {} {} failed to send multiple: {}", devSn, iid, zmq_strerror(zmq_errno()));
-            //TODO:
-            return;
-        }
-
+        sendPing();
         // init response msg
         auto msgBody = data2body(const_cast<char*>(bytes), len);
         while (true) {
@@ -68,31 +70,27 @@ protected:
 
             spdlog::info("evpuller repSrv {} {} waiting for req", devSn, iid);
             // proto: [sender_id] [meta] [body]
-            auto v = z_recv_multiple(pDealer);
+            auto v = z_recv_multiple(pDealer, false);
             if(v.size() != 3) {
                 //TODO:
                 spdlog::error("evpuller {} {},  repSrv received invalid message: {}", devSn, iid, v.size());
                 continue;
             }
-            cout << endl<<endl;
-            for(auto&j:v) {
-                    cout <<body2str(j) << "; ";
-            }
-            cout << endl;
+            
             try{
                 // rep framectx
                 // TODO: verify sender id
                 auto meta = json::parse(body2str(v[1]));
-                if(meta["type"].get<string>() == EV_PACKET_TYPE_AVFORMATCTX) {
-                    vector<vector<uint8_t> > rep;
-                    rep.push_back(v[0]);
-                    rep.push_back(v[1]);
-                    rep.push_back(msgBody);
+                if(meta["type"].get<string>() == EV_MSG_META_AVFORMATCTX) {
+                    vector<vector<uint8_t> > rep = {v[0], v[1], msgBody};
                     ret = z_send_multiple(pDealer, rep);
                     if(ret < 0) {
                         spdlog::error("evpuller {} {} failed send rep to requester {}: {}", devSn, iid, body2str(v[0]), zmq_strerror(zmq_errno()));
                     }
-                }else{
+                }else if(meta["type"].get<string>() == EV_MSG_META_PING){
+                    sendPing();
+                }
+                else{
                     spdlog::error("evpuller {} {} unknown meta from {}: {}", devSn, iid, body2str(v[0]), body2str(v[1]));
                 }
             }catch(exception &e) {
