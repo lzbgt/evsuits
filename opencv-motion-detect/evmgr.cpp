@@ -39,7 +39,10 @@ private:
     json jmgr;
     unordered_map<string, queue<vector<vector<uint8_t> >> > cachedMsg;
     mutex cacheLock;
-    queue<json> *eventQue;
+    queue<string> eventQue;
+    mutex eventQLock;
+
+    //
     void init()
     {
         int ret;
@@ -109,6 +112,7 @@ private:
         // update status;
         this->peerStatus[selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
 
+        // msg to peer
         if(memcmp((void*)(body[1].data()), (devSn +":0:0").data(), body[1].size()) != 0) {
             // message to other peer
             // check peer status
@@ -138,6 +142,19 @@ private:
                 if(cachedMsg[peerId].size() > EV_NUM_CACHE_PERPEER) {
                     cachedMsg[peerId].pop();
                 }
+            }
+
+            // check if event
+            try{
+                string metaType = json::parse(meta)["type"];
+                if(metaType == EV_MSG_META_EVENT) {
+                    eventQue.push(body2str(body[3]));
+                    if(eventQue.size() > MAX_EVENT_QUEUE_SIZE) {
+                        eventQue.pop();
+                    }
+                }
+            }catch(exception &e) {
+                spdlog::error("evmgr {} exception parse event msg from {} to {}: ", devSn, selfId, peerId, e.what());
             }
         }else{
             // message to mgr
@@ -188,13 +205,12 @@ protected:
         }
     }
 public:
-    EvMgr() = delete;
     EvMgr(EvMgr &&) = delete;
     EvMgr(EvMgr &) = delete;
     EvMgr(const EvMgr &) = delete;
     EvMgr& operator=(const EvMgr &) = delete;
     EvMgr& operator=(EvMgr &&) = delete;
-    EvMgr(queue<json> *queue):eventQue(queue)
+    EvMgr()
     {
         init();
     }
@@ -215,8 +231,7 @@ int main(int argc, const char *argv[])
 {
     av_log_set_level(AV_LOG_ERROR);
     spdlog::set_level(spdlog::level::debug);
-    queue<json> queue;
-    EvMgr mgr(&queue);
+    EvMgr mgr;
     mgr.join();
     return 0;
 }

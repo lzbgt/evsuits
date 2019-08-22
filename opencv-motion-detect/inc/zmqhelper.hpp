@@ -17,6 +17,7 @@ namespace zmqhelper {
     #define EV_MSG_META_EVENT "event"
     #define EV_MSG_META_AVFORMATCTX "afctx"
     #define EV_NUM_CACHE_PERPEER 100
+    #define MAX_EVENT_QUEUE_SIZE 20
 
     // 
     string body2str(vector<uint8_t> body){
