@@ -15,13 +15,14 @@
 namespace fs = std::filesystem;
 #endif
 #include <cstdlib>
-#include "vendor/include/zmq.h"
+#include "zmqhelper.hpp"
 #include "tinythread.hpp"
 #include "common.hpp"
 #include "avcvhelpers.hpp"
 #include "database.h"
 
 using namespace std;
+using namespace zmqhelper;
 
 #define URLOUT_DEFAULT "frames"
 #define NUM_PKT_IGNORE 18*2
@@ -53,11 +54,10 @@ enum EventState {
 
 class EvMLMotion: public TinyThread {
 private:
-    void *pSubCtx = NULL, *pReqCtx = NULL; // for packets relay
-    void *pSub = NULL, *pReq = NULL;
-    string urlOut, urlPub, urlRep, sn;
+    void *pSubCtx = NULL, *pDealerCtx = NULL; // for packets relay
+    void *pSub = NULL, *pDealer = NULL;
+    string urlOut, urlPub, urlRouter, devSn, mgrSn, selfId, pullerGid;
     int iid;
-    bool enablePush = false;
     AVFormatContext *pAVFormatInput = NULL;
     AVCodecContext *pCodecCtx = NULL;
     AVDictionary *pOptsRemux = NULL;
@@ -65,59 +65,85 @@ private:
     EventState evtState = EventState::NONE;
     chrono::system_clock::time_point evtStartTm, evtStartTmLast;
     queue<string> *evtQueue;
-
-    // load from db
     int streamIdx = -1;
+    json config;
+    thread thPing;
+    //
 
     int init()
     {
         int ret = 0;
         bool inited = false;
-        // TODO: read db to get sn
-        sn = "ILS-3";
-        iid = 3;
+        // TODO: read db to get devSn
+        devSn = "ILSEVMLMOTION1";
+        iid = 1;
+        selfId = devSn + ":evmlmotion:" + to_string(iid);
         while(!inited) {
-            // req config
-            json jr = cloudutils::registry(sn.c_str(), "evmlmotion", iid);
-            bool bcnt = false;
+            // TODO: req config
+            bool found = false;
             try {
-                spdlog::info("registry: {:s}", jr.dump());
-                json data = jr["data"]["services"]["evpuller"];
-                string addr = data["addr"].get<string>();
-                if(addr == "0.0.0.0") {
-                    addr = "localhost";
-                }
-                urlPub = string("tcp://") + addr + ":" + to_string(data["port-pub"]);
-                urlRep = string("tcp://") + addr + ":" + to_string(data["port-rep"]);
-                spdlog::info("evmlmotion {} {} will connect to {} for sub, {} for req", sn, iid, urlPub, urlRep);
+                config = json::parse(cloudutils::config);
+                spdlog::info("config: {:s}", config.dump());
+                json evmlmotion;
+                json evmgr;
+                json ipc;
 
-                data = jr["data"]["services"]["evml"];
-                for(auto &j: data) {
-                    try {
-                        j.at("path").get_to(urlOut);
+                json data = config["data"];
+                for (auto& [key, value] : data.items()) {
+                    //std::cout << key << " : " << dynamic_cast<json&>(value).dump() << "\n";
+                    evmgr = value;
+                    json ipcs = evmgr["ipcs"];
+                    for(auto &j: ipcs) {
+                        json mls = j["modules"]["evml"];
+                        for(auto &p:mls) {
+                            if(p["sn"] == devSn && p["iid"] == iid && p["type"] == "motion") {
+                                evmlmotion = p;
+                                break;
+                            }
+                        }
+                        if(evmlmotion.size() != 0) {
+                            ipc = j;
+                            break;
+                        }
                     }
-                    catch(exception &e) {
-                        spdlog::warn("evslicer {} {} exception get params for storing slices: {}, using default: {}", sn, iid, e.what(), URLOUT_DEFAULT);
-                        urlOut = URLOUT_DEFAULT;
+
+                    if(ipc.size()!=0 && evmlmotion.size()!=0) {
+                        found = true;
+                        break;
                     }
-                    ret = system(("mkdir -p " +urlOut).c_str());
-                    if(ret == -1) {
-                        spdlog::error("failed mkdir {}", urlOut);
-                        return -1;
-                    }
-                    //TODO
-                    break;
+                }
+
+                if(!found) {
+                    spdlog::error("evmlmotion {} {}: no valid config found. retrying load config...", devSn, iid);
+                    this_thread::sleep_for(chrono::seconds(3));
+                    continue;
+                }
+
+                // TODO: currently just take the first puller, but should test connectivity
+                json evpuller = ipc["modules"]["evpuller"][0];
+                pullerGid = evpuller["sn"].get<string>() + ":evpuller:" + to_string(evpuller["iid"]);
+                mgrSn = evmgr["sn"];
+
+                urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(evpuller["port-pub"]);
+                urlRouter = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(evmgr["port-router"]);
+                spdlog::info("evmlmotion {} {} will connect to {} for sub, {} for router", devSn, iid, urlPub, urlRouter);
+                // TODO: multiple protocols support
+                if(evmlmotion.count("path") == 0){
+                    spdlog::warn("evslicer {} {} no params for path, using default: {}", devSn, iid, URLOUT_DEFAULT);
+                    urlOut = URLOUT_DEFAULT;
+                }else{
+                    urlOut = evmlmotion["path"];
+                }
+
+                ret = system(("mkdir -p " +urlOut).c_str());
+                if(ret == -1) {
+                    spdlog::error("failed mkdir {}", urlOut);
+                    return -1;
                 }
             }
             catch(exception &e) {
-                bcnt = true;
-                spdlog::error("evmlmotion {} {} exception in EvPuller.init {:s},  retrying...", sn, iid, e.what());
-            }
-
-            if(bcnt || urlOut.empty()) {
-                // TODO: waiting for command
-                spdlog::warn("evmlmotion {} {} waiting for command & retrying", sn, iid);
-                this_thread::sleep_for(chrono::milliseconds(1000*20));
+                spdlog::error("evmlmotion {} {} exception in EvPuller.init {:s} retrying", devSn, iid, e.what());
+                this_thread::sleep_for(chrono::seconds(3));
                 continue;
             }
 
@@ -126,9 +152,31 @@ private:
 
         return 0;
     }
+
+    int ping()
+    {
+        // send hello to router
+        int ret = 0;
+        vector<vector<uint8_t> >body;
+        // since identity is auto set
+        body.push_back(str2body(mgrSn+":0:0"));
+        body.push_back(str2body(EV_MSG_META_PING)); // blank meta
+        body.push_back(str2body(MSG_HELLO));
+
+        ret = z_send_multiple(pDealer, body);
+        if(ret < 0) {
+            spdlog::error("evpusher {} {} failed to send multiple: {}", devSn, iid, zmq_strerror(zmq_errno()));
+            //TODO:
+        }
+        else {
+            spdlog::info("evpusher {} {} sent hello to router: {}", devSn, iid, mgrSn);
+        }
+
+        return ret;
+    }
+
     int setupMq()
     {
-        teardownMq();
         int ret = 0;
 
         // setup sub
@@ -136,91 +184,104 @@ private:
         pSub = zmq_socket(pSubCtx, ZMQ_SUB);
         ret = zmq_setsockopt(pSub, ZMQ_SUBSCRIBE, "", 0);
         if(ret != 0) {
-            spdlog::error("evmlmotion failed connect to pub: {}, {}", sn, iid);
+            spdlog::error("evpusher {} {} failed set setsockopt: {}", devSn, iid, urlPub);
             return -1;
         }
         ret = zmq_connect(pSub, urlPub.c_str());
         if(ret != 0) {
-            spdlog::error("evmlmotion {} {} failed create sub", sn, iid);
+            spdlog::error("evpusher {} {} failed connect pub: {}", devSn, iid, urlPub);
             return -2;
         }
 
-        // setup req
-        pReqCtx = zmq_ctx_new();
-        pReq = zmq_socket(pReqCtx, ZMQ_REQ);
-        spdlog::info("evmlmotion {} {} try create req to {}", sn, iid, urlRep);
-        ret = zmq_connect(pReq, urlRep.c_str());
-
-        if(ret != 0) {
-            spdlog::error("evmlmotion {} {} failed create req to {}", sn, iid, urlRep);
+        // setup dealer
+        pDealerCtx = zmq_ctx_new();
+        pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
+        spdlog::info("evpusher {} {} try create req to {}", devSn, iid, urlRouter);
+        ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());
+        if(ret < 0) {
+            spdlog::error("evpusher {} {} failed setsockopts router: {}", devSn, iid, urlRouter);
             return -3;
         }
+        ret = zmq_connect(pDealer, urlRouter.c_str());
+        if(ret != 0) {
+            spdlog::error("evpusher {} {} failed connect dealer: {}", devSn, iid, urlRouter);
+            return -4;
+        }
+        //ping
+        ret = ping();
+        thPing = thread([&,this]() {
+            while(true) {
+                this_thread::sleep_for(chrono::seconds(EV_HEARTBEAT_SECONDS-2));
+                ping();
+            }
+        });
 
-        spdlog::info("evmlmotion {} {} success setupMq", sn, iid);
+        thPing.detach();
 
-        return 0;
+        return ret;
     }
 
-    int teardownMq()
+    int getInputFormat()
     {
-        if(pSub != NULL) {
-            zmq_close(pSub);
-            pSub = NULL;
-        }
-        if(pSubCtx != NULL) {
-            zmq_ctx_destroy(pSubCtx);
-            pSubCtx = NULL;
-        }
-        if(pReq != NULL) {
-            zmq_close(pSub);
-            pReq = NULL;
-        }
-        if(pReqCtx != NULL) {
-            zmq_ctx_destroy(pSub);
-            pReqCtx = NULL;
-        }
+        int ret = 0;
+        // req avformatcontext packet
+        // send hello to puller
+        spdlog::info("evpusher {} {} send hello to puller: {}", devSn, iid, pullerGid);
+        vector<vector<uint8_t> > body;
+        body.push_back(str2body(pullerGid));
+        json meta;
+        meta["type"] = EV_MSG_META_AVFORMATCTX;
+        body.push_back(str2body(meta.dump()));
+        body.push_back(str2body(MSG_HELLO));
+        bool gotFormat = false;
+        uint64_t failedCnt = 0;
+        while(!gotFormat) {
+            ret = z_send_multiple(pDealer, body);
+            if(ret < 0) {
+                spdlog::error("evpusher {} {}, failed to send hello to puller: {}", devSn, iid, zmq_strerror(zmq_errno()));
+                continue;
+            }
 
-        return 0;
+            // expect response with avformatctx
+            auto v = z_recv_multiple(pDealer);
+            if(v.size() != 3) {
+                ret = zmq_errno();
+                if(ret != 0) {
+                    if(failedCnt % 100 == 0) {
+                        spdlog::error("evpusher {} {}, error receive avformatctx: {}, {}", devSn, iid, v.size(), zmq_strerror(ret));
+                        spdlog::info("evpusher {} {} retry connect to peers", devSn, iid);
+                    }
+                    this_thread::sleep_for(chrono::seconds(5));
+                    failedCnt++;
+                }
+                else {
+                    spdlog::error("evpusher {} {}, received bad size zmq msg for avformatctx: {}", devSn, iid, v.size());
+                }
+            }
+            else if(body2str(v[0]) != pullerGid) {
+                spdlog::error("evpusher {} {}, invalid sender for avformatctx: {}, should be: {}", devSn, iid, body2str(v[0]), pullerGid);
+            }
+            else {
+                try {
+                    auto cmd = json::parse(body2str(v[1]));
+                    if(cmd["type"].get<string>() == EV_MSG_META_AVFORMATCTX) {
+                        pAVFormatInput = (AVFormatContext *)malloc(sizeof(AVFormatContext));
+                        AVFormatCtxSerializer::decode((char *)(v[2].data()), v[2].size(), pAVFormatInput);
+                        gotFormat = true;
+                    }
+                }
+                catch(exception &e) {
+                    spdlog::error("evpusher {} {}, exception in parsing avformatctx packet: {}", devSn, iid, e.what());
+                }
+            }
+        }
+        return ret;
     }
+
 
     int setupStream()
     {
         int ret = 0;
-
-        // req avformatcontext packet
-        // send first packet to init connection
-        zmq_msg_t msg;
-        zmq_send(pReq, "hello", 5, 0);
-        spdlog::info("evmlmotion {} {} success send hello", sn, iid);
-        ret =zmq_msg_init(&msg);
-        if(ret != 0) {
-            spdlog::error("failed to init zmq msg");
-            exit(1);
-        }
-        // receive packet
-        ret = zmq_recvmsg(pReq, &msg, 0);
-        spdlog::info("evmlmotion {} {} recv", sn, iid);
-        if(ret < 0) {
-            spdlog::error("evmlmotion {} {} failed to recv zmq msg: {}", sn, iid, zmq_strerror(ret));
-            exit(1);
-        }
-
-        pAVFormatInput = (AVFormatContext *)malloc(sizeof(AVFormatContext));
-        AVFormatCtxSerializer::decode((char *)zmq_msg_data(&msg), ret, pAVFormatInput);
-
-        // close req
-        {
-            zmq_msg_close(&msg);
-            if(pReq != NULL) {
-                zmq_close(pReq);
-                pReq = NULL;
-            }
-            if(pReqCtx != NULL) {
-                zmq_ctx_destroy(pReqCtx);
-                pReqCtx = NULL;
-            }
-        }
-
         //  find video
         for (int i = 0; i < pAVFormatInput->nb_streams; i++) {
             AVStream *out_stream;
@@ -262,6 +323,16 @@ private:
         }
 
         return ret;
+    }
+
+    void freeStream()
+    {
+        if(pAVFormatInput != NULL) {
+            AVFormatCtxSerializer::freeCtx(pAVFormatInput);
+            pAVFormatInput = NULL;
+        }
+
+        pAVFormatInput = NULL;
     }
 
     int decode_packet(bool detect, AVPacket *pPacket, AVCodecContext *pCodecContext, AVFrame *pFrame)
@@ -419,9 +490,11 @@ private:
             }
         }
     }
+    
 protected:
     void run()
     {
+        cout << endl << "in run" << endl;
         bool bStopSig = false;
         int ret = 0;
         int idx = 0;
@@ -443,7 +516,9 @@ protected:
 
             // business logic
             int ret =zmq_msg_init(&msg);
+            cout << "ck1" <<endl;
             ret = zmq_recvmsg(pSub, &msg, 0);
+            cout << "ck2" << endl;
             if(ret < 0) {
                 spdlog::error("failed to recv zmq msg: {}", zmq_strerror(ret));
                 continue;
@@ -487,9 +562,28 @@ public:
         evtQueue = queue;
         init();
         setupMq();
+        getInputFormat();
         setupStream();
+        cout << "exit ctor" << endl;
     };
-    ~EvMLMotion() {};
+    ~EvMLMotion() {
+        if(pSub != NULL) {
+            zmq_close(pSub);
+            pSub = NULL;
+        }
+        if(pSubCtx != NULL) {
+            zmq_ctx_destroy(pSubCtx);
+            pSubCtx = NULL;
+        }
+        if(pDealer != NULL) {
+            zmq_close(pSub);
+            pDealer = NULL;
+        }
+        if(pDealerCtx != NULL) {
+            zmq_ctx_destroy(pSub);
+            pDealerCtx = NULL;
+        }
+    };
 };
 
 int main(int argc, const char *argv[])

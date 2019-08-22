@@ -27,7 +27,7 @@ class EvPusher: public TinyThread {
 private:
     void *pSubCtx = NULL, *pDealerCtx = NULL; // for packets relay
     void *pSub = NULL, *pDealer = NULL;
-    string urlOut, urlPub, urlDealer, devSn, pullerGid, mgrSn, pusherGid;
+    string urlOut, urlPub, urlDealer, devSn, pullerGid, mgrSn, selfId;
     int iid;
     bool enablePush = false;
     int *streamList = NULL;
@@ -42,7 +42,7 @@ private:
         // TODO: read db to get devSn
         devSn = "ILSEVPUSHER1";
         iid = 1;
-        pusherGid = devSn + ":evpusher:" + to_string(iid);
+        selfId = devSn + ":evpusher:" + to_string(iid);
         while(!inited) {
             // TODO: req config
             bool found = false;
@@ -151,7 +151,7 @@ private:
         pDealerCtx = zmq_ctx_new();
         pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
         spdlog::info("evpusher {} {} try create req to {}", devSn, iid, urlDealer);
-        ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, pusherGid.c_str(), pusherGid.size());
+        ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());
         if(ret < 0) {
             spdlog::error("evpusher {} {} failed setsockopts router: {}", devSn, iid, urlDealer);
             return -3;

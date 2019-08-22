@@ -430,7 +430,7 @@ protected:
                         break;
                     }
                 }
-
+                
                 end = chrono::system_clock::now();
             }// while in slice
             // write tail
