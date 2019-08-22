@@ -589,6 +589,7 @@ public:
 int main(int argc, const char *argv[])
 {
     spdlog::set_level(spdlog::level::info);
+    av_log_set_level(AV_LOG_ERROR);
     queue<string> evtQueue;
     EvMLMotion es(&evtQueue);
     es.detach();

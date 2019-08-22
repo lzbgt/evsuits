@@ -239,8 +239,9 @@ public:
 
 int main(int argc, const char *argv[])
 {
-    EvMgr mgr;
+    av_log_set_level(AV_LOG_ERROR);
     spdlog::set_level(spdlog::level::debug);
+    EvMgr mgr;
     mgr.join();
     return 0;
 }

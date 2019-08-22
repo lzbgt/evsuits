@@ -445,7 +445,7 @@ public:
 
 int main(int argc, char *argv[])
 {
-    av_log_set_level(AV_LOG_INFO);
+    av_log_set_level(AV_LOG_ERROR);
     spdlog::set_level(spdlog::level::info);
     EvPusher pusher;
     pusher.join();
