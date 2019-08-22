@@ -174,12 +174,8 @@ private:
         return ret;
     }
 
-
-    int setupStream()
-    {
+    int getInputFormat(){
         int ret = 0;
-        AVDictionary *pOptsRemux = NULL;
-
         // req avformatcontext packet
         // send hello to puller
         spdlog::info("evpusher {} {} send hello to puller: {}", devSn, iid, pullerGid);
@@ -227,8 +223,14 @@ private:
                 }
             }
         }
-        
-        //
+        return ret;
+    }
+
+    int setupStream()
+    {
+        int ret = 0;
+        AVDictionary *pOptsRemux = NULL;
+
         ret = avformat_alloc_output_context2(&pAVFormatRemux, NULL, "rtsp", urlOut.c_str());
         if (ret < 0) {
             spdlog::error("evpusher {} {} failed create avformatcontext for output: %s", devSn, iid, av_err2str(ret));
@@ -296,6 +298,26 @@ private:
 
         return ret;
     }
+
+    void freeStream(){
+                    // close output context
+        if(pAVFormatRemux)
+        {
+            if(pAVFormatRemux->pb) {
+                avio_closep(&pAVFormatRemux->pb);
+            }
+            
+            avformat_free_context(pAVFormatRemux);
+        }
+        pAVFormatRemux = NULL;
+        // free avformatcontex
+        if(pAVFormatInput != NULL) {
+            AVFormatCtxSerializer::freeCtx(pAVFormatInput);
+            pAVFormatInput = NULL;
+        }
+
+        pAVFormatInput = NULL;
+    }
 protected:
     void run()
     {
@@ -354,8 +376,17 @@ protected:
             ret = av_interleaved_write_frame(pAVFormatRemux, &packet);
             av_packet_unref(&packet);
             if (ret < 0) {
-                spdlog::error("error muxing packet: {}", av_err2str(ret));
-                exit(1);
+                spdlog::error("error muxing packet: {}, {}, {}, {}, restreaming...", av_err2str(ret), packet.dts, packet.pts, packet.dts==AV_NOPTS_VALUE);
+                if(pktCnt != 0 && packet.pts == AV_NOPTS_VALUE) {
+                    // reset
+                    av_write_trailer(pAVFormatRemux);
+                    this_thread::sleep_for(chrono::seconds(5));
+                    freeStream();
+                    getInputFormat();
+                    setupStream();
+                    pktCnt = 0;
+                    continue;          
+                }
             }
         }
         av_write_trailer(pAVFormatRemux);
@@ -373,6 +404,7 @@ public:
     {
         init();
         setupMq();
+        getInputFormat();
         setupStream();
     }
 
@@ -394,11 +426,8 @@ public:
             zmq_ctx_destroy(pSub);
             pDealerCtx = NULL;
         }
-        // free avformatcontex
-        if(pAVFormatInput != NULL) {
-            AVFormatCtxSerializer::freeCtx(pAVFormatInput);
-            pAVFormatInput = NULL;
-        }
+
+        freeStream();
     }
 };
 
