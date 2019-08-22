@@ -39,7 +39,9 @@ private:
     const char * bytes;
     int len;
     void *pDealer=NULL;
-    void sendPing(){
+    thread thPing;
+
+    int ping(){
         int ret = 0;
         vector<vector<uint8_t> >body;
         // since identity is auto set
@@ -50,8 +52,9 @@ private:
         ret = z_send_multiple(pDealer, body);
         if(ret < 0) {
             spdlog::error("evpuller {} {} failed to send multiple: {}", devSn, iid, zmq_strerror(zmq_errno()));
-            return;
+
         }
+        return ret;
     }
 protected:
     void run()
@@ -59,7 +62,16 @@ protected:
         int ret = 0;
         bool bStopSig = false;
         // declare ready to router
-        sendPing();
+        ping();
+
+        thPing = thread([&,this](){
+            while(true) {
+                this_thread::sleep_for(chrono::seconds(EV_HEARTBEAT_SECONDS-2));
+                ping();
+            }
+        });
+        
+        thPing.detach();
         // init response msg
         auto msgBody = data2body(const_cast<char*>(bytes), len);
         while (true) {
@@ -88,7 +100,7 @@ protected:
                         spdlog::error("evpuller {} {} failed send rep to requester {}: {}", devSn, iid, body2str(v[0]), zmq_strerror(zmq_errno()));
                     }
                 }else if(meta["type"].get<string>() == EV_MSG_META_PING){
-                    sendPing();
+                    ping();
                 }
                 else{
                     spdlog::error("evpuller {} {} unknown meta from {}: {}", devSn, iid, body2str(v[0]), body2str(v[1]));

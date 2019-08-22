@@ -101,53 +101,55 @@ private:
             spdlog::warn("evmgr {} dropped a message, since its size is incorrect: {}", devSn, body.size());
             return 0;
         }
+        
+        string meta = body2str(body[2]);
+        string selfId = body2str(body[0]);
+        string peerId = body2str(body[1]);
+        // update status;
+        this->peerStatus[selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
 
         if(memcmp((void*)(body[1].data()), (devSn +":0:0").data(), body[1].size()) != 0) {
             // message to other peer
             // check peer status
-            string gid = body2str(body[1]);
-            if(peerStatus.count(gid)!= 0) {
-                auto t = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count() - peerStatus[gid].get<long long>();
-                if(t > EV_HEARTBEAT_SECONDS*5/4){
-                    peerStatus[gid] = 0;
+            vector<vector<uint8_t> >v = {body[1], body[0], body[2], body[3]};
+            if(peerStatus.count(peerId)!= 0) {
+                auto t = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count() - peerStatus[peerId].get<long long>();
+                if(t > EV_HEARTBEAT_SECONDS){
+                    peerStatus[peerId] = 0;
                     // need cache
                 }else{
-                    spdlog::info("evmgr {} route msg from {} to {}", devSn, body2str(body[0]), body2str(body[1]));
-                    vector<vector<uint8_t> >v = {body[1], body[0], body[2], body[3]};
+                    spdlog::info("evmgr {} route msg from {} to {}", devSn, selfId, peerId);
                     ret = z_send_multiple(pRouter, v);
                     if(ret < 0) {
                         spdlog::error("evmgr {} failed to send multiple: {}", devSn, zmq_strerror(zmq_errno()));
                     }
                 }
             }else{
-                peerStatus[gid] = 0;
+                peerStatus[peerId] = 0;
                 // need cache
             }
 
-            if(peerStatus[gid] == 0) {
+            if(peerStatus[peerId] == 0) {
                 // cache
-                spdlog::warn("evmgr {} cached msg from {} to {}", devSn, body2str(body[0]), gid);
-                vector<vector<uint8_t> >v = {body[1], body[0], body[2], body[3]};
+                spdlog::warn("evmgr {} cached msg from {} to {}", devSn, selfId, peerId);
                 lock_guard<mutex> lock(cacheLock);
-                cachedMsg[gid].push(v);
-                if(cachedMsg[gid].size() > EV_NUM_CACHE_PERPEER) {
-                    cachedMsg[gid].pop();
+                cachedMsg[peerId].push(v);
+                if(cachedMsg[peerId].size() > EV_NUM_CACHE_PERPEER) {
+                    cachedMsg[peerId].pop();
                 }
             }
         }else{
             // message to mgr
             spdlog::info("evmgr {} subsystem report msg received: {}; {}; {}", devSn, zmqhelper::body2str(body[0]), zmqhelper::body2str(body[1]), zmqhelper::body2str(body[2]));
-            string meta = body2str(body[2]);
-            string gid = body2str(body[0]);
             if(meta == "pong"||meta == "ping") {
                 // update status
-                this->peerStatus[gid] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                spdlog::info("evmgr {}, ping msg from {}", devSn, selfId);
                 if(meta=="ping") {
-                    if(cachedMsg.find(gid) != cachedMsg.end()) {
-                        while(!cachedMsg[gid].empty()){
+                    if(cachedMsg.find(selfId) != cachedMsg.end()) {
+                        while(!cachedMsg[selfId].empty()){
                             lock_guard<mutex> lock(cacheLock);
-                            auto v = cachedMsg[gid].front();
-                            cachedMsg[gid].pop();
+                            auto v = cachedMsg[selfId].front();
+                            cachedMsg[selfId].pop();
                             ret = z_send_multiple(pRouter, v);
                             if(ret < 0) {
                                 spdlog::error("evmgr {} failed to send multiple: {}", devSn, zmq_strerror(zmq_errno()));
@@ -157,7 +159,7 @@ private:
                 }
             }else{
                 // TODO:
-                spdlog::warn("evmgr {} received unknown meta {} from {}", devSn, meta, gid);
+                spdlog::warn("evmgr {} received unknown meta {} from {}", devSn, meta, selfId);
             }
         }
 
@@ -171,37 +173,37 @@ protected:
         zmq_msg_t msg;
         
         // health checking thread
-        auto thHealth = thread([&,this](){
-            auto ipcs = this->jmgr["ipcs"];
-            json jmeta; jmeta["type"] = "ping";
-            auto meta = str2body(jmeta.dump());
-            auto mgrId = str2body(this->devSn + ":0:0");
-            while(true) {
-                for(auto &j:ipcs) {
-                    if(j.count("modules") != 0) {
-                        for(auto &[k, v]: j["modules"].items()) {
-                            // k = module name
-                            for(auto &m: v) {
-                                if(!m.count("sn") && !m.count("iid")) {
-                                    // construct gid for module
-                                    string gid = m["sn"].get<string>() + ":" + k + ":" + to_string(m["iid"]);
-                                    // build ping msg
-                                    vector<vector<uint8_t> > v = {str2body(gid), mgrId, meta, str2body("hello")};
-                                    ret = z_send_multiple(this->pRouter, v);
-                                    if(ret < 0) {
-                                        spdlog::error("evmgr {} failed to send ping to module {}", devSn, gid);
-                                    }else{
-                                        //
-                                    }
-                                }
-                            }
-                        }
-                    }   
-                }
-                // TODO:
-                this_thread::sleep_for(chrono::seconds(EV_HEARTBEAT_SECONDS));
-            }
-        });
+        // auto thHealth = thread([&,this](){
+        //     auto ipcs = this->jmgr["ipcs"];
+        //     json jmeta; jmeta["type"] = "ping";
+        //     auto meta = str2body(jmeta.dump());
+        //     auto mgrId = str2body(this->devSn + ":0:0");
+        //     while(true) {
+        //         for(auto &j:ipcs) {
+        //             if(j.count("modules") != 0) {
+        //                 for(auto &[k, v]: j["modules"].items()) {
+        //                     // k = module name
+        //                     for(auto &m: v) {
+        //                         if(!m.count("sn") && !m.count("iid")) {
+        //                             // construct gid for module
+        //                             string gid = m["sn"].get<string>() + ":" + k + ":" + to_string(m["iid"]);
+        //                             // build ping msg
+        //                             vector<vector<uint8_t> > v = {str2body(gid), mgrId, meta, str2body("hello")};
+        //                             ret = z_send_multiple(this->pRouter, v);
+        //                             if(ret < 0) {
+        //                                 spdlog::error("evmgr {} failed to send ping to module {}", devSn, gid);
+        //                             }else{
+        //                                 //
+        //                             }
+        //                         }
+        //                     }
+        //                 }
+        //             }   
+        //         }
+        //         // TODO:
+        //         this_thread::sleep_for(chrono::seconds(EV_HEARTBEAT_SECONDS));
+        //     }
+        // });
 
         while (true) {
             if(checkStop() == true) {

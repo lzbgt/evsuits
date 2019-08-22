@@ -35,6 +35,7 @@ private:
     AVFormatContext *pAVFormatRemux = NULL;
     AVFormatContext *pAVFormatInput = NULL;
     json config;
+    thread thPing;
 
     int init()
     {
@@ -106,6 +107,27 @@ private:
 
         return 0;
     }
+
+    int ping(){
+         // send hello to router
+        int ret = 0;
+        vector<vector<uint8_t> >body;
+        // since identity is auto set
+        body.push_back(str2body(mgrSn+":0:0"));
+        body.push_back(str2body(EV_MSG_META_PING)); // blank meta
+        body.push_back(str2body(MSG_HELLO));
+
+        ret = z_send_multiple(pDealer, body);
+        if(ret < 0) {
+            spdlog::error("evpusher {} {} failed to send multiple: {}", devSn, iid, zmq_strerror(zmq_errno()));
+            //TODO:
+        }else{
+            spdlog::info("evpusher {} {} sent hello to router: {}", devSn, iid, mgrSn);
+        }
+        
+        return ret;
+    }
+
     int setupMq()
     {
         int ret = 0;
@@ -138,24 +160,18 @@ private:
             spdlog::error("evpusher {} {} failed connect dealer: {}", devSn, iid, urlDealer);
             return -4;
         }
+        //ping
+        ret = ping();
+        thPing = thread([&,this](){
+            while(true) {
+                this_thread::sleep_for(chrono::seconds(EV_HEARTBEAT_SECONDS-2));
+                ping();
+            }
+        });
 
-        // send hello to router
-        vector<vector<uint8_t> >body;
-        // since identity is auto set
-        body.push_back(str2body(mgrSn+":0:0"));
-        body.push_back(str2body(EV_MSG_META_PING)); // blank meta
-        body.push_back(str2body(MSG_HELLO));
+        thPing.detach();
 
-        ret = z_send_multiple(pDealer, body);
-        if(ret < 0) {
-            spdlog::error("evpusher {} {} failed to send multiple: {}", devSn, iid, zmq_strerror(zmq_errno()));
-            //TODO:
-            return -1;
-        }
-
-        spdlog::info("evpusher {} {} sent hello to router: {}", devSn, iid, mgrSn);
-
-        return 0;
+        return ret;
     }
 
 
