@@ -39,6 +39,7 @@ private:
     json jmgr;
     unordered_map<string, queue<vector<vector<uint8_t> >> > cachedMsg;
     mutex cacheLock;
+    queue<json> *eventQue;
     void init()
     {
         int ret;
@@ -171,39 +172,6 @@ protected:
         bool bStopSig = false;
         int ret = 0;
         zmq_msg_t msg;
-        
-        // health checking thread
-        // auto thHealth = thread([&,this](){
-        //     auto ipcs = this->jmgr["ipcs"];
-        //     json jmeta; jmeta["type"] = "ping";
-        //     auto meta = str2body(jmeta.dump());
-        //     auto mgrId = str2body(this->devSn + ":0:0");
-        //     while(true) {
-        //         for(auto &j:ipcs) {
-        //             if(j.count("modules") != 0) {
-        //                 for(auto &[k, v]: j["modules"].items()) {
-        //                     // k = module name
-        //                     for(auto &m: v) {
-        //                         if(!m.count("sn") && !m.count("iid")) {
-        //                             // construct gid for module
-        //                             string gid = m["sn"].get<string>() + ":" + k + ":" + to_string(m["iid"]);
-        //                             // build ping msg
-        //                             vector<vector<uint8_t> > v = {str2body(gid), mgrId, meta, str2body("hello")};
-        //                             ret = z_send_multiple(this->pRouter, v);
-        //                             if(ret < 0) {
-        //                                 spdlog::error("evmgr {} failed to send ping to module {}", devSn, gid);
-        //                             }else{
-        //                                 //
-        //                             }
-        //                         }
-        //                     }
-        //                 }
-        //             }   
-        //         }
-        //         // TODO:
-        //         this_thread::sleep_for(chrono::seconds(EV_HEARTBEAT_SECONDS));
-        //     }
-        // });
 
         while (true) {
             if(checkStop() == true) {
@@ -220,7 +188,13 @@ protected:
         }
     }
 public:
-    EvMgr()
+    EvMgr() = delete;
+    EvMgr(EvMgr &&) = delete;
+    EvMgr(EvMgr &) = delete;
+    EvMgr(const EvMgr &) = delete;
+    EvMgr& operator=(const EvMgr &) = delete;
+    EvMgr& operator=(EvMgr &&) = delete;
+    EvMgr(queue<json> *queue):eventQue(queue)
     {
         init();
     }
@@ -241,7 +215,8 @@ int main(int argc, const char *argv[])
 {
     av_log_set_level(AV_LOG_ERROR);
     spdlog::set_level(spdlog::level::debug);
-    EvMgr mgr;
+    queue<json> queue;
+    EvMgr mgr(&queue);
     mgr.join();
     return 0;
 }
