@@ -518,16 +518,23 @@ protected:
             string metaType = meta.dump();
             int ret = 0;
             vector<vector<uint8_t> > v = {str2body(this->pullerGid), str2body(metaType), str2body("")};
-            while(!this->evtQueue->empty()){
-                string evt = this->evtQueue->front();
-                v[2] = str2body(evt);
-                this->evtQueue->pop();
-                ret = z_send_multiple(this->pDealer, v);
-                if(ret < 0) {
-                    spdlog::error("evmlmotion {} {} failed to send event: {}, {}", this->devSn, this->iid, evt, zmq_strerror(zmq_errno()));
+            while(true){
+                if(!this->evtQueue->empty()){
+                    string evt = this->evtQueue->front();
+                    v[2] = str2body(evt);
+                    this->evtQueue->pop();
+                    ret = z_send_multiple(this->pDealer, v);
+                    spdlog::info("evmlmotion {} {} send event: {}", this->devSn, this->iid, evt);
+                    if(ret < 0) {
+                        spdlog::error("evmlmotion {} {} failed to send event: {}, {}", this->devSn, this->iid, evt, zmq_strerror(zmq_errno()));
+                    }
+                }else{
+                    this_thread::sleep_for(chrono::seconds(3));
                 }
             }
         });
+
+        thEvent.detach();
 
         AVFrame *pFrame = av_frame_alloc();
         if (!pFrame) {

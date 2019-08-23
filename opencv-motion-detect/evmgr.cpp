@@ -73,6 +73,8 @@ private:
                 // router service
                 pRouterCtx = zmq_ctx_new();
                 pRouter = zmq_socket(pRouterCtx, ZMQ_ROUTER);
+                int opt_notify = ZMQ_NOTIFY_DISCONNECT;
+                zmq_setsockopt (pRouter, ZMQ_ROUTER_NOTIFY, &opt_notify, sizeof (opt_notify));
                 ret = zmq_bind(pRouter, addr.c_str());
                 if(ret < 0) {
                     spdlog::error("evmgr {} failed to bind zmq at {} for reason: {}, retrying load configuration...", devSn, addr, zmq_strerror(zmq_errno()));
@@ -101,14 +103,20 @@ private:
         int ret = 0;
         zmq_msg_t msg;
         // ID_SENDER, ID_TARGET, meta ,MSG
-        if(body.size() != 4) {
-            spdlog::warn("evmgr {} dropped a message, since its size is incorrect: {}", devSn, body.size());
+        string peerId;
+        if(body.size() == 2 && body[1].size() == 0) {
+            peerId = body2str(body[0]);
+            spdlog::warn("evmgr {} peer disconnected: {}", devSn, peerId);
+            peerStatus[peerId] = 0;
+            return 0;
+        }else if(body.size() != 4) {
+            spdlog::warn("evmgr {} dropped an invalid message, size: {}", devSn, body.size());
             return 0;
         }
         
         string meta = body2str(body[2]);
         string selfId = body2str(body[0]);
-        string peerId = body2str(body[1]);
+        peerId = body2str(body[1]);
         // update status;
         this->peerStatus[selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
 
@@ -183,12 +191,68 @@ private:
 
         return ret;
     }
+    int  get_monitor_event (void *monitor, int *value, char **address)
+           {
+               //  First frame in message contains event number and value
+               zmq_msg_t msg;
+               zmq_msg_init (&msg);
+               if (zmq_msg_recv (&msg, monitor, 0) == -1)
+                   return -1;              //  Interrupted, presumably
+               assert (zmq_msg_more (&msg));
+
+               uint8_t *data = (uint8_t *) zmq_msg_data (&msg);
+               uint16_t event = *(uint16_t *) (data);
+               if (value)
+                   *value = *(uint32_t *) (data + 2);
+
+               //  Second frame in message contains event address
+               zmq_msg_init (&msg);
+               if (zmq_msg_recv (&msg, monitor, 0) == -1)
+                   return -1;              //  Interrupted, presumably
+               assert (!zmq_msg_more (&msg));
+
+               if (address) {
+                   uint8_t *data = (uint8_t *) zmq_msg_data (&msg);
+                   size_t size = zmq_msg_size (&msg);
+                   *address = (char *) malloc (size + 1);
+                   memcpy (*address, data, size);
+                   (*address)[size] = 0;
+               }
+               return event;
+           }
 
 protected:
     void run(){
         bool bStopSig = false;
         int ret = 0;
         zmq_msg_t msg;
+
+        // disabled because: 
+        //    1. it can't determine which peer disconnected, but only the underline socket FD. 
+        //    2. used the draft feature of ZMQ_ROUTER_NOTIFY instead to capture peer module disconnections such as evpuser, evmlmotion.
+        // thread thMon = thread([&,this](){
+        //     int ret = 0;
+        //     string addr = string("inproc://monitor-") + this->devSn;
+        //     ret = zmq_socket_monitor(this->pRouter, addr.c_str(), ZMQ_EVENT_ALL );//ZMQ_EVENT_DISCONNECTED
+        //     if(ret != 0) {
+        //         spdlog::error("evmgr {} failed mon1: {},  {}", this->devSn, addr, zmq_strerror(zmq_errno()));
+        //     }
+        //     void *mon = zmq_socket (this->pRouterCtx, ZMQ_PAIR);
+        //     ret = zmq_connect(mon, addr.c_str());
+        //     if(ret != 0) {
+        //         spdlog::error("evmgr {} failed mon2: {}", this->devSn, zmq_strerror(zmq_errno()));
+        //     }
+        //     spdlog::info("evmgr {} monitoring setup", this->devSn);
+        //     while(true){
+        //         int fd = 0;
+        //         char *pConn = NULL;
+        //         int event = get_monitor_event(mon, &fd, &pConn);
+        //         cout <<"event: " << event << ", fd: "<< fd << ", conn: "<<pConn <<endl;
+        //     }
+        // });
+
+        // thMon.detach();
+        //
 
         while (true) {
             if(checkStop() == true) {

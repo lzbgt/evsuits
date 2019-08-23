@@ -41,7 +41,8 @@ private:
     void *pDealer=NULL;
     thread thPing;
 
-    int ping(){
+    int ping()
+    {
         int ret = 0;
         vector<vector<uint8_t> >body;
         // since identity is auto set
@@ -56,6 +57,36 @@ private:
         }
         return ret;
     }
+
+    int handleMsg(vector<vector<uint8_t> > v)
+    {
+        int ret = 0;
+        auto msgBody = data2body(const_cast<char*>(bytes), len);
+        try {
+            // rep framectx
+            // TODO: verify sender id
+            auto meta = json::parse(body2str(v[1]));
+            if(meta["type"].get<string>() == EV_MSG_META_AVFORMATCTX) {
+                vector<vector<uint8_t> > rep = {v[0], v[1], msgBody};
+                ret = z_send_multiple(pDealer, rep);
+                if(ret < 0) {
+                    spdlog::error("evpuller {} {} failed send rep to requester {}: {}", devSn, iid, body2str(v[0]), zmq_strerror(zmq_errno()));
+                }
+            }
+            else if(meta["type"].get<string>() == EV_MSG_META_EVENT) {
+                // event msg
+                spdlog::info("evpuller {} {} received event: {}", devSn, iid, body2str(v[2]));
+            }
+            else {
+                spdlog::error("evpuller {} {} unknown meta from {}: {}", devSn, iid, body2str(v[0]), body2str(v[1]));
+            }
+        }
+        catch(exception &e) {
+            spdlog::error("evpuller {} {} excpetion parse request from {}: {}", devSn, iid, body2str(v[0]), body2str(v[1]));
+        }
+
+        return ret;
+    }
 protected:
     void run()
     {
@@ -64,16 +95,15 @@ protected:
         // declare ready to router
         ping();
 
-        thPing = thread([&,this](){
+        thPing = thread([&,this]() {
             while(true) {
                 this_thread::sleep_for(chrono::seconds(EV_HEARTBEAT_SECONDS-2));
                 ping();
             }
         });
-        
+
         thPing.detach();
         // init response msg
-        auto msgBody = data2body(const_cast<char*>(bytes), len);
         while (true) {
             if(checkStop() == true) {
                 bStopSig = true;
@@ -88,26 +118,7 @@ protected:
                 spdlog::error("evpuller {} {},  repSrv received invalid message: {}", devSn, iid, v.size());
                 continue;
             }
-            
-            try{
-                // rep framectx
-                // TODO: verify sender id
-                auto meta = json::parse(body2str(v[1]));
-                if(meta["type"].get<string>() == EV_MSG_META_AVFORMATCTX) {
-                    vector<vector<uint8_t> > rep = {v[0], v[1], msgBody};
-                    ret = z_send_multiple(pDealer, rep);
-                    if(ret < 0) {
-                        spdlog::error("evpuller {} {} failed send rep to requester {}: {}", devSn, iid, body2str(v[0]), zmq_strerror(zmq_errno()));
-                    }
-                }else if(meta["type"].get<string>() == EV_MSG_META_PING){
-                    ping();
-                }
-                else{
-                    spdlog::error("evpuller {} {} unknown meta from {}: {}", devSn, iid, body2str(v[0]), body2str(v[1]));
-                }
-            }catch(exception &e) {
-                spdlog::error("evpuller {} {} excpetion parse request from {}: {}", devSn, iid, body2str(v[0]), body2str(v[1]));
-            }
+            handleMsg(v);
         }
     }
 public:

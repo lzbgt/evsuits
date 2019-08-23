@@ -152,6 +152,7 @@ private:
         pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
         spdlog::info("evpusher {} {} try create req to {}", devSn, iid, urlDealer);
         ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());
+        ret += zmq_setsockopt (pDealer, ZMQ_ROUTING_ID, selfId.c_str(), selfId.size());
         if(ret < 0) {
             spdlog::error("evpusher {} {} failed setsockopts router: {}", devSn, iid, urlDealer);
             return -3;

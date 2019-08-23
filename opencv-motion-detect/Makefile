@@ -1,7 +1,7 @@
 CC = gcc
 CPP = g++
-CPPFLAGS = -Wall -std=gnu++1z
-CFLAGS = -Wall
+CPPFLAGS = -g -Wall -std=gnu++1z
+CFLAGS = -g -Wall
 
 LIBOPENCV = `pkg-config opencv --cflags --libs`
 LIBFFMPEG = `pkg-config libavformat libavutil libavcodec libswscale --cflags --libs`
@@ -14,7 +14,7 @@ all: evmgr evpuller evpusher evslicer evmlmotion
 
 .PHONY: libzmq
 libzmq:
-	cd vendor/libzmq && [ ! -f $(CURDIR)/vendor/lib/pkgconfig/libzmq.pc ] || ./autogen.sh && ./configure --prefix=$(CURDIR)/vendor
+	cd vendor/libzmq && [ ! -f $(CURDIR)/vendor/lib/pkgconfig/libzmq.pc ] || ./autogen.sh && ./configure --prefix=$(CURDIR)/vendor --enable-drafts
 	cd vendor/libzmq && make -j 4 && make install
 
 # sqlite C object
@@ -48,3 +48,8 @@ mux: demuxing_decoding.c
 .PHONY: clean
 clean:
 	rm -fr evmgr evpuller evpusher evslicer evmlmotion *.dSYM *.out *.o
+
+.PHONY: rebuildzmq
+rebuildzmq:
+	cd vendor/libzmq && make clean && ./autogen.sh && ./configure --prefix=$(CURDIR)/vendor --enable-drafts
+	cd vendor/libzmq && make -j 4 && make install
