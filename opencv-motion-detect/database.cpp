@@ -13,6 +13,7 @@ update: 2019/08/23
 #include <vector>
 #include <fstream>
 #include <cstdlib>
+#include <iomanip>
 #include <spdlog/spdlog.h>
 
 using namespace std;
@@ -206,45 +207,35 @@ int saveLocalConfigration(json &config, string fileName)
         spdlog::error("saveLocalConfigration failed to mv file: {}", mv);
         return -1;
     }
-    // store new
-    ofstream file;
-    file.open(fileName, ios::out|ios::trunc);
-    if(!file) {
-        spdlog::error("saveLocalConfigration failed to open file: {}", fileName);
+
+    // write prettified JSON file
+    try{
+        std::ofstream o(fileName);
+        o << std::setw(4) << config << std::endl;
+    }catch(exception &e) {
+        spdlog::error("saveLocalConfigration failed to write configuration to file {}: {}\n{}", fileName, e.what(), config.dump());
         return -2;
     }
-
-    file << config.dump();
-    file.close();
-
+    
     return ret;
 }
 
 int loadLocalConfigration(json &config, string fileName)
 {
     int ret = 0;
-    string body;
-
-    ifstream file;
-    file.open(fileName, ios::in);
-    if(!file) {
-        spdlog::error("loadLocalConfigration failed to open file: {}", fileName);
-        return -2;
-    }
-
-    std::string str((std::istreambuf_iterator<char>(file)),
-                    std::istreambuf_iterator<char>());
-
     try {
-        config = json::parse(str);
+        std::ifstream i(fileName);
+        i >> config;
     }
     catch(exception &e) {
-        spdlog::error("loadLocalConfigration failed to parse config {}: {}", fileName, str);
-        return -3;
+        spdlog::error("loadLocalConfigration failed to parse config {}: {}", fileName, e.what());
+        return -2;
     }
 
     return ret;
 }
+
+
 
 
 // INFO: deprecated since configuration is stored in json

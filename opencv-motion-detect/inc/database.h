@@ -17,6 +17,7 @@ extern "C" {
 #define EV_DB_FILENAME_GENERAL "general.db"
 #define EV_DB_FILENAME_LOG "log.db"
 #define EV_DB_FILENAME_CONFIG "config.json"
+#define EV_DB_FILENAME_SLICES "slices.json"
 
 using namespace std;
 using json = nlohmann::json;
