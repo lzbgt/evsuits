@@ -129,6 +129,7 @@ private:
             json jEvt;
             jEvt["type"] = EV_MSG_TYPE_CONN_STAT;
             jEvt["gid"] = selfId;
+            jEvt['ts'] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
             if(eventConn) {
                 jEvt["event"] = EV_MSG_EVENT_CONN_CONN;
             }
@@ -280,7 +281,6 @@ protected:
         // });
 
         // thMon.detach();
-        //
 
         while (true) {
             if(checkStop() == true) {
