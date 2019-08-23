@@ -1,3 +1,10 @@
+/*
+module: zmqhelper
+description: 
+author: Bruce.Lu <lzbgt@icloud.com>
+update: 2019/08/23
+*/
+
 #ifndef __ZMQ_HELPER_H__
 #define __ZMQ_HELPER_H__
 

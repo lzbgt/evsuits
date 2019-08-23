@@ -1,3 +1,10 @@
+/*
+module: avcvhelper
+description: 
+author: Bruce.Lu <lzbgt@icloud.com>
+update: 2019/08/23
+*/
+
 #ifndef __AVCVHELPERS_H__
 #define __AVCVHELPERS_H__
 extern "C" {

@@ -1,3 +1,10 @@
+/*
+module: tinythread
+description: 
+author: Bruce.Lu <lzbgt@icloud.com>
+update: 2019/08/23
+*/
+
 #ifndef __TINY_THREAD__
 #define __TINY_THREAD__
 

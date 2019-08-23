@@ -1,3 +1,10 @@
+/*
+module: database
+description: 
+author: Bruce.Lu <lzbgt@icloud.com>
+update: 2019/08/23
+*/
+
 #include "inc/database.h"
 #include <stdio.h>
 #include <stdlib.h>
