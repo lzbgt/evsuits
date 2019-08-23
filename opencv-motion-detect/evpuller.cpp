@@ -53,7 +53,6 @@ private:
         ret = z_send_multiple(pDealer, body);
         if(ret < 0) {
             spdlog::error("evpuller {} {} failed to send multiple: {}", devSn, iid, zmq_strerror(zmq_errno()));
-
         }
         return ret;
     }
@@ -95,14 +94,16 @@ protected:
         // declare ready to router
         ping();
 
-        thPing = thread([&,this]() {
-            while(true) {
-                this_thread::sleep_for(chrono::seconds(EV_HEARTBEAT_SECONDS-2));
-                ping();
-            }
-        });
+        // TODO: don't need this anymore, since I've used the draft feature of ZOUTER_NOTIFICATION instead
+        // thPing = thread([&,this]() {
+        //     while(true) {
+        //         this_thread::sleep_for(chrono::seconds(EV_HEARTBEAT_SECONDS-2));
+        //         ping();
+        //     }
+        // });
 
-        thPing.detach();
+        // thPing.detach();
+        
         // init response msg
         while (true) {
             if(checkStop() == true) {

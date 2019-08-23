@@ -207,14 +207,15 @@ private:
         }
         //ping
         ret = ping();
-        thPing = thread([&,this]() {
-            while(true) {
-                this_thread::sleep_for(chrono::seconds(EV_HEARTBEAT_SECONDS-2));
-                ping();
-            }
-        });
+        // TODO: don't need this anymore, since I've used the draft feature of ZOUTER_NOTIFICATION instead
+        // thPing = thread([&,this]() {
+        //     while(true) {
+        //         this_thread::sleep_for(chrono::seconds(EV_HEARTBEAT_SECONDS-2));
+        //         ping();
+        //     }
+        // });
 
-        thPing.detach();
+        // thPing.detach();
 
         return ret;
     }
