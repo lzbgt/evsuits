@@ -1,3 +1,0 @@
-[submodule "opencv-motion-detect/vendor/libzmq"]
-	path = opencv-motion-detect/vendor/libzmq
-	url = https://github.com/zeromq/libzmq
