@@ -11,7 +11,14 @@ extern "C" {
     #include "../vendor/sqlite/sqlite3.h"
 }
 
+#include <string>
 #include "json.hpp"
+
+#define EV_DB_FILENAME_GENERAL "general.db"
+#define EV_DB_FILENAME_LOG "log.db"
+#define EV_DB_FILENAME_CONFIG "config.json"
+
+using namespace std;
 using json = nlohmann::json;
 
 namespace DB {
@@ -20,6 +27,8 @@ namespace DB {
     int getInfo(void *info, int active, const char*fileName);
     int clearTable(const char *tableName, const char* fileName);
     int setInfo(void* info, const char*fileName);
+    int loadLocalConfigration(json &config, string fileName);
+    int saveLocalConfigration(json &config, string fileName);
 }
 
 #endif

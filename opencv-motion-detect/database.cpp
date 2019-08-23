@@ -11,6 +11,8 @@ update: 2019/08/23
 #include <mutex>
 #include <map>
 #include <vector>
+#include <fstream>
+#include <cstdlib>
 #include <spdlog/spdlog.h>
 
 using namespace std;
@@ -79,7 +81,8 @@ string genStrRand(int length)
     return result;
 }
 
-int clearTable(const char *tableName, const char* fileName){
+int clearTable(const char *tableName, const char* fileName)
+{
     sqlite3 * pdb = NULL;
     string stmt = "delete from " + string(tableName) + ";";
     pdb = exec(NULL, fileName, stmt.c_str(), NULL);
@@ -133,17 +136,19 @@ int setInfo(void* info, const char*fileName)
 }
 
 
-int _getInfo(void *info, int cc, char **cv, char **cn){
+int _getInfo(void *info, int cc, char **cv, char **cn)
+{
     auto v = static_cast<json*>(info);
     json r;
     if(cc == 0) {
         return SQLITE_NOTFOUND;
     }
 
-    for(int i = 0; i < cc; i++){
+    for(int i = 0; i < cc; i++) {
         if(strncmp(cn[i], "active", strlen("active")) == 0) {
             r.emplace(cn[i], atoi(cv[i]));
-        }else{
+        }
+        else {
             r.emplace(cn[i], cv[i]);
         }
     }
@@ -153,7 +158,8 @@ int _getInfo(void *info, int cc, char **cv, char **cn){
     return 0;
 }
 
-int getInfo(void *info, int active, const char*fileName) {
+int getInfo(void *info, int active, const char*fileName)
+{
     sqlite3 * pdb = NULL;
 
     auto v = static_cast<json*>(info);
@@ -161,14 +167,15 @@ int getInfo(void *info, int active, const char*fileName) {
         spdlog::error("getInfo in {} param error: userData must be addr ptr to empty json object");
         return -1;
     }
-    
+
     string stmt;
-    if(active <0){
+    if(active <0) {
         stmt = "select sn, active, updatetime, lastboot from info;";
-    }else{
+    }
+    else {
         stmt = "select sn, active, updatetime, lastboot from info where active="+to_string(active) +";";
     }
-   
+
     pdb = exec(info, fileName, stmt.c_str(), _getInfo);
     if(sqlite3_errcode(pdb) != SQLITE_OK) {
         spdlog::error("failed to get info to file {}: {}", fileName, sqlite3_errmsg(pdb));
@@ -180,92 +187,166 @@ int getInfo(void *info, int active, const char*fileName) {
     return 0;
 }
 
+// log: gid text, seq integer, type text, subtype text, content text, status integer, reported integer, updatetime
+//  eg: ILSEVMGR1:0:0, 10001, alarm, memory, "low", 1, 0, ts
+// type = none|alarm|event
+// subtype = cpu|ram|io|network|disk
+
+
+// slices
+
+// configration
+int saveLocalConfigration(json &config, string fileName)
+{
+    // backup
+    int ret = 0;
+    string mv = string("mv -f ") + fileName + " " + fileName+".bak";
+    system(mv.c_str());
+    if(ret == -1) {
+        spdlog::error("saveLocalConfigration failed to mv file: {}", mv);
+        return -1;
+    }
+    // store new
+    ofstream file;
+    file.open(fileName, ios::out|ios::trunc);
+    if(!file) {
+        spdlog::error("saveLocalConfigration failed to open file: {}", fileName);
+        return -2;
+    }
+
+    file << config.dump();
+    file.close();
+
+    return ret;
+}
+
+int loadLocalConfigration(json &config, string fileName)
+{
+    int ret = 0;
+    string body;
+
+    ifstream file;
+    file.open(fileName, ios::in);
+    if(!file) {
+        spdlog::error("loadLocalConfigration failed to open file: {}", fileName);
+        return -2;
+    }
+
+    std::string str((std::istreambuf_iterator<char>(file)),
+                    std::istreambuf_iterator<char>());
+
+    try {
+        config = json::parse(str);
+    }
+    catch(exception &e) {
+        spdlog::error("loadLocalConfigration failed to parse config {}: {}", fileName, str);
+        return -3;
+    }
+
+    return ret;
+}
+
+
+// INFO: deprecated since configuration is stored in json
 // modules: id integer, pid integer, iid integer, cls text, sn text, config text, version text, online integer, enabled integer, updatetime datetime, lastboot datetime, active integer
 // eg: 2, 0, NULL, evmgr, ILSEVMGR1, "xxxx", 1, 1, ts
 //   : 3, 2, NULL, ipc, NULL, "xxx", 1, 1, ts
 //   : 5, 3, 1, evpuller, "ILSEVPULLER1", "xxx", 1, 1, ts
 // cls = evmgr|ipc|evpuller|evpusher|evslicer|ml
 
-int createModulesTable(const char *fileName){
-    sqlite3 * pdb = NULL;
+// int createModulesTable(const char *fileName){
+//     sqlite3 * pdb = NULL;
 
-    string stmt = "create table if not exists modules(id integer, pid integer, iid integer, cls text, sn text, config text, version text, online integer, enabled integer, updatetime datetime, lastboot datetime, active integer);";
-    pdb = exec(NULL, fileName, stmt.c_str(), NULL);
-    if(sqlite3_errcode(pdb) != SQLITE_OK) {
-        spdlog::error("failed to create table modules to file {}: {}", fileName, sqlite3_errmsg(pdb));
-        return sqlite3_errcode(pdb);
-    }
+//     string stmt = "create table if not exists modules(id integer, pid integer, iid integer, cls text, sn text, config text, version text, online integer, enabled integer, updatetime datetime, lastboot datetime, active integer);";
+//     pdb = exec(NULL, fileName, stmt.c_str(), NULL);
+//     if(sqlite3_errcode(pdb) != SQLITE_OK) {
+//         spdlog::error("failed to create table modules to file {}: {}", fileName, sqlite3_errmsg(pdb));
+//         return sqlite3_errcode(pdb);
+//     }
 
-    return 0;
-}
+//     return 0;
+// }
 
-int setModulesConfig(void *info, const char*fileName) {
-    sqlite3 * pdb = NULL;
-    auto v = static_cast<json*>(info);
-    if(v==NULL||v->size() == 0||v->count("data") == 0 || v->at("data").size() == 0) {
-        spdlog::error("failed to setModulesConfig to file {}, parameter error: {}", fileName, v->dump());
-        return -1;
-    }
-
-    char buf[1024] = {0};
-
-    // delete old backup config and backup current config.
-    sprintf(buf, "delete from modules where active=0; update modules set active=0;");
-    pdb = exec(NULL, fileName, buf, NULL);
-    if(sqlite3_errcode(pdb) != SQLITE_OK) {
-        spdlog::error("setModulesConfig failed to update to file {}: {}", fileName, sqlite3_errmsg(pdb));
-        return sqlite3_errcode(pdb);
-    }
-
-    // construct records from json
-    //auto data = v->
+// int setModulesConfig(void *configInfo, const char*fileName) {
+//     int ret = 0;
+//     sqlite3 * pdb = NULL;
+//     auto v = static_cast<json*>(configInfo);
+//     if(v==NULL||v->size() == 0||v->count("data") == 0 || v->at("data").size() == 0) {
+//         spdlog::error("failed to setModulesConfig to file {}, parameter error: {}", fileName, v->dump());
+//         return -1;
+//     }
+//     // get sn
+//     json info;
+//     ret = getInfo(&info, 1, fileName);
+//     if(ret != 0) {
+//         spdlog::error("failed to get sn");
+//         return ret;
+//     }
 
 
-    sprintf(buf, "create table if not exists info(sn text, active integer, updatetime datetime, lastboot datetime);");
-    pdb = exec(NULL, fileName, buf, NULL);
-    if(sqlite3_errcode(pdb) != SQLITE_OK) {
-        spdlog::error("failed to create table modules to file {}: {}", fileName, sqlite3_errmsg(pdb));
-        return sqlite3_errcode(pdb);
-    }
-    return 0;
-}
+//     char buf[1024] = {0};
+//     // delete old backup config and backup current config.
+//     sprintf(buf, "delete from modules where active=0; update modules set active=0;");
+//     pdb = exec(NULL, fileName, buf, NULL);
+//     if(sqlite3_errcode(pdb) != SQLITE_OK) {
+//         spdlog::error("setModulesConfig failed to update to file {}: {}", fileName, sqlite3_errmsg(pdb));
+//         return sqlite3_errcode(pdb);
+//     }
 
-int _getModulesConfig(void *info, int cc, char **cv, char **cn){
-    return 0;
-}
-int getModulesConfig(void *info, const char*fileName) {
-    sqlite3 * pdb = NULL;
+//     string sn = info[0]["sn"];
+//     // construct records from json
+//     auto data = v->at("data");
+//     // INFO: deprecated since its a total distrubtion system
+//     // if(data.count(sn) == 0) {
+//     //     spdlog::error("setModulesConfig to file {}: invalid configuration, devSn missmatch", fileName);
+//     //     return -2;
+//     // }
+//     for(auto &[k, v]: data.items()){
+//         json mgr = dynamic_cast<json&>(v);
+//         for(auto &j:v) {
 
-    auto v = static_cast<json*>(info);
-    if(v == NULL||v->size() != 0) {
-        spdlog::error("getModule in {} param error: userData must be addr ptr to empty json object");
-        return -1;
-    }
+//         }
 
-    string stmt;
-    if(0 <0){
-        stmt = "select sn, active, updatetime, lastboot from info;";
-    }else{
-        stmt = "select sn, active, updatetime, lastboot from info where active="+to_string(0) +";";
-    }
-   
-    pdb = exec(info, fileName, stmt.c_str(), _getInfo);
-    if(sqlite3_errcode(pdb) != SQLITE_OK) {
-        spdlog::error("failed to get info to file {}: {}", fileName, sqlite3_errmsg(pdb));
-        return sqlite3_errcode(pdb);
-    }
+//     }
 
-    spdlog::debug("getInfo to file {}: {}", fileName, v->dump());
+//     sprintf(buf, "create table if not exists info(sn text, active integer, updatetime datetime, lastboot datetime);");
+//     pdb = exec(NULL, fileName, buf, NULL);
+//     if(sqlite3_errcode(pdb) != SQLITE_OK) {
+//         spdlog::error("failed to create table modules to file {}: {}", fileName, sqlite3_errmsg(pdb));
+//         return sqlite3_errcode(pdb);
+//     }
+//     return 0;
+// }
 
-    return 0;
-}
+// int _getModulesConfig(void *info, int cc, char **cv, char **cn){
+//     return 0;
+// }
+// int getModulesConfig(void *info, const char*fileName) {
+//     sqlite3 * pdb = NULL;
 
+//     auto v = static_cast<json*>(info);
+//     if(v == NULL||v->size() != 0) {
+//         spdlog::error("getModule in {} param error: userData must be addr ptr to empty json object");
+//         return -1;
+//     }
 
+//     string stmt;
+//     if(0 <0){
+//         stmt = "select sn, active, updatetime, lastboot from info;";
+//     }else{
+//         stmt = "select sn, active, updatetime, lastboot from info where active="+to_string(0) +";";
+//     }
 
+//     pdb = exec(info, fileName, stmt.c_str(), _getInfo);
+//     if(sqlite3_errcode(pdb) != SQLITE_OK) {
+//         spdlog::error("failed to get info to file {}: {}", fileName, sqlite3_errmsg(pdb));
+//         return sqlite3_errcode(pdb);
+//     }
 
-// log: id integer, module text, type text, status integer, reported integer, content text, updatetime
-//  eg: 1, ILSEVMGR1:0:0, alarm, 1, 0, "{data: low memory}", ts
-// type = none|alarm|event
+//     spdlog::debug("getInfo to file {}: {}", fileName, v->dump());
+
+//     return 0;
+// }
 
 
 }
