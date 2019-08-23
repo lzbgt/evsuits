@@ -20,8 +20,18 @@ namespace zmqhelper {
 #define EV_MSG_META_UPDATE "update"
 #define EV_MSG_META_EVENT "event"
 #define EV_MSG_META_AVFORMATCTX "afctx"
+
+#define EV_MSG_TYPE_AI_MOTION "ai_motion"
+#define EV_MSG_TYPE_CONN_STAT "connstat"
+#define EV_MSG_TYPE_SYS_STAT "sysstat"
+
+#define EV_MSG_EVENT_MOTION_START "start"
+#define EV_MSG_EVENT_MOTION_END "end"
+#define EV_MSG_EVENT_CONN_CONN "connect"
+#define EV_MSG_EVENT_CONN_DISCONN "disconnect"
+
 #define EV_NUM_CACHE_PERPEER 100
-#define MAX_EVENT_QUEUE_SIZE 20
+#define MAX_EVENT_QUEUE_SIZE 50
 
 //
 string body2str(vector<uint8_t> body)

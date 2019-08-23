@@ -453,9 +453,9 @@ private:
                         evtState = IN;
                         json p;
                         spdlog::info("state: PRE->IN");
-                        p["type"] = "motion";
+                        p["type"] = EV_MSG_TYPE_AI_MOTION;
                         p["gid"] = selfId;
-                        p["event"] = "end";
+                        p["event"] = EV_MSG_EVENT_MOTION_START;
                         p["ts"] = chrono::duration_cast<chrono::seconds>(evtStartTmLast.time_since_epoch()).count();
                         //p["frame"] = origin.clone();
                         evtQueue->push(p.dump());
@@ -489,9 +489,9 @@ private:
                         spdlog::info("state: POST->NONE");
                         evtState = NONE;
                         json p;
-                        p["type"] = "motion";
+                        p["type"] = EV_MSG_TYPE_AI_MOTION;
                         p["gid"] = selfId;
-                        p["event"] = "end";
+                        p["event"] = EV_MSG_EVENT_MOTION_END;
                         p["ts"] = chrono::duration_cast<chrono::seconds>(evtStartTmLast.time_since_epoch()).count() + (int)(detPara.post/2);
                         evtQueue->push(p.dump());
                         if(evtQueue->size() > MAX_EVENT_QUEUE_SIZE*2) {
