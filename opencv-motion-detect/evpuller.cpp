@@ -1,6 +1,6 @@
 /*
 module: evpuller
-description: 
+description:
 author: Bruce.Lu <lzbgt@icloud.com>
 update: 2019/08/23
 */
@@ -111,7 +111,7 @@ protected:
         // });
 
         // thPing.detach();
-        
+
         // init response msg
         while (true) {
             if(checkStop() == true) {

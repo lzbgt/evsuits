@@ -1,6 +1,6 @@
 /*
 module: evslicer
-description: 
+description:
 author: Bruce.Lu <lzbgt@icloud.com>
 update: 2019/08/20
 */
@@ -20,6 +20,7 @@ update: 2019/08/20
 #include <filesystem>
 namespace fs = std::filesystem;
 #endif
+
 #include <cstdlib>
 #include "zmqhelper.hpp"
 #include "tinythread.hpp"
@@ -128,7 +129,7 @@ private:
                 numSlices = 24 * days * 60 /minutes;
                 // alloc memory
                 sliceIdxToName = new vector<int>(numSlices);
-                // load db
+                // TODO: load db
                 // DB::exec(NULL, "select id, ts, last from slices;", DB::get_slices, sliceIdxToName);
                 spdlog::info("mkdir -p {}", urlOut);
                 ret = system((string("mkdir -p ") + urlOut).c_str());
@@ -443,13 +444,13 @@ protected:
                         break;
                     }
                 }
-                
+
                 end = chrono::system_clock::now();
             }// while in slice
             // write tail
             // close output context
-            if (pAVFormatRemux != NULL){
-                if(pAVFormatRemux->pb != NULL){
+            if (pAVFormatRemux != NULL) {
+                if(pAVFormatRemux->pb != NULL) {
                     avio_closep(&pAVFormatRemux->pb);
                 }
                 avformat_free_context(pAVFormatRemux);

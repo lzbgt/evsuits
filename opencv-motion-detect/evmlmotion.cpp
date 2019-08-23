@@ -1,6 +1,6 @@
 /*
 module: evmlmotion
-description: 
+description:
 author: Bruce.Lu <lzbgt@icloud.com>
 update: 2019/08/23
 */
@@ -136,10 +136,11 @@ private:
                 urlRouter = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(evmgr["port-router"]);
                 spdlog::info("evmlmotion {} {} will connect to {} for sub, {} for router", devSn, iid, urlPub, urlRouter);
                 // TODO: multiple protocols support
-                if(evmlmotion.count("path") == 0){
+                if(evmlmotion.count("path") == 0) {
                     spdlog::warn("evslicer {} {} no params for path, using default: {}", devSn, iid, URLOUT_DEFAULT);
                     urlOut = URLOUT_DEFAULT;
-                }else{
+                }
+                else {
                     urlOut = evmlmotion["path"];
                 }
 
@@ -443,75 +444,79 @@ private:
         // business logic for event
         auto dura = chrono::duration_cast<chrono::seconds>(evtStartTm - evtStartTmLast).count();
         switch(evtState) {
-            case NONE: {
-                if(hasEvent) {
+        case NONE: {
+            if(hasEvent) {
+                evtState = PRE;
+                spdlog::info("state: NONE->PRE");
+                evtStartTmLast = evtStartTm;
+            }
+            break;
+        }
+        case PRE: {
+            if(hasEvent) {
+                if(dura > detPara.pre) {
+                    spdlog::info("state: PRE->PRE");
                     evtState = PRE;
-                    spdlog::info("state: NONE->PRE");
-                    evtStartTmLast = evtStartTm;
                 }
-                break;
-            }
-            case PRE: {
-                if(hasEvent) {
-                    if(dura > detPara.pre) {
-                        spdlog::info("state: PRE->PRE");
-                        evtState = PRE;
-                    }else{
-                        evtState = IN;
-                        json p;
-                        spdlog::info("state: PRE->IN");
-                        p["type"] = EV_MSG_TYPE_AI_MOTION;
-                        p["gid"] = selfId;
-                        p["event"] = EV_MSG_EVENT_MOTION_START;
-                        p["ts"] = chrono::duration_cast<chrono::seconds>(evtStartTmLast.time_since_epoch()).count();
-                        //p["frame"] = origin.clone();
-                        evtQueue->push(p.dump());
-                        if(evtQueue->size() > MAX_EVENT_QUEUE_SIZE * 2) {
-                            evtQueue->pop();
-                        }
-                    }
-                }else{
-                    if(dura > detPara.pre){
-                        evtState= NONE;
-                        spdlog::info("state: PRE->NONE");
+                else {
+                    evtState = IN;
+                    json p;
+                    spdlog::info("state: PRE->IN");
+                    p["type"] = EV_MSG_TYPE_AI_MOTION;
+                    p["gid"] = selfId;
+                    p["event"] = EV_MSG_EVENT_MOTION_START;
+                    p["ts"] = chrono::duration_cast<chrono::seconds>(evtStartTmLast.time_since_epoch()).count();
+                    //p["frame"] = origin.clone();
+                    evtQueue->push(p.dump());
+                    if(evtQueue->size() > MAX_EVENT_QUEUE_SIZE * 2) {
+                        evtQueue->pop();
                     }
                 }
-                break;
             }
-            case IN: {
-                if(!hasEvent){
-                    if(dura > (int)(detPara.post/2)){
-                        evtState = POST;
-                        spdlog::info("state: IN->POST");
-                    }
-                }else{
-                    evtStartTmLast = evtStartTm;
-                    spdlog::info("state: IN->IN");
+            else {
+                if(dura > detPara.pre) {
+                    evtState= NONE;
+                    spdlog::info("state: PRE->NONE");
                 }
-                break;
             }
-            case POST: {
-                if(!hasEvent) {
-                    if(dura > detPara.post) {
-                        spdlog::info("state: POST->NONE");
-                        evtState = NONE;
-                        json p;
-                        p["type"] = EV_MSG_TYPE_AI_MOTION;
-                        p["gid"] = selfId;
-                        p["event"] = EV_MSG_EVENT_MOTION_END;
-                        p["ts"] = chrono::duration_cast<chrono::seconds>(evtStartTmLast.time_since_epoch()).count() + (int)(detPara.post/2);
-                        evtQueue->push(p.dump());
-                        if(evtQueue->size() > MAX_EVENT_QUEUE_SIZE*2) {
-                            evtQueue->pop();
-                        }
-                    }
-                }else{
-                    spdlog::info("state: POST->IN");
-                    evtState=IN;
-                    evtStartTmLast = evtStartTm;
+            break;
+        }
+        case IN: {
+            if(!hasEvent) {
+                if(dura > (int)(detPara.post/2)) {
+                    evtState = POST;
+                    spdlog::info("state: IN->POST");
                 }
-                break;
             }
+            else {
+                evtStartTmLast = evtStartTm;
+                spdlog::info("state: IN->IN");
+            }
+            break;
+        }
+        case POST: {
+            if(!hasEvent) {
+                if(dura > detPara.post) {
+                    spdlog::info("state: POST->NONE");
+                    evtState = NONE;
+                    json p;
+                    p["type"] = EV_MSG_TYPE_AI_MOTION;
+                    p["gid"] = selfId;
+                    p["event"] = EV_MSG_EVENT_MOTION_END;
+                    p["ts"] = chrono::duration_cast<chrono::seconds>(evtStartTmLast.time_since_epoch()).count() + (int)(detPara.post/2);
+                    evtQueue->push(p.dump());
+                    if(evtQueue->size() > MAX_EVENT_QUEUE_SIZE*2) {
+                        evtQueue->pop();
+                    }
+                }
+            }
+            else {
+                spdlog::info("state: POST->IN");
+                evtState=IN;
+                evtStartTmLast = evtStartTm;
+            }
+            break;
+        }
         }
     }
 
@@ -526,13 +531,14 @@ protected:
         AVPacket packet;
 
         //event thread
-        thEvent = thread([&,this](){
-            json meta; meta["type"] = EV_MSG_META_EVENT;
+        thEvent = thread([&,this]() {
+            json meta;
+            meta["type"] = EV_MSG_META_EVENT;
             string metaType = meta.dump();
             int ret = 0;
             vector<vector<uint8_t> > v = {str2body(this->pullerGid), str2body(metaType), str2body("")};
-            while(true){
-                if(!this->evtQueue->empty()){
+            while(true) {
+                if(!this->evtQueue->empty()) {
                     string evt = this->evtQueue->front();
                     v[2] = str2body(evt);
                     this->evtQueue->pop();
@@ -541,7 +547,8 @@ protected:
                     if(ret < 0) {
                         spdlog::error("evmlmotion {} {} failed to send event: {}, {}", this->devSn, this->iid, evt, zmq_strerror(zmq_errno()));
                     }
-                }else{
+                }
+                else {
                     this_thread::sleep_for(chrono::seconds(3));
                 }
             }
@@ -610,7 +617,8 @@ public:
         getInputFormat();
         setupStream();
     };
-    ~EvMLMotion() {
+    ~EvMLMotion()
+    {
         if(pSub != NULL) {
             zmq_close(pSub);
             pSub = NULL;
@@ -658,7 +666,8 @@ int main(int argc, const char *argv[])
             string p = evtQueue.front();
             spdlog::info("event: {}", p);
             evtQueue.pop();
-        }else{
+        }
+        else {
             this_thread::sleep_for(chrono::duration(chrono::seconds(2)));
         }
     }

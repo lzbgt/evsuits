@@ -29,13 +29,6 @@ namespace fs = std::filesystem;
 using namespace std;
 using namespace zmqhelper;
 
-/**
- *  functions:
- *  app update
- *  control msg
- *
- **/
-
 class EvMgr:public TinyThread {
 private:
     void *pRouterCtx = NULL;
@@ -129,7 +122,7 @@ private:
             json jEvt;
             jEvt["type"] = EV_MSG_TYPE_CONN_STAT;
             jEvt["gid"] = selfId;
-            jEvt['ts'] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+            jEvt["ts"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
             if(eventConn) {
                 jEvt["event"] = EV_MSG_EVENT_CONN_CONN;
             }
