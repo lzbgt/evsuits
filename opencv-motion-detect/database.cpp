@@ -12,10 +12,8 @@ update: 2019/08/23
 #include <map>
 #include <vector>
 #include <spdlog/spdlog.h>
-#include <json.hpp>
 
 using namespace std;
-using json = nlohmann::json;
 
 namespace DB {
 map<string, sqlite3 *> maphdb;
@@ -43,7 +41,7 @@ sqlite3* exec(void *pUserData, const char* fileName, const char* stmt, callback 
         if(pdb == NULL) {
             ret = sqlite3_open(fileName,&pdb);
             if(ret != SQLITE_OK) {
-                spdlog::error("sqlite3_open: {}",sqlite3_errmsg(pdb));
+                spdlog::error("sqlite3_open {}: {}",fileName, sqlite3_errmsg(pdb));
                 exit(1);
             }
         }
@@ -56,7 +54,7 @@ sqlite3* exec(void *pUserData, const char* fileName, const char* stmt, callback 
         std::lock_guard<std::mutex> lock(mut);
         ret = sqlite3_exec(pdb, stmt, cb, pUserData, NULL);
         if(ret != SQLITE_OK) {
-            spdlog::error("sqlite3_exec: {}",sqlite3_errmsg(pdb));
+            spdlog::debug("sqlite3_exec {} to file {}: {}",stmt, fileName, sqlite3_errmsg(pdb));
         }
     }
 
@@ -81,123 +79,193 @@ string genStrRand(int length)
     return result;
 }
 
-int _getSn(void *pUser, int cc, char **cv, char **cn)
-{
-    int ret = SQLITE_OK;
-    auto v = static_cast<string*>(pUser);
-    if(cc == 1) {
-        *v = string(cv[0]);
-    }
-    else {
-        if(ret < 1) {
-            ret = -1;
-        }
-        else {
-            ret = 1;
-        }
-    }
-    return ret;
-}
-
-int setSn(const char *sn, const char *fileName)
-{
-    int ret = 0;
-    return ret;
-}
-
-int setLocalConfig(json config, const char* fileName)
-{
-    int ret = 0;
-    string stmt;
-    sqlite3* pdb =NULL;
-    // init tables
-    stmt = "create table if not exists info(cls text, value text, version text, update datetime, primary key cls);";
+int clearTable(const char *tableName, const char* fileName){
+    sqlite3 * pdb = NULL;
+    string stmt = "delete from " + string(tableName) + ";";
     pdb = exec(NULL, fileName, stmt.c_str(), NULL);
     if(sqlite3_errcode(pdb) != SQLITE_OK) {
-        spdlog::error("failed to create table info: {}", sqlite3_errmsg(pdb));
+        spdlog::error("failed to clear table {} in {}: {}", tableName, fileName, sqlite3_errmsg(pdb));
+        return sqlite3_errcode(pdb);
+    }
+    return 0;
+}
+
+
+// info: sn, active integer, updatetime datetime, lastboot datetime
+//   eg: "ILSAGENTSN1", ts
+
+int setInfo(void* info, const char*fileName)
+{
+    sqlite3 * pdb = NULL;
+    auto v = static_cast<json*>(info);
+    if(v==NULL||v->count("sn") == 0 ||v->count("lastboot") == 0) {
+        spdlog::error("failed to set info to file {}, parameter error: {}", fileName, v->dump());
         return -1;
     }
-    // if sn exist
-    string sn;
-    stmt = "select value from info where cls=sn;";
-    pdb = exec(&sn, fileName, stmt.c_str(), _getSn);
-    if(sqlite3_errcode(pdb) != SQLITE_OK ||sn.empty()) {
-        spdlog::error("failed get sn: {}, will create new one", sqlite3_errmsg(pdb));
-        sn = genStrRand(8);
-        stmt = "insert into info(cls, value, update) values(sn," + sn + ",'now');";
-        if(sqlite3_errcode(pdb) != SQLITE_OK) {
-            spdlog::error("failed insert sn: {}, will create new one", sqlite3_errmsg(pdb));
-            return -1;
+
+    char buf[1024] = {0};
+
+    sprintf(buf, "create table if not exists info(sn text, active integer, updatetime datetime, lastboot datetime);");
+    pdb = exec(NULL, fileName, buf, NULL);
+    if(sqlite3_errcode(pdb) != SQLITE_OK) {
+        spdlog::error("failed to create table info to file {}: {}", fileName, sqlite3_errmsg(pdb));
+        return sqlite3_errcode(pdb);
+    }
+
+    // delete old backup
+
+
+    sprintf(buf, "delete from info where active=0;update info set active=0;");
+    pdb = exec(NULL, fileName, buf, NULL);
+    if(sqlite3_errcode(pdb) != SQLITE_OK) {
+        spdlog::error("setInfo failed to update info to file {}: {}", fileName, sqlite3_errmsg(pdb));
+        return sqlite3_errcode(pdb);
+    }
+
+    sprintf(buf, "insert into info(sn, active, updatetime, lastboot) values('%s', 1, DateTime('now'), '%s');",
+            v->at("sn").get<string>().c_str(), v->at("lastboot").get<string>().c_str());
+    pdb = exec(NULL, fileName, buf, NULL);
+    if(sqlite3_errcode(pdb) != SQLITE_OK) {
+        spdlog::error("failed to insert into info to file {}: {}", fileName, sqlite3_errmsg(pdb));
+        return sqlite3_errcode(pdb);
+    }
+    return 0;
+}
+
+
+int _getInfo(void *info, int cc, char **cv, char **cn){
+    auto v = static_cast<json*>(info);
+    json r;
+    if(cc == 0) {
+        return SQLITE_NOTFOUND;
+    }
+
+    for(int i = 0; i < cc; i++){
+        if(strncmp(cn[i], "active", strlen("active")) == 0) {
+            r.emplace(cn[i], atoi(cv[i]));
+        }else{
+            r.emplace(cn[i], cv[i]);
         }
     }
 
-    return ret;
+    v->emplace_back(r);
+
+    return 0;
 }
 
-int getLocalConfig(json config)
-{
-    int ret = 0;
-    return ret;
-}
+int getInfo(void *info, int active, const char*fileName) {
+    sqlite3 * pdb = NULL;
 
-int _getSlices(void *pUser, int cc, char **cv, char **cn)
-{
-    int ret = 0;
-    auto v = static_cast< vector<int>* >(pUser);
-    if(cc != v->size()) {
-        return SQLITE_ERROR;
+    auto v = static_cast<json*>(info);
+    if(v == NULL||v->size()!= 0) {
+        spdlog::error("getInfo in {} param error: userData must be addr ptr to empty json object");
+        return -1;
     }
-    else {
-        for(int i = 0; i < v->size(); i ++) {
-            v->at(i) = atoi(cv[0]);
-        }
+    
+    string stmt;
+    if(active <0){
+        stmt = "select sn, active, updatetime, lastboot from info;";
+    }else{
+        stmt = "select sn, active, updatetime, lastboot from info where active="+to_string(active) +";";
+    }
+   
+    pdb = exec(info, fileName, stmt.c_str(), _getInfo);
+    if(sqlite3_errcode(pdb) != SQLITE_OK) {
+        spdlog::error("failed to get info to file {}: {}", fileName, sqlite3_errmsg(pdb));
+        return sqlite3_errcode(pdb);
     }
 
-    return ret;
+    spdlog::debug("getInfo to file {}: {}", fileName, v->dump());
+
+    return 0;
 }
 
-// table and schema
-
-// modules: id integer, pid integer, iid integer, cls text, sn text, config text, online integer, enabled integer, update
+// modules: id integer, pid integer, iid integer, cls text, sn text, config text, version text, online integer, enabled integer, updatetime datetime, lastboot datetime, active integer
 // eg: 2, 0, NULL, evmgr, ILSEVMGR1, "xxxx", 1, 1, ts
 //   : 3, 2, NULL, ipc, NULL, "xxx", 1, 1, ts
 //   : 5, 3, 1, evpuller, "ILSEVPULLER1", "xxx", 1, 1, ts
-// cls = evmgr|ipc|evpuller|evpusher|evslicer|evmlmotion
+// cls = evmgr|ipc|evpuller|evpusher|evslicer|ml
 
-
-int getSlices(void *pUser, int iid, const char *fileName)
-{
-    int ret = 0;
+int createModulesTable(const char *fileName){
     sqlite3 * pdb = NULL;
-    auto v = static_cast< vector<int>* >(pUser);
-    string stmt = "select ts from slices where iid="+to_string(iid)+" order by id;";
-    pdb = exec(pUser, fileName, stmt.c_str(), _getSlices);
+
+    string stmt = "create table if not exists modules(id integer, pid integer, iid integer, cls text, sn text, config text, version text, online integer, enabled integer, updatetime datetime, lastboot datetime, active integer);";
+    pdb = exec(NULL, fileName, stmt.c_str(), NULL);
     if(sqlite3_errcode(pdb) != SQLITE_OK) {
-        // create
-        stmt = "create table if not exists slices(id integer, iid integer, ts integer);";
-        pdb = exec(NULL, fileName, stmt.c_str(), NULL);
-        if(sqlite3_errcode(pdb) != SQLITE_OK) {
-            spdlog::error("failed create table slices for evslicer {}", iid);
-            return -1;
-        }
-        else {
-            for(int i = 1; i <= v->size(); i ++) {
-                stmt = "insert into slices(id, iid, ts) values(" + to_string(i) + to_string(iid) + ", 0";
-                pdb = exec(NULL, fileName, stmt.c_str(), NULL);
-                if(sqlite3_errcode(pdb) != SQLITE_OK) return -2;
-                v->push_back(0);
-            }
-
-            stmt = "update slices set ts=1 where id = 1 and iid="+to_string(iid) +";";
-            pdb = exec(NULL, stmt.c_str(), NULL, NULL);
-            if(sqlite3_errcode(pdb) != SQLITE_OK) return -3;
-            v->at(0) = 2;
-        }
-    }
-    else {
-
+        spdlog::error("failed to create table modules to file {}: {}", fileName, sqlite3_errmsg(pdb));
+        return sqlite3_errcode(pdb);
     }
 
-    return ret;
+    return 0;
 }
+
+int setModulesConfig(void *info, const char*fileName) {
+    sqlite3 * pdb = NULL;
+    auto v = static_cast<json*>(info);
+    if(v==NULL||v->size() == 0||v->count("data") == 0 || v->at("data").size() == 0) {
+        spdlog::error("failed to setModulesConfig to file {}, parameter error: {}", fileName, v->dump());
+        return -1;
+    }
+
+    char buf[1024] = {0};
+
+    // delete old backup config and backup current config.
+    sprintf(buf, "delete from modules where active=0; update modules set active=0;");
+    pdb = exec(NULL, fileName, buf, NULL);
+    if(sqlite3_errcode(pdb) != SQLITE_OK) {
+        spdlog::error("setModulesConfig failed to update to file {}: {}", fileName, sqlite3_errmsg(pdb));
+        return sqlite3_errcode(pdb);
+    }
+
+    // construct records from json
+    //auto data = v->
+
+
+    sprintf(buf, "create table if not exists info(sn text, active integer, updatetime datetime, lastboot datetime);");
+    pdb = exec(NULL, fileName, buf, NULL);
+    if(sqlite3_errcode(pdb) != SQLITE_OK) {
+        spdlog::error("failed to create table modules to file {}: {}", fileName, sqlite3_errmsg(pdb));
+        return sqlite3_errcode(pdb);
+    }
+    return 0;
+}
+
+int _getModulesConfig(void *info, int cc, char **cv, char **cn){
+    return 0;
+}
+int getModulesConfig(void *info, const char*fileName) {
+    sqlite3 * pdb = NULL;
+
+    auto v = static_cast<json*>(info);
+    if(v == NULL||v->size() != 0) {
+        spdlog::error("getModule in {} param error: userData must be addr ptr to empty json object");
+        return -1;
+    }
+
+    string stmt;
+    if(0 <0){
+        stmt = "select sn, active, updatetime, lastboot from info;";
+    }else{
+        stmt = "select sn, active, updatetime, lastboot from info where active="+to_string(0) +";";
+    }
+   
+    pdb = exec(info, fileName, stmt.c_str(), _getInfo);
+    if(sqlite3_errcode(pdb) != SQLITE_OK) {
+        spdlog::error("failed to get info to file {}: {}", fileName, sqlite3_errmsg(pdb));
+        return sqlite3_errcode(pdb);
+    }
+
+    spdlog::debug("getInfo to file {}: {}", fileName, v->dump());
+
+    return 0;
+}
+
+
+
+
+// log: id integer, module text, type text, status integer, reported integer, content text, updatetime
+//  eg: 1, ILSEVMGR1:0:0, alarm, 1, 0, "{data: low memory}", ts
+// type = none|alarm|event
+
+
 }
