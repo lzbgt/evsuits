@@ -296,7 +296,7 @@ protected:
                 av_packet_unref(&packet);
                 continue;
             }
-            if(pktCnt % 1024 == 0) {
+            if(pktCnt % EV_LOG_PACKET_CNT == 0) {
                 spdlog::info("pktCnt: {:d}", pktCnt);
             }
 

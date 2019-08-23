@@ -17,6 +17,8 @@ using json = nlohmann::json;
 #define PS_MARK_E "DEADBEEF"
 #define PS_MARK_S "BEEFDEAD"
 
+#define EV_LOG_PACKET_CNT (18*60*5)
+
 void avlogThrow(void *avcl, int lvl, const char *fmt, ...)
 {
     (void)avcl;

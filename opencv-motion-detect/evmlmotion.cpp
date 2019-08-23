@@ -569,8 +569,8 @@ protected:
                 }
             }
             zmq_msg_close(&msg);
-            if(pktCnt % 1024 == 0) {
-                spdlog::info("seq: {}, pts: {}, dts: {}, dur: {}, idx: {}", pktCnt, packet.pts, packet.dts, packet.duration, packet.stream_index);
+            if(pktCnt % EV_LOG_PACKET_CNT == 0) {
+                spdlog::info("seq: {}, pts: {}, dts: {}, idx: {}", pktCnt, packet.pts, packet.dts, packet.stream_index);
             }
             pktCnt++;
 

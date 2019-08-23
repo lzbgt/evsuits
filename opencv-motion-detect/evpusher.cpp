@@ -351,8 +351,12 @@ protected:
                 continue;
             }
 
-            // decode
+            if(pktCnt % EV_LOG_PACKET_CNT == 0) {
+                spdlog::info("seq: {}, pts: {}, dts: {}, idx: {}", pktCnt, packet.pts, packet.dts, packet.stream_index);
+            }
+
             pktCnt++;
+            // decode
             ret = AVPacketSerializer::decode((char*)zmq_msg_data(&msg), ret, &packet);
             {
                 if (ret < 0) {
@@ -369,10 +373,6 @@ protected:
             packet.stream_index = streamList[packet.stream_index];
             out_stream = pAVFormatRemux->streams[packet.stream_index];
 
-            //calc pts
-            if(pktCnt % (18*60*5) == 0) {
-                spdlog::info("seq: {:lld}, pts: {:lld}, dts: {:lld}, dur: {:lld}, idx: {:d}", pktCnt, packet.pts, packet.dts, packet.duration, packet.stream_index);
-            }
             /* copy packet */
             if(pktCnt == 0) {
                 packet.pts = 0;

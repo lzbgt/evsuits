@@ -402,8 +402,8 @@ protected:
                 out_stream = pAVFormatRemux->streams[packet.stream_index];
                 //calc pts
 
-                if(pktCnt % 1024 == 0) {
-                    spdlog::info("seq: {}, pts: {}, dts: {}, dur: {}, idx: {}", pktCnt, packet.pts, packet.dts, packet.duration, packet.stream_index);
+                if(pktCnt % EV_LOG_PACKET_CNT == 0) {
+                    spdlog::info("seq: {}, pts: {}, dts: {}, idx: {}", pktCnt, packet.pts, packet.dts, packet.stream_index);
                 }
                 /* copy packet */
                 if(pktCnt == 0) {
@@ -481,6 +481,7 @@ public:
 
 int main(int argc, const char *argv[])
 {
+    av_log_set_level(AV_LOG_ERROR);
     spdlog::set_level(spdlog::level::info);
     EvSlicer es;
     es.join();

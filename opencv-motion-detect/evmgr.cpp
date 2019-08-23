@@ -315,7 +315,7 @@ public:
 int main(int argc, const char *argv[])
 {
     av_log_set_level(AV_LOG_ERROR);
-    spdlog::set_level(spdlog::level::debug);
+    spdlog::set_level(spdlog::level::info);
     EvMgr mgr;
     mgr.join();
     return 0;
