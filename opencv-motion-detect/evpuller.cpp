@@ -139,7 +139,7 @@ private:
     void *pDealerCtx = NULL;
     void *pDealer = NULL;
     AVFormatContext *pAVFormatInput = NULL;
-    string urlIn, urlPub, urlDealer, mgrSn, devSn, pullerGid;
+    string urlIn, urlPub, urlDealer, mgrSn, devSn, selfId;
     int *streamList = NULL, numStreams = 0, iid;
     json config;
 
@@ -149,6 +149,7 @@ private:
         // TODO: load devSn iid from database
         devSn = "ILSEVPULLER1";
         iid = 1;
+        selfId = devSn+":evpuller:" + to_string(iid);
         int ret = 0;
         while(!inited) {
             // TODO: req config
@@ -205,8 +206,12 @@ private:
                 ret = mqErrorMsg("evpuller", devSn, iid, "failed to bind zmq", zmq_bind(pPub, urlPub.c_str()));
                 pDealerCtx = zmq_ctx_new();
                 pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
-                pullerGid = devSn+":evpuller:" + to_string(iid);
-                ret += mqErrorMsg("evpuller", devSn, iid, "failed to set socksopt", zmq_setsockopt(pDealer, ZMQ_IDENTITY, pullerGid.c_str(), pullerGid.size()));
+                ret += mqErrorMsg("evpuller", devSn, iid, "failed to set socksopt", zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size()));
+                ret += zmq_setsockopt (pDealer, ZMQ_ROUTING_ID, selfId.c_str(), selfId.size());
+                if(ret < 0) {
+                    spdlog::error("evpusher {} {} failed setsockopts router: {}", devSn, iid, urlDealer);
+                    return -3;
+                }
                 ret += mqErrorMsg("evpuller", devSn, iid, "failed to connect to router " + urlDealer, zmq_connect(pDealer, urlDealer.c_str()));
                 if(ret < 0) {
                     this_thread::sleep_for(chrono::seconds(3));
