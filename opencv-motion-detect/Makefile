@@ -45,16 +45,11 @@ mux: demuxing_decoding.c
 clean:
 	rm -fr evmgr evpuller evpusher evslicer evmlmotion *.dSYM *.out *.o
 
-.PHONY: rebuildzmq
-rebuildzmq:
-	cd vendor/libzmq && make clean && ./autogen.sh && ./configure --prefix=$(CURDIR)/vendor --enable-drafts
-	cd vendor/libzmq && make -j 4 && make install
+.PHONY: zmq
+zmq:
+	cd vendor/libzmq && ./autogen.sh && ./configure --prefix=$(CURDIR)/vendor --enable-drafts
+	cd vendor/libzmq && make clean && make -j 4 && make install
 
 .PHONY: leveldb
 leveldb:
-	cd vendor/leveldb && mkdir -p build && cd build && cmake -DCMAKE_INSTALL_PREFIX=$(CURDIR)/vendor && make -j && make install
-
-.PHONY: libzmq
-libzmq:
-	cd vendor/libzmq && [ ! -f $(CURDIR)/vendor/lib/pkgconfig/libzmq.pc ] || ./autogen.sh && ./configure --prefix=$(CURDIR)/vendor --enable-drafts
-	cd vendor/libzmq && make -j 4 && make install
+	cd vendor/leveldb && mkdir -p build && cd build && cmake -DCMAKE_INSTALL_PREFIX=$(CURDIR)/vendor .. && make -j && make install
