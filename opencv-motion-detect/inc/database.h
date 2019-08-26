@@ -4,9 +4,13 @@
 #include "json.hpp"
 
 using namespace nlohmann;
+using namespace std;
 
-namespace DB {
-
+namespace LVDB {
+    int getSn(json &info, string fileName);
+    int saveSn(json &info, string fileName);
+    int loadLocalConfig(json &config, string fileName);
+    int savelocalConfig(json &config, string fileName);
 }
 
 #endif

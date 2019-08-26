@@ -5,7 +5,7 @@ author: Bruce.Lu <lzbgt@icloud.com>
 update: 2019/08/23
 */
 
-#include "inc/database.h"
+#include "inc/database-sqlite.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <mutex>
