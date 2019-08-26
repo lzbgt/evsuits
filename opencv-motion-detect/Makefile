@@ -9,13 +9,7 @@ LIBS=-lpthread
 SQLITE=vendor/sqlite/sqlite3.c
 HEADERS=-Iinc -Ivendor/include
 
-.PHONY: libzmq
 all: evmgr evpuller evpusher evslicer evmlmotion
-
-.PHONY: libzmq
-libzmq:
-	cd vendor/libzmq && [ ! -f $(CURDIR)/vendor/lib/pkgconfig/libzmq.pc ] || ./autogen.sh && ./configure --prefix=$(CURDIR)/vendor --enable-drafts
-	cd vendor/libzmq && make -j 4 && make install
 
 # sqlite C object
 sqlite3.o: vendor/sqlite/sqlite3.c
@@ -52,4 +46,13 @@ clean:
 .PHONY: rebuildzmq
 rebuildzmq:
 	cd vendor/libzmq && make clean && ./autogen.sh && ./configure --prefix=$(CURDIR)/vendor --enable-drafts
+	cd vendor/libzmq && make -j 4 && make install
+
+.PHONY: leveldb
+leveldb:
+	cd vendor/leveldb && mkdir -p build && cd build && cmake -DCMAKE_INSTALL_PREFIX=$(CURDIR)/vendor && make -j && make install
+
+.PHONY: libzmq
+libzmq:
+	cd vendor/libzmq && [ ! -f $(CURDIR)/vendor/lib/pkgconfig/libzmq.pc ] || ./autogen.sh && ./configure --prefix=$(CURDIR)/vendor --enable-drafts
 	cd vendor/libzmq && make -j 4 && make install

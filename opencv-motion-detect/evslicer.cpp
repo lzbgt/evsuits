@@ -59,6 +59,8 @@ private:
         devSn = "ILSEVSLICER1";
         iid = 1;
         selfId = devSn + ":evslicer:" + to_string(iid);
+        // TODO: read local slices list and last index
+        
         while(!inited) {
             // TODO: req config
             bool found = false;
