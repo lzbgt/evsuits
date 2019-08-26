@@ -5,7 +5,7 @@ CFLAGS = -g -Wall
 
 LIBOPENCV = `pkg-config opencv --cflags --libs`
 LIBFFMPEG = `pkg-config libavformat libavutil libavcodec libswscale --cflags --libs`
-LIBS=-lpthread
+LIBS=-Ivendor/lib -lpthread -lleveldb
 SQLITE=vendor/sqlite/sqlite3.c
 HEADERS=-Iinc -Ivendor/include
 
