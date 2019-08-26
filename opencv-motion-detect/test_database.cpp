@@ -24,7 +24,7 @@ int main(){
     ret = LVDB::getSn(j, LVDB_FILE_GENERAL);
     spdlog::info("ret: {}, {}", ret, j.dump());
 
-    // 
+    //
     json config = json::parse(_config);
 
     j.clear();
