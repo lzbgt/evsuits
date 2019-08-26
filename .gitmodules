@@ -4,9 +4,6 @@
 [submodule "opencv-motion-detect/vendor/leveldb"]
 	path = opencv-motion-detect/vendor/leveldb
 	url = https://github.com/google/leveldb
-[submodule "opencv-motion-detect/vendor/served"]
-	path = opencv-motion-detect/vendor/served
-	url = https://github.com/meltwater/served
 [submodule "opencv-motion-detect/vendor/boost"]
 	path = opencv-motion-detect/vendor/boost
 	url = https://github.com/boostorg/boost
