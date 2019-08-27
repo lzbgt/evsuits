@@ -364,7 +364,7 @@ namespace cloudutils
    }
 }
 */
-const char *config = "{\"time\":0,\"code\":0,\"data\":{\"ILSEVMGR1\":{\"sn\":\"ILSEVMGR1\",\"addr\":\"172.31.0.76\",\"addr-cloud\":\"172.31.0.76\",\"proto\":\"zmq\",\"port-cloud\":5556,\"port-router\":5550,\"status\":1,\"ipcs\":[{\"addr\":\"192.168.1.64\",\"proto\":\"rtsp\",\"user\":\"admin\",\"password\":\"iLabService\",\"status\":1,\"modules\":{\"evpuller\":[{\"sn\":\"ILSEVPULLER1\",\"addr\":\"172.31.0.76\",\"iid\":1,\"port-pub\":5556,\"status\":1}],\"evpusher\":[{\"sn\":\"ILSEVPUSHER1\",\"iid\":1,\"urlDest\":\"rtsp://40.73.41.176:554/test1\",\"user\":\"\",\"password\":\"\",\"token\":\"\",\"enabled\":1,\"status\":1}],\"evslicer\":[{\"sn\":\"ILSEVSLICER1\",\"iid\":1,\"path\":\"slices\",\"enabled\":1,\"status\":1}],\"evml\":[{\"type\":\"motion\",\"sn\":\"ILSEVMLMOTION1\",\"iid\":1,\"enabled\":1,\"status\":1}]}}]}}}";
+const char *config = "{\"time\":0,\"code\":0,\"data\":{\"ILSEVMGR1\":{\"sn\":\"ILSEVMGR1\",\"addr\":\"127.0.0.1\",\"addr-cloud\":\"127.0.0.1\",\"proto\":\"zmq\",\"port-cloud\":5556,\"port-router\":5550,\"status\":1,\"ipcs\":[{\"addr\":\"192.168.1.64\",\"proto\":\"rtsp\",\"user\":\"admin\",\"password\":\"iLabService\",\"status\":1,\"modules\":{\"evpuller\":[{\"sn\":\"ILSEVPULLER1\",\"addr\":\"127.0.0.1\",\"iid\":1,\"port-pub\":5556,\"status\":1}],\"evpusher\":[{\"sn\":\"ILSEVPUSHER1\",\"iid\":1,\"urlDest\":\"rtsp://40.73.41.176:554/test1\",\"user\":\"\",\"password\":\"\",\"token\":\"\",\"enabled\":1,\"status\":1}],\"evslicer\":[{\"sn\":\"ILSEVSLICER1\",\"iid\":1,\"path\":\"slices\",\"enabled\":1,\"status\":1}],\"evml\":[{\"type\":\"motion\",\"sn\":\"ILSEVMLMOTION1\",\"iid\":1,\"enabled\":1,\"status\":1}]}}]}}}";
 
 json registry(const char *sn, const char *scn, int iid)
 {
