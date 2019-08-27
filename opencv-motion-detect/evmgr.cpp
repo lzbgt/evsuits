@@ -91,7 +91,7 @@ private:
 
 togo_sleep_continue:
                 this_thread::sleep_for(chrono::seconds(3));
-                continue;
+                //continue;
             }
             catch(exception &e) {
                 spdlog::error("evmgr {} exception on init() for: {}, retrying load configuration...", devSn, e.what());
