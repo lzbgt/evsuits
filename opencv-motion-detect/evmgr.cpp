@@ -1,6 +1,6 @@
 /*
 module: evmgr
-description: 
+description:
 author: Bruce.Lu <lzbgt@icloud.com>
 update: 2019/08/23
 */
@@ -49,6 +49,8 @@ private:
         bool inited = false;
         // TODO: load config from local db
         devSn = "ILSEVMGR1";
+        int opt_notify = ZMQ_NOTIFY_DISCONNECT|ZMQ_NOTIFY_CONNECT;
+        string proto, addr;
         while(!inited) {
             try {
                 config = json::parse(cloudutils::config);
@@ -56,32 +58,40 @@ private:
                 // TODO: verify sn
                 if(!config.count("data")||!config["data"].count(devSn)||!config["data"][devSn].count("ipcs")) {
                     spdlog::error("evmgr {} invalid config. reload now...", devSn);
-                    this_thread::sleep_for(chrono::seconds(3));
-                    continue;
+                    goto togo_sleep_continue;
                 }
                 jmgr =  config["data"][devSn];
-                string proto = jmgr["proto"];
-                string addr;
 
                 if(proto != "zmq") {
-                    spdlog::error("evmgr {} unsupported protocol: {}, try fallback to zmq instead now...", devSn, proto);
+                    spdlog::warn("evmgr {} unsupported protocol: {}, try fallback to zmq instead now...", devSn, proto);
                 }
-                addr = "tcp://" + jmgr["addr"].get<string>() + ":" + to_string(jmgr["port-router"]);
+
+                //
+                if(jmgr["addr"].get<string>()  == "*" || jmgr["addr"].get<string>() == "0.0.0.0") {
+                    spdlog::error("invalid mgr address: {} in config:\n{}", jmgr["addr"].get<string>(), jmgr.dump());
+                    goto togo_sleep_continue;
+                }
+
+                //addr = "tcp://" + jmgr["addr"].get<string>() + ":" + to_string(jmgr["port-router"]);
+                addr = "tcp://*:" + to_string(jmgr["port-router"]);
                 // setup zmq
                 // TODO: connect to cloud
 
                 // router service
                 pRouterCtx = zmq_ctx_new();
                 pRouter = zmq_socket(pRouterCtx, ZMQ_ROUTER);
-                int opt_notify = ZMQ_NOTIFY_DISCONNECT|ZMQ_NOTIFY_CONNECT;
                 zmq_setsockopt (pRouter, ZMQ_ROUTER_NOTIFY, &opt_notify, sizeof (opt_notify));
                 ret = zmq_bind(pRouter, addr.c_str());
                 if(ret < 0) {
                     spdlog::error("evmgr {} failed to bind zmq at {} for reason: {}, retrying load configuration...", devSn, addr, zmq_strerror(zmq_errno()));
-                    this_thread::sleep_for(chrono::seconds(3));
-                    continue;
+                    goto togo_sleep_continue;
                 }
                 inited = true;
+                break;
+
+togo_sleep_continue:
+                this_thread::sleep_for(chrono::seconds(3));
+                continue;
             }
             catch(exception &e) {
                 spdlog::error("evmgr {} exception on init() for: {}, retrying load configuration...", devSn, e.what());
@@ -211,35 +221,6 @@ private:
         }
 
         return ret;
-    }
-    int  get_monitor_event (void *monitor, int *value, char **address)
-    {
-        //  First frame in message contains event number and value
-        zmq_msg_t msg;
-        zmq_msg_init (&msg);
-        if (zmq_msg_recv (&msg, monitor, 0) == -1)
-            return -1;              //  Interrupted, presumably
-        assert (zmq_msg_more (&msg));
-
-        uint8_t *data = (uint8_t *) zmq_msg_data (&msg);
-        uint16_t event = *(uint16_t *) (data);
-        if (value)
-            *value = *(uint32_t *) (data + 2);
-
-        //  Second frame in message contains event address
-        zmq_msg_init (&msg);
-        if (zmq_msg_recv (&msg, monitor, 0) == -1)
-            return -1;              //  Interrupted, presumably
-        assert (!zmq_msg_more (&msg));
-
-        if (address) {
-            uint8_t *data = (uint8_t *) zmq_msg_data (&msg);
-            size_t size = zmq_msg_size (&msg);
-            *address = (char *) malloc (size + 1);
-            memcpy (*address, data, size);
-            (*address)[size] = 0;
-        }
-        return event;
     }
 
 protected:
