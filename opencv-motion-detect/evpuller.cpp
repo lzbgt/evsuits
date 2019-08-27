@@ -6,6 +6,7 @@ update: 2019/08/23
 */
 
 #pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wunknown-warning-option"
 #pragma GCC diagnostic ignored "-Wunused-private-field"
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #pragma GCC diagnostic ignored "-Wsign-compare"
@@ -165,6 +166,7 @@ private:
         while(!inited) {
             // TODO: req config
             bool found = false;
+            string user, passwd, addr;
             try {
                 config = json::parse(cloudutils::config);
                 spdlog::info("config dump: {:s}", config.dump());
@@ -198,16 +200,21 @@ private:
                 }
 
                 if(!found) {
-                    this_thread::sleep_for(chrono::seconds(3));
                     spdlog::error("evpuller {} {} no valid config found. retrying load config...", devSn, iid);
-                    continue;
+                    goto togo_sleep_continue;
                 }
 
                 mgrSn = evmgr["sn"];
-                string user = ipc["user"];
-                string passwd = ipc["password"];
+                user = ipc["user"];
+                passwd = ipc["password"];
                 urlIn = "rtsp://" + user + ":" + passwd + "@" + ipc["addr"].get<string>() + "/h264/ch1/sub/av_stream";
-                urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(evpuller["port-pub"]);
+                addr = evpuller["addr"].get<string>();
+                if(addr == "*" || addr == "0.0.0.0") {
+                    spdlog::error("evpuller {} {} invalid addr {} for pub", devSn, iid, evpuller.dump());
+                    goto togo_sleep_continue;
+                }
+
+                urlPub = string("tcp://") +  + ":" + to_string(evpuller["port-pub"]);
                 // urlRep = string("tcp://") +data["addr"].get<string>() + ":" + to_string(data["port-rep"]);
                 urlDealer = "tcp://" + evmgr["addr"].get<string>() + string(":") + to_string(evmgr["port-router"]);
                 spdlog::info("evpuller {} {} bind on {} for pub, {} for dealer", devSn, iid, urlPub, urlDealer);
@@ -221,14 +228,16 @@ private:
                 ret += zmq_setsockopt (pDealer, ZMQ_ROUTING_ID, selfId.c_str(), selfId.size());
                 if(ret < 0) {
                     spdlog::error("evpusher {} {} failed setsockopts router: {}", devSn, iid, urlDealer);
-                    return -3;
+                    goto togo_sleep_continue;
                 }
                 ret += mqErrorMsg("evpuller", devSn, iid, "failed to connect to router " + urlDealer, zmq_connect(pDealer, urlDealer.c_str()));
-                if(ret < 0) {
-                    this_thread::sleep_for(chrono::seconds(3));
+                if(ret < 0) {    
                     spdlog::error("evpuller {} {} zmq setup failed. retrying load config...", devSn, iid);
-                    continue;
+                    goto togo_sleep_continue;
                 }
+togo_sleep_continue:
+                this_thread::sleep_for(chrono::seconds(3));
+                continue;
             }
             catch(exception &e) {
                 this_thread::sleep_for(chrono::seconds(3));
