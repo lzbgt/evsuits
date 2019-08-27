@@ -5,10 +5,11 @@ author: Bruce.Lu <lzbgt@icloud.com>
 update: 2019/08/23
 */
 
-
+#pragma GCC diagnostic ignored "-Wpragmas"
 #pragma GCC diagnostic ignored "-Wunused-private-field"
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #pragma GCC diagnostic ignored "-Wsign-compare"
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 
 #include <stdlib.h>
 #include <string>
