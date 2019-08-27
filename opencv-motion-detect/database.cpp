@@ -147,6 +147,7 @@ namespace LVDB {
         }
         return 0;
     }
+    
     // sn
     // {"sn":string, "updatetime": string, "lastboot": string}
     int _validateSn(const json &info) {
