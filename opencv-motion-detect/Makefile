@@ -1,7 +1,9 @@
+
+#DEBUG=-g
 CC = gcc
 CPP = g++
-CPPFLAGS = -g -Wall -std=gnu++1z
-CFLAGS = -g -Wall
+CPPFLAGS = $(DEBUG) -Wall -std=gnu++1z
+CFLAGS = $(DEBUG) -Wall
 
 LIBOPENCV = `pkg-config opencv --cflags --libs`
 LIBFFMPEG = `pkg-config libavformat libavutil libavcodec libswscale --cflags --libs`
