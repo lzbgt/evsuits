@@ -77,7 +77,7 @@ private:
                 }
 
                 //addr = "tcp://" + jmgr["addr"].get<string>() + ":" + to_string(jmgr["port-router"]);
-                addr = "tcp://*:" + to_string(jmgr["port-router"]) + to_string(jmgr["port-router"]);
+                addr = "tcp://*:" + to_string(jmgr["port-router"]);
                 // setup zmq
                 // TODO: connect to cloud
 
