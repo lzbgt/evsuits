@@ -8,6 +8,7 @@ update: 2019/08/23
 
 #pragma GCC diagnostic ignored "-Wunused-private-field"
 #pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wsign-compare"
 
 #include <stdlib.h>
 #include <string>
