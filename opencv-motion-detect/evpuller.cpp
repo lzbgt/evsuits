@@ -217,11 +217,14 @@ private:
                 urlPub = string("tcp://*:") + to_string(evpuller["port-pub"]);
                 // urlRep = string("tcp://") +data["addr"].get<string>() + ":" + to_string(data["port-rep"]);
                 urlDealer = "tcp://" + evmgr["addr"].get<string>() + string(":") + to_string(evmgr["port-router"]);
-                spdlog::info("evpuller {} {} bind on {} for pub, {} for dealer", devSn, iid, urlPub, urlDealer);
+                spdlog::info("evpuller {} {} bind on {} for pub, connect to {} for dealer", devSn, iid, urlPub, urlDealer);
 
                 pPubCtx = zmq_ctx_new();
                 pPub = zmq_socket(pPubCtx, ZMQ_PUB);
                 ret = mqErrorMsg("evpuller", devSn, iid, "failed to bind zmq", zmq_bind(pPub, urlPub.c_str()));
+                if(ret < 0) {
+                    goto togo_sleep_continue;
+                }
                 pDealerCtx = zmq_ctx_new();
                 pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
                 ret += mqErrorMsg("evpuller", devSn, iid, "failed to set socksopt", zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size()));
@@ -235,9 +238,6 @@ private:
                     spdlog::error("evpuller {} {} zmq setup failed. retrying load config...", devSn, iid);
                     goto togo_sleep_continue;
                 }
-togo_sleep_continue:
-                this_thread::sleep_for(chrono::seconds(3));
-                continue;
             }
             catch(exception &e) {
                 this_thread::sleep_for(chrono::seconds(3));
@@ -247,6 +247,10 @@ togo_sleep_continue:
 
             inited = true;
             spdlog::info("successfully load config");
+            break;
+
+togo_sleep_continue:
+            this_thread::sleep_for(chrono::seconds(3));
         }
 
         return 0;
