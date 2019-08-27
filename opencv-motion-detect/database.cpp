@@ -39,36 +39,26 @@ namespace LVDB {
         return 0;
     }
 
-    typedef int (*cb_verify)(json &);
-
-    int getValue(json &value, string key, string fileName, cb_verify cb) {
-        DB* pdb = _getDB(fileName);
-        string oldVal;
+    typedef int (*cb_verify_str)(const string&);
+    typedef int (*cb_verify_json)(const json&);
+    
+    int getValue(string &value, string key, string fileName, cb_verify_str cb) {
         int ret = 0;
-        json j;
-        Status s = pdb->Get(leveldb::ReadOptions(), key, &oldVal);
+        DB* pdb = _getDB(fileName);
+        Status s = pdb->Get(leveldb::ReadOptions(), key, &value);
         if(!s.ok()) {
             spdlog::error("failed to get {} from {}: {}",key, fileName, s.ToString());
             return -1;
         }
-        try{
-            j = json::parse(oldVal);
-            if(cb != NULL) {
-                ret =  cb(j);
-                if(ret < 0) {
-                    return ret;
-                }
-            }
-            
-            value = j;
-        }catch(exception &e) {
-            spdlog::error("failed to parse {} -> {} {}: {}", key, oldVal, fileName, e.what());
-            return -2;
+        if(cb != NULL) {
+            ret = cb(value);
         }
-        return 0;
+
+        return ret;
     }
 
-    int setValue(json &value, string key, string fileName, cb_verify cb) {
+
+    int setValue(const string &value, string key, string fileName, cb_verify_str cb) {
         int ret = 0;
         if(cb != NULL) {
             ret = cb(value);
@@ -84,11 +74,12 @@ namespace LVDB {
             spdlog::warn("get old {} error {}:{}", key, fileName, s.ToString());
         }
 
-        s = pdb->Put(leveldb::WriteOptions(), key, value.dump());
+        s = pdb->Put(leveldb::WriteOptions(), key, value);
         if(!s.ok()) {
-            spdlog::error("failed to put {} -> {}: {}", key, value.dump(), s.ToString());
+            spdlog::error("failed to put {} -> {}: {}", key, value, s.ToString());
             return -2;
         }
+
         if(!oldVal.empty()) {
             s = pdb->Put(leveldb::WriteOptions(), key+LVDB_KEY_SUFFIX_BACK, oldVal);
             if(!s.ok()) {
@@ -98,6 +89,53 @@ namespace LVDB {
         }
 
         return 0;
+    }
+
+    int getValue(json &value, string key, string fileName, cb_verify_json cb) {
+        // DB* pdb = _getDB(fileName);
+        // string oldVal;
+        // int ret = 0;
+        // json j;
+        // Status s = pdb->Get(leveldb::ReadOptions(), key, &oldVal);
+        // if(!s.ok()) {
+        //     spdlog::error("failed to get {} from {}: {}",key, fileName, s.ToString());
+        //     return -1;
+        // }
+        string s;
+        int ret = getValue(s, key, fileName, NULL);
+        if(ret < 0) {
+            return ret;
+        }
+        json j;
+        try{
+            j = json::parse(s);
+            if(cb != NULL) {
+                ret =  cb(j);
+                if(ret < 0) {
+                    return ret;
+                }
+            }
+            
+            value = j;
+        }catch(exception &e) {
+            spdlog::error("failed to parse {} -> {} {}: {}", key, s, fileName, e.what());
+            return -2;
+        }
+        return 0;
+    }
+
+    int setValue(json &value, string key, string fileName, cb_verify_json cb) {
+        int ret = 0;
+        if(cb != NULL) {
+            ret = cb(value);
+            if(ret < 0) {
+                return ret;
+            }
+        }
+
+        ret = setValue(value.dump(), key,fileName, NULL);
+
+        return ret;
     }
 
     int delValue(string key, string fileName) {
@@ -111,7 +149,7 @@ namespace LVDB {
     }
     // sn
     // {"sn":string, "updatetime": string, "lastboot": string}
-    int _validateSn(json &info) {
+    int _validateSn(const json &info) {
         if(info.count("sn") == 0||info.count("updatetime") == 0||info.count("lastboot") == 0) {
                 spdlog::error("invalid sn config:{}", info.dump());
                 return -1;
@@ -129,7 +167,7 @@ namespace LVDB {
     };
 
     // config
-    int _validateConfig(json &config) {
+    int _validateConfig(const json &config) {
         if(config.count("data") == 0|| config["data"].size() == 0) {
             spdlog::error("invliad config: {}", config.dump());
             return -1;
