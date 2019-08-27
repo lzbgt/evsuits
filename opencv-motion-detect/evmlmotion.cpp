@@ -139,6 +139,7 @@ private:
                 urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(evpuller["port-pub"]);
                 urlRouter = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(evmgr["port-router"]);
                 spdlog::info("evmlmotion {} {} will connect to {} for sub, {} for router", devSn, iid, urlPub, urlRouter);
+                
                 // TODO: multiple protocols support
                 if(evmlmotion.count("path") == 0) {
                     spdlog::warn("evslicer {} {} no params for path, using default: {}", devSn, iid, URLOUT_DEFAULT);

@@ -214,7 +214,7 @@ private:
                     goto togo_sleep_continue;
                 }
 
-                urlPub = string("tcp://") +  + ":" + to_string(evpuller["port-pub"]);
+                urlPub = string("tcp://*:") + to_string(evpuller["port-pub"]);
                 // urlRep = string("tcp://") +data["addr"].get<string>() + ":" + to_string(data["port-rep"]);
                 urlDealer = "tcp://" + evmgr["addr"].get<string>() + string(":") + to_string(evmgr["port-router"]);
                 spdlog::info("evpuller {} {} bind on {} for pub, {} for dealer", devSn, iid, urlPub, urlDealer);
