@@ -77,7 +77,7 @@ private:
                 }
 
                 //addr = "tcp://" + jmgr["addr"].get<string>() + ":" + to_string(jmgr["port-router"]);
-                addr = "tcp://*:" + to_string(jmgr["port-router"]);
+                addr = "tcp://*:" + to_string(jmgr["port-router"]) + to_string(jmgr["port-router"]);
                 // setup zmq
                 // TODO: connect to cloud
 
@@ -90,6 +90,7 @@ private:
                     spdlog::error("evmgr {} failed to bind zmq at {} for reason: {}, retrying load configuration...", devSn, addr, zmq_strerror(zmq_errno()));
                     goto togo_sleep_continue;
                 }
+                spdlog::info("evmgr {} bind success to {}", devSn, addr);
                 inited = true;
                 break;
 
