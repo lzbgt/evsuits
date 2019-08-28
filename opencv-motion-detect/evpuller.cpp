@@ -18,6 +18,7 @@ update: 2019/08/23
 #include <iostream>
 #include <chrono>
 #include <future>
+#include <ctime>
 
 #ifdef OS_LINUX
 #include <filesystem>
@@ -153,22 +154,38 @@ private:
     AVFormatContext *pAVFormatInput = NULL;
     string urlIn, urlPub, urlDealer, mgrSn, devSn, selfId;
     int *streamList = NULL, numStreams = 0, iid;
+    time_t tsLastBoot, tsUpdateTime;
     json config;
 
     int init()
     {
         bool inited = false;
-        // TODO: load devSn iid from database
-        devSn = "ILSEVPULLER1";
-        iid = 1;
+        // TODO: load config from local db
+        json info;
+        int ret = LVDB::getSn(info);
+        if(ret < 0) {
+            spdlog::error("failed to get sn");
+            exit(1);
+        }
+
+        tsLastBoot = info["lastboot"];
+        tsUpdateTime=info["updatetime"];
+
+        spdlog::info("evmgr info: sn = {}, lastboot = {}, updatetime = {}", info["sn"].get<string>(), ctime(&tsLastBoot), ctime(&tsUpdateTime));
+        devSn = info["sn"];
+
+        ret = LVDB::getLocalConfig(config);
+        if(ret < 0) {
+            spdlog::error("failed to get local configuration");
+            exit(1);
+        }
+
         selfId = devSn+":evpuller:" + to_string(iid);
-        int ret = 0;
         while(!inited) {
             // TODO: req config
             bool found = false;
             string user, passwd, addr;
             try {
-                config = json::parse(cloudutils::config);
                 spdlog::info("config dump: {:s}", config.dump());
                 json data = config["data"];
                 // first try to check mgr with same sn

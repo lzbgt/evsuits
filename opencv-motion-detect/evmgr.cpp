@@ -19,6 +19,7 @@ update: 2019/08/23
 #include <chrono>
 #include <future>
 #include <queue>
+#include <ctime>
 
 #ifdef OS_LINUX
 #include <filesystem>
@@ -45,6 +46,7 @@ private:
     mutex cacheLock;
     queue<string> eventQue;
     mutex eventQLock;
+    time_t tsLastBoot,  tsUpdateTime;
 
     //
     void init()
@@ -52,12 +54,29 @@ private:
         int ret;
         bool inited = false;
         // TODO: load config from local db
-        devSn = "ILSEVMGR1";
+        json info;
+        ret = LVDB::getSn(info);
+        if(ret < 0) {
+            spdlog::error("failed to get sn");
+            exit(1);
+        }
+
+        tsLastBoot = info["lastboot"];
+        tsUpdateTime=info["updatetime"];
+
+        spdlog::info("evmgr info: sn = {}, lastboot = {}, updatetime = {}", info["sn"].get<string>(), ctime(&tsLastBoot), ctime(&tsUpdateTime));
+        devSn = info["sn"];
+
+        ret = LVDB::getLocalConfig(config);
+        if(ret < 0) {
+            spdlog::error("failed to get local configuration");
+            exit(1);
+        }
+
         int opt_notify = ZMQ_NOTIFY_DISCONNECT|ZMQ_NOTIFY_CONNECT;
         string proto, addr;
         while(!inited) {
             try {
-                config = json::parse(cloudutils::config);
                 spdlog::info("config dumps: \n{}", config.dump());
                 // TODO: verify sn
                 if(!config.count("data")||!config["data"].count(devSn)||!config["data"][devSn].count("ipcs")) {
@@ -65,6 +84,7 @@ private:
                     goto togo_sleep_continue;
                 }
                 jmgr =  config["data"][devSn];
+                proto = jmgr["proto"];
 
                 if(proto != "zmq") {
                     spdlog::warn("evmgr {} unsupported protocol: {}, try fallback to zmq instead now...", devSn, proto);

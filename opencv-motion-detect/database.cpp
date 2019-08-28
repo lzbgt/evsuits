@@ -5,7 +5,34 @@
 #include <mutex>
 #include <map>
 
-using namespace leveldb;
+using namespace rocksdb;
+
+string _config_default_tmpl = "{\"time\":0,\"code\":0,\"data\":{\"<SN_MGR>\":{\"sn\":\"<SN_MGR>\",\"addr\":\"127.0.0.1\",\"addr-cloud\":\"<cloud_addr>\",\"proto\":\"zmq\",\"port-cloud\":5556,\"port-router\":5550,\"status\":1,\"ipcs\":[{\"addr\":\"172.31.0.51\",\"proto\":\"rtsp\",\"user\":\"admin\",\"password\":\"FWBWTU\",\"status\":0,\"modules\":{\"evpuller\":[{\"sn\":\"<SN_PULLER>\",\"addr\":\"127.0.0.1\",\"iid\":1,\"port-pub\":5556,\"status\":0}],\"evpusher\":[{\"sn\":\"<SN_PUSHER>\",\"iid\":1,\"urlDest\":\"rtsp://40.73.41.176:554/test1\",\"user\":\"\",\"password\":\"\",\"token\":\"\",\"enabled\":1,\"status\":0}],\"evslicer\":[{\"sn\":\"<SN_SLICER>\",\"iid\":1,\"path\":\"slices\",\"enabled\":1,\"status\":0}],\"evml\":[{\"type\":\"motion\",\"sn\":\"<SN_ML>\",\"iid\":1,\"enabled\":1,\"status\":0}]}}]}}}";
+
+const string _sn_tmpl[] = {"<SN_MGR>", "<SN_PULLER>", "<SN_PUSHER>", "<SN_SLICER>", "<SN_ML>"};
+const string _addr_tmpl[] = {"<ADDR_CAMERA>"};
+
+
+// TODO:
+string getStrRand(int length)
+{
+    static bool bRand = false;
+    if(!bRand) {
+        srand(time(NULL));
+        bRand = true;
+    }
+    static string charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
+    string result;
+    result.resize(length);
+
+    srand(time(NULL));
+    for (int i = 0; i < length; i++)
+        result[i] = charset[rand() % charset.length()];
+
+    return result;
+}
+
+
 namespace LVDB {
     map<string, DB*> mappDB;
     DB *_getDB(string fileName) {
@@ -45,9 +72,9 @@ namespace LVDB {
     int getValue(string &value, string key, string fileName, cb_verify_str cb) {
         int ret = 0;
         DB* pdb = _getDB(fileName);
-        Status s = pdb->Get(leveldb::ReadOptions(), key, &value);
+        Status s = pdb->Get(ReadOptions(), key, &value);
         if(!s.ok()) {
-            spdlog::error("failed to get {} from {}: {}",key, fileName, s.ToString());
+            spdlog::debug("failed to get {} from {}: {}",key, fileName, s.ToString());
             return -1;
         }
         if(cb != NULL) {
@@ -56,7 +83,6 @@ namespace LVDB {
 
         return ret;
     }
-
 
     int setValue(const string &value, string key, string fileName, cb_verify_str cb) {
         int ret = 0;
@@ -71,17 +97,17 @@ namespace LVDB {
         string oldVal;
         Status s = pdb->Get(ReadOptions(), key, &oldVal);
         if(!s.ok()) {
-            spdlog::warn("get old {} error {}:{}", key, fileName, s.ToString());
+            spdlog::debug("get old {} error {}:{}", key, fileName, s.ToString());
         }
 
-        s = pdb->Put(leveldb::WriteOptions(), key, value);
+        s = pdb->Put(WriteOptions(), key, value);
         if(!s.ok()) {
             spdlog::error("failed to put {} -> {}: {}", key, value, s.ToString());
             return -2;
         }
 
         if(!oldVal.empty()) {
-            s = pdb->Put(leveldb::WriteOptions(), key+LVDB_KEY_SUFFIX_BACK, oldVal);
+            s = pdb->Put(WriteOptions(), key + LVDB_KEY_SUFFIX_BACK, oldVal);
             if(!s.ok()) {
                 spdlog::error("failed to put backup {} -> {}: {}", key, oldVal, s.ToString());
                 return -2;
@@ -92,15 +118,6 @@ namespace LVDB {
     }
 
     int getValue(json &value, string key, string fileName, cb_verify_json cb) {
-        // DB* pdb = _getDB(fileName);
-        // string oldVal;
-        // int ret = 0;
-        // json j;
-        // Status s = pdb->Get(leveldb::ReadOptions(), key, &oldVal);
-        // if(!s.ok()) {
-        //     spdlog::error("failed to get {} from {}: {}",key, fileName, s.ToString());
-        //     return -1;
-        // }
         string s;
         int ret = getValue(s, key, fileName, NULL);
         if(ret < 0) {
@@ -160,7 +177,41 @@ namespace LVDB {
     }
 
     int getSn(json &info, string fileName){
-        return getValue(info, LVDB_KEY_SN, fileName, _validateSn);
+        int ret = 0;
+        ret = getValue(info, LVDB_KEY_SN, fileName, _validateSn);
+
+        if(ret < 0) {
+            // create default sn.
+            string sn = getStrRand(8);
+            info["sn"] = sn;
+            spdlog::warn("no local sn set. create a new one: {}", sn);
+            auto tsNow = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+            info["lastboot"] = tsNow;
+            info["updatetime"] = tsNow;
+            ret = setSn(info, fileName);
+            if(ret < 0) {
+                spdlog::error("failed to save new generated sn");
+                exit(1);
+            }else{
+                // replace sn
+                int idx = 0;
+                for(auto &j:_sn_tmpl) {
+                    idx = 0;
+                    while(true) {
+                        idx = _config_default_tmpl.find(j, idx);
+                        if(idx == string::npos) break;
+                        _config_default_tmpl.replace(idx, j.size(), sn);
+                        idx+=sn.size();
+                    }
+                }
+
+                // replace camera addr, user, password, cloud-addr
+                spdlog::debug("new config: {}", _config_default_tmpl);
+                return setValue(_config_default_tmpl, LVDB_KEY_CONFIG, fileName, NULL);
+            }
+        }
+
+        return ret;
     };
 
     int setSn(json &info, string fileName){
@@ -177,7 +228,7 @@ namespace LVDB {
     }
 
     int getLocalConfig(json &config, string fileName){
-        return getValue(config, LVDB_KEY_CONFIG, fileName, _validateConfig);
+        return getValue(config, LVDB_KEY_CONFIG, fileName, _validateConfig);   
     };
 
     int setLocalConfig(json &config, string fileName){

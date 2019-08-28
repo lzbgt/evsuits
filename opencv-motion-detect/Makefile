@@ -7,8 +7,10 @@ CFLAGS = $(DEBUG) -Wall
 
 LIBOPENCV = `pkg-config opencv --cflags --libs`
 LIBFFMPEG = `pkg-config libavformat libavutil libavcodec libswscale --cflags --libs`
-LIBS=-Ivendor/lib -lpthread -lleveldb
+LD_FLAGS=-Lvendor/lib -lpthread -lrocksdb
+#-static
 HEADERS=-Iinc -Ivendor/include
+LIBS=
 #SQLITE_SRC=vendor/sqlite/sqlite3.
 #SQLITE=sqlite3.o
 SQLITE_SRC=
@@ -21,22 +23,22 @@ sqlite3.o: vendor/sqlite/sqlite3.c
 	gcc -D SQLITE_THREADSAFE=1 -c vendor/sqlite/sqlite3.c
 
 evmgr: evmgr.cpp database.cpp inc/common.hpp inc/database.h inc/zmqhelper.hpp inc/tinythread.hpp $(SQLITE_SRC)
-	$(CPP) $(CPPFLAGS) -o evmgr evmgr.cpp $(SQLITE) database.cpp $(HEADERS) $(LIBFFMPEG) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
+	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evmgr evmgr.cpp $(SQLITE) database.cpp $(HEADERS) $(LIBFFMPEG) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
 
 evpuller: evpuller.cpp database.cpp inc/common.hpp inc/database.h inc/zmqhelper.hpp inc/tinythread.hpp $(SQLITE_SRC)
-	$(CPP) $(CPPFLAGS) -o evpuller evpuller.cpp $(SQLITE) database.cpp $(HEADERS) $(LIBFFMPEG) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
+	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evpuller evpuller.cpp $(SQLITE) database.cpp $(HEADERS) $(LIBFFMPEG) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
 
 evpusher: evpusher.cpp inc/common.hpp inc/tinythread.hpp inc/database.h inc/zmqhelper.hpp  database.cpp $(SQLITE_SRC)
-	$(CPP) $(CPPFLAGS) -o evpusher evpusher.cpp database.cpp $(SQLITE) $(LIBFFMPEG) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
+	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evpusher evpusher.cpp database.cpp $(SQLITE) $(LIBFFMPEG) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
 
 evslicer: evslicer.cpp inc/common.hpp inc/tinythread.hpp inc/database.h inc/zmqhelper.hpp  database.cpp $(SQLITE_SRC)
-	$(CPP) $(CPPFLAGS) -o evslicer evslicer.cpp database.cpp $(SQLITE) $(LIBFFMPEG) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
+	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evslicer evslicer.cpp database.cpp $(SQLITE) $(LIBFFMPEG) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
 
 evmlmotion: evmlmotion.cpp inc/common.hpp inc/avcvhelpers.hpp inc/database.h inc/zmqhelper.hpp  inc/tinythread.hpp database.cpp $(SQLITE_SRC)
-	$(CPP) $(CPPFLAGS) -o evmlmotion evmlmotion.cpp database.cpp $(SQLITE) $(LIBFFMPEG) $(HEADERS) $(LIBOPENCV) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc`  $(LIBS)
+	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evmlmotion evmlmotion.cpp database.cpp $(SQLITE) $(LIBFFMPEG) $(HEADERS) $(LIBOPENCV) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
 
 rtspr: rtsp-relay.cpp
-	$(CPP) $(CPPFLAGS) -o rtspr rtsp-relay.cpp $(LIBFFMPEG) $(LIBS)
+	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o rtspr rtsp-relay.cpp $(LIBFFMPEG) $(LD_FLAGS)
 
 cvsample: cvsample.cpp
 	$(CPP) $(CPPFLAGS) -o cvsample cvsample.cpp $(LIBOPENCV)

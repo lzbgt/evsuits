@@ -18,6 +18,7 @@ update: 2019/08/23
 #include <iostream>
 #include <chrono>
 #include <future>
+#include <ctime>
 
 #ifdef OS_LINUX
 #include <filesystem>
@@ -44,21 +45,38 @@ private:
     int *streamList = NULL;
     AVFormatContext *pAVFormatRemux = NULL;
     AVFormatContext *pAVFormatInput = NULL;
+    time_t tsLastBoot, tsUpdateTime;
     json config;
     thread thPing;
 
     int init()
     {
         bool inited = false;
-        // TODO: read db to get devSn
-        devSn = "ILSEVPUSHER1";
-        iid = 1;
+        // TODO: load config from local db
+        json info;
+        int ret = LVDB::getSn(info);
+        if(ret < 0) {
+            spdlog::error("failed to get sn");
+            exit(1);
+        }
+
+        tsLastBoot = info["lastboot"];
+        tsUpdateTime=info["updatetime"];
+
+        spdlog::info("evmgr info: sn = {}, lastboot = {}, updatetime = {}", info["sn"].get<string>(), ctime(&tsLastBoot), ctime(&tsUpdateTime));
+        devSn = info["sn"];
+
+        ret = LVDB::getLocalConfig(config);
+        if(ret < 0) {
+            spdlog::error("failed to get local configuration");
+            exit(1);
+        }
+
         selfId = devSn + ":evpusher:" + to_string(iid);
         while(!inited) {
             // TODO: req config
             bool found = false;
             try {
-                config = json::parse(cloudutils::config);
                 spdlog::info("config: {:s}", config.dump());
                 json evpusher;
                 json evmgr;
@@ -349,7 +367,7 @@ protected:
                 bStopSig = true;
                 break;
             }
-            int ret =zmq_msg_init(&msg);
+            ret =zmq_msg_init(&msg);
             if(ret != 0) {
                 spdlog::error("failed to init zmq msg");
                 continue;

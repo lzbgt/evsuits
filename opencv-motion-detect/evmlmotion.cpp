@@ -26,6 +26,7 @@ update: 2019/08/23
 namespace fs = std::filesystem;
 #endif
 #include <cstdlib>
+#include <ctime>
 #include "zmqhelper.hpp"
 #include "tinythread.hpp"
 #include "common.hpp"
@@ -77,6 +78,7 @@ private:
     chrono::system_clock::time_point evtStartTm, evtStartTmLast;
     queue<string> *evtQueue;
     int streamIdx = -1;
+    time_t tsLastBoot, tsUpdateTime;
     json config;
     thread thPing;
     thread thEvent;
@@ -86,15 +88,31 @@ private:
     {
         int ret = 0;
         bool inited = false;
-        // TODO: read db to get devSn
-        devSn = "ILSEVMLMOTION1";
-        iid = 1;
+        // TODO: load config from local db
+        json info;
+        ret = LVDB::getSn(info);
+        if(ret < 0) {
+            spdlog::error("failed to get sn");
+            exit(1);
+        }
+
+        tsLastBoot = info["lastboot"];
+        tsUpdateTime=info["updatetime"];
+
+        spdlog::info("evmgr info: sn = {}, lastboot = {}, updatetime = {}", info["sn"].get<string>(), ctime(&tsLastBoot), ctime(&tsUpdateTime));
+        devSn = info["sn"];
+
+        ret = LVDB::getLocalConfig(config);
+        if(ret < 0) {
+            spdlog::error("failed to get local configuration");
+            exit(1);
+        }
+
         selfId = devSn + ":evmlmotion:" + to_string(iid);
         while(!inited) {
             // TODO: req config
             bool found = false;
             try {
-                config = json::parse(cloudutils::config);
                 spdlog::info("config: {:s}", config.dump());
                 json evmlmotion;
                 json evmgr;
@@ -387,6 +405,7 @@ private:
                 if(detect) {
                     detectMotion(pCodecContext->pix_fmt,pFrame);
                 }
+                break;
             }
         }
         return 0;
