@@ -72,19 +72,19 @@ private:
         tsLastBoot = info["lastboot"];
         tsUpdateTime=info["updatetime"];
 
-        spdlog::info("evmgr info: sn = {}, lastboot = {}, updatetime = {}", info["sn"].get<string>(), ctime(&tsLastBoot), ctime(&tsUpdateTime));
+        spdlog::info("evslicer info: sn = {}, lastboot = {}, updatetime = {}", info["sn"].get<string>(), ctime(&tsLastBoot), ctime(&tsUpdateTime));
         devSn = info["sn"];
 
-        ret = LVDB::getLocalConfig(config);
-        if(ret < 0) {
-            spdlog::error("failed to get local configuration");
-            exit(1);
-        }
         // TODO: read local slices list and last index
         while(!inited) {
             // TODO: req config
             bool found = false;
             try {
+                ret = LVDB::getLocalConfig(config);
+                if(ret < 0) {
+                    spdlog::error("failed to get local configuration");
+                    exit(1);
+                }
                 spdlog::info("config: {:s}", config.dump());
                 json evslicer;
                 json evmgr;

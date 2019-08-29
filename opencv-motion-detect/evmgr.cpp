@@ -72,6 +72,21 @@ private:
             spdlog::error("failed to get local configuration");
             exit(1);
         }
+        // set all module status to 0
+        ret = LVDB::traverseConfigureModules(config, [](string modname, json &m)->int{
+            if(m.count("status") != 0)
+            {
+                cout << modname <<" ," << m.dump() << endl;
+                m["status"] = 0;
+            }
+            return 0;
+        });
+        if(ret < 0) {
+            spdlog::error("evmgr {} failed to set module status to 0", devSn);
+        }else{
+            //spdlog::info("new config: {}", config.dump());
+            LVDB::setLocalConfig(config);
+        }
 
         int opt_notify = ZMQ_NOTIFY_DISCONNECT|ZMQ_NOTIFY_CONNECT;
         string proto, addr;
@@ -243,7 +258,7 @@ togo_sleep_continue:
         }
         else {
             // message to mgr
-            spdlog::info("evmgr {} subsystem report msg received: {}; {}; {}", devSn, zmqhelper::body2str(body[0]), zmqhelper::body2str(body[1]), zmqhelper::body2str(body[2]));
+            // spdlog::info("evmgr {} subsystem report msg received: {}; {}; {}", devSn, zmqhelper::body2str(body[0]), zmqhelper::body2str(body[1]), zmqhelper::body2str(body[2]));
             if(meta == "pong"||meta == "ping") {
                 // update status
                 spdlog::info("evmgr {}, ping msg from {}", devSn, selfId);

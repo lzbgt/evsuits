@@ -99,19 +99,18 @@ private:
         tsLastBoot = info["lastboot"];
         tsUpdateTime=info["updatetime"];
 
-        spdlog::info("evmgr info: sn = {}, lastboot = {}, updatetime = {}", info["sn"].get<string>(), ctime(&tsLastBoot), ctime(&tsUpdateTime));
+        spdlog::info("evmlmotion info: sn = {}, lastboot = {}, updatetime = {}", info["sn"].get<string>(), ctime(&tsLastBoot), ctime(&tsUpdateTime));
         devSn = info["sn"];
-
-        ret = LVDB::getLocalConfig(config);
-        if(ret < 0) {
-            spdlog::error("failed to get local configuration");
-            exit(1);
-        }
 
         while(!inited) {
             // TODO: req config
             bool found = false;
             try {
+                ret = LVDB::getLocalConfig(config);
+                if(ret < 0) {
+                    spdlog::error("failed to get local configuration");
+                    exit(1);
+                }
                 spdlog::info("config: {:s}", config.dump());
                 json evmlmotion;
                 json evmgr;
@@ -162,7 +161,7 @@ private:
                 
                 // TODO: multiple protocols support
                 if(evmlmotion.count("path") == 0) {
-                    spdlog::warn("evslicer {} {} no params for path, using default: {}", selfId, URLOUT_DEFAULT);
+                    spdlog::warn("evslicer {} no params for path, using default: {}", selfId, URLOUT_DEFAULT);
                     urlOut = URLOUT_DEFAULT;
                 }
                 else {
@@ -174,6 +173,42 @@ private:
                     spdlog::error("failed mkdir {}", urlOut);
                     return -1;
                 }
+
+                // setup sub
+                pSubCtx = zmq_ctx_new();
+                pSub = zmq_socket(pSubCtx, ZMQ_SUB);
+                ret = zmq_setsockopt(pSub, ZMQ_SUBSCRIBE, "", 0);
+                if(ret != 0) {
+                    spdlog::error("evmlmotion {} failed set setsockopt: {}", selfId, urlPub);
+                    return -1;
+                }
+                ret = zmq_connect(pSub, urlPub.c_str());
+                if(ret != 0) {
+                    spdlog::error("evmlmotion {} failed connect pub: {}", selfId, urlPub);
+                    return -2;
+                }
+
+                // setup dealer
+                pDealerCtx = zmq_ctx_new();
+                pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
+                spdlog::info("evmlmotion {} connect to router {}", selfId, urlRouter);
+                ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());
+                ret += zmq_setsockopt (pDealer, ZMQ_ROUTING_ID, selfId.c_str(), selfId.size());
+                if(ret < 0) {
+                    spdlog::error("evpusher {} {} failed setsockopts router: {}", selfId, urlRouter);
+                    return -3;
+                }
+                if(ret < 0) {
+                    spdlog::error("evmlmotion {} failed setsockopts router: {}", selfId, urlRouter);
+                    return -3;
+                }
+                ret = zmq_connect(pDealer, urlRouter.c_str());
+                if(ret != 0) {
+                    spdlog::error("evmlmotion {} failed connect dealer: {}", selfId, urlRouter);
+                    return -4;
+                }
+                //ping
+                ret = ping();
             }
             catch(exception &e) {
                 spdlog::error("evmlmotion {} exception in EvPuller.init {:s} retrying", selfId, e.what());
@@ -205,58 +240,6 @@ private:
         else {
             spdlog::info("evmlmotion {} sent hello to router: {}", selfId, mgrSn);
         }
-
-        return ret;
-    }
-
-    int setupMq()
-    {
-        int ret = 0;
-
-        // setup sub
-        pSubCtx = zmq_ctx_new();
-        pSub = zmq_socket(pSubCtx, ZMQ_SUB);
-        ret = zmq_setsockopt(pSub, ZMQ_SUBSCRIBE, "", 0);
-        if(ret != 0) {
-            spdlog::error("evmlmotion {} failed set setsockopt: {}", selfId, urlPub);
-            return -1;
-        }
-        ret = zmq_connect(pSub, urlPub.c_str());
-        if(ret != 0) {
-            spdlog::error("evmlmotion {} failed connect pub: {}", selfId, urlPub);
-            return -2;
-        }
-
-        // setup dealer
-        pDealerCtx = zmq_ctx_new();
-        pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
-        spdlog::info("evmlmotion {} try create req to {}", selfId, urlRouter);
-        ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());
-        ret += zmq_setsockopt (pDealer, ZMQ_ROUTING_ID, selfId.c_str(), selfId.size());
-        if(ret < 0) {
-            spdlog::error("evpusher {} {} failed setsockopts router: {}", selfId, urlRouter);
-            return -3;
-        }
-        if(ret < 0) {
-            spdlog::error("evmlmotion {} failed setsockopts router: {}", selfId, urlRouter);
-            return -3;
-        }
-        ret = zmq_connect(pDealer, urlRouter.c_str());
-        if(ret != 0) {
-            spdlog::error("evmlmotion {} failed connect dealer: {}", selfId, urlRouter);
-            return -4;
-        }
-        //ping
-        ret = ping();
-        // TODO: don't need this anymore, since I've used the draft feature of ZOUTER_NOTIFICATION instead
-        // thPing = thread([&,this]() {
-        //     while(true) {
-        //         this_thread::sleep_for(chrono::seconds(EV_HEARTBEAT_SECONDS-2));
-        //         ping();
-        //     }
-        // });
-
-        // thPing.detach();
 
         return ret;
     }
@@ -639,7 +622,6 @@ public:
     {
         evtQueue = queue;
         init();
-        setupMq();
         getInputFormat();
         setupStream();
     };

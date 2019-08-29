@@ -56,13 +56,28 @@ namespace LVDB {
                         break;
                     }else{
                         json &modules = ipc["modules"];
-                        if(modules.count(moduleName) == 0){
+                        string modname = moduleName.substr(0,4);
+                        string sub;
+                        if(modname == "evml") {
+                            sub = moduleName.substr(4, moduleName.size());
+                        }else{
+                            modname = moduleName;
+                        }
+
+                        if(modules.count(modname) == 0){
                             break;
                         }else{
-                            json &module = modules[moduleName];
+                            json &module = modules[modname];
                             for(auto &inst: module) {
                                 if(inst.count("sn") != 0 && inst["sn"] == sn && inst.count("iid") != 0 && inst["iid"] == iid) {
-                                    return &inst;
+                                    if(!sub.empty()) {
+                                        if(inst.count("type") != 0 && inst["type"] == sub) {
+                                            return &inst;
+                                        }
+                                        // continue
+                                    }else{
+                                        return &inst;
+                                    }
                                 }
                             }
                         }
@@ -72,6 +87,72 @@ namespace LVDB {
             
         }
         return ret;
+    }
+
+    int traverseConfigureModules(json &config, cb_traverse_configration_module cb, string moduleName){
+        int ret = 0;
+        if(config.count("data") == 0) {
+            return -1;
+        }
+        if(cb == NULL) {
+            return -2;
+        }
+
+        json &data = config["data"];
+        for(auto &[k,v]: data.items()){
+            json &mgr = data[k];
+            if(mgr.count("ipcs") == 0) {
+                break;
+            }else{
+                json &ipcs = mgr["ipcs"];
+                for(auto &ipc:ipcs) {
+                    if(ipc.count("modules") == 0) {
+                        continue;
+                    }else{
+                        string modname, sub;
+                        if(!moduleName.empty()){
+                            modname = moduleName.substr(0,4);
+                            if(modname == "evml") {
+                                sub = moduleName.substr(4, moduleName.size());
+                            }else{
+                                modname = moduleName;
+                            }
+                        }
+
+                        json &modules = ipc["modules"];
+                        if(!modname.empty()) {
+                            if(modules.count(modname) == 0) {
+                                return -3;
+                            }else{
+                                json &module = modules[modname];
+                                if(!sub.empty()) {
+                                    for(auto &m:module) {
+                                        if(m.count("type") != 0 && m["type"] == sub) {
+                                            ret = cb(modname, m);
+                                            if(ret <0) {
+                                                spdlog::error("failed to traverse and callback config on module: {}", m.dump());
+                                                return ret;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }else{
+                            for(auto &[mn, mod]:modules.items()) {
+                                for(auto &m:mod) {
+                                    ret = cb(mn,m);
+                                    if(ret <0) {
+                                        spdlog::error("failed to traverse and callback config on module: {}", m.dump());
+                                        return ret;
+                                    }
+                                }
+                            }     
+                        }                        
+                    }
+                }
+            }    
+        }
+        return 0;
     }
 
     int _getDB(string fileName, DB** pdb) {

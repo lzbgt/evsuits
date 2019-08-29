@@ -1,5 +1,5 @@
 
-#DEBUG=-g
+DEBUG=-g
 CC = gcc
 CPP = g++
 CPPFLAGS = $(DEBUG) -Wall -std=gnu++1z

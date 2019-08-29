@@ -168,17 +168,16 @@ private:
         spdlog::info("evpuller info: sn = {}, lastboot = {}, updatetime = {}", info["sn"].get<string>(), ctime(&tsLastBoot), ctime(&tsUpdateTime));
         devSn = info["sn"];
 
-        ret = LVDB::getLocalConfig(config);
-        if(ret < 0) {
-            spdlog::error("failed to get local configuration");
-            exit(1);
-        }
-
         while(!inited) {
             // TODO: req config
             bool found = false;
             string user, passwd, addr;
             try {
+                ret = LVDB::getLocalConfig(config);
+                if(ret < 0) {
+                    spdlog::error("failed to get local configuration");
+                    exit(1);
+                }
                 spdlog::info("config dump: {:s}", config.dump());
                 json data = config["data"];
                 // first try to check mgr with same sn
