@@ -68,12 +68,16 @@ private:
         try {
             // rep framectx
             // TODO: verify sender id
-            auto meta = json::parse(body2str(v[1]));
+            string sMeta = body2str(v[1]);
+            string peerId = body2str(v[0]);
+            auto meta = json::parse(sMeta);
             if(meta["type"].get<string>() == EV_MSG_META_AVFORMATCTX) {
                 vector<vector<uint8_t> > rep = {v[0], v[1], msgBody};
                 ret = z_send_multiple(pDealer, rep);
                 if(ret < 0) {
-                    spdlog::error("evpuller {} failed send rep to requester {}: {}", selfId, body2str(v[0]), zmq_strerror(zmq_errno()));
+                    spdlog::error("evpuller {} failed to send avformatctx data to requester {}: {}", selfId, peerId, zmq_strerror(zmq_errno()));
+                }else{
+                    spdlog::info("evpuller {} success to send avformatctx data to requester {}", selfId, peerId);
                 }
             }
             else if(meta["type"].get<string>() == EV_MSG_META_EVENT) {
@@ -115,7 +119,7 @@ protected:
                 break;
             }
 
-            spdlog::info("evpuller repSrv {} {} waiting for req", devSn, iid);
+            spdlog::info("evpuller {} waiting for req", selfId);
             // proto: [sender_id] [meta] [body]
             auto v = z_recv_multiple(pDealer, false);
             if(v.size() != 3) {

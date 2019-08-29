@@ -72,6 +72,7 @@ private:
             spdlog::error("failed to get local configuration");
             exit(1);
         }
+        
         // set all module status to 0
         ret = LVDB::traverseConfigureModules(config, [](string modname, json &m)->int{
             if(m.count("status") != 0)

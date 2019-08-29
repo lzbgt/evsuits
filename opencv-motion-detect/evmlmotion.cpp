@@ -539,7 +539,7 @@ protected:
         zmq_msg_t msg;
         AVPacket packet;
 
-        //event thread
+        //event relay thread: motion to slicer
         thEvent = thread([&,this]() {
             json meta;
             meta["type"] = EV_MSG_META_EVENT;

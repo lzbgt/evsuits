@@ -372,6 +372,7 @@ json registry(const char *sn, const json &config)
     // find local info in db
     // request cloud info
     // moc
+
     return json();
 }
 
