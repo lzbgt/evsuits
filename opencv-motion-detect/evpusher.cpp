@@ -72,7 +72,6 @@ private:
             exit(1);
         }
 
-        selfId = devSn + ":evpusher:" + to_string(iid);
         while(!inited) {
             // TODO: req config
             bool found = false;
@@ -90,8 +89,10 @@ private:
                     for(auto &j: ipcs) {
                         json pullers = j["modules"]["evpusher"];
                         for(auto &p:pullers) {
-                            if(p["sn"] == devSn && p["iid"] == iid) {
+                            if(p["sn"] == devSn && p["status"] == 0 && p["enabled"] == 1/* && p["iid"] */ ) {
                                 evpusher = p;
+                                iid = p["iid"];
+                                selfId = devSn + ":evpusher:" + to_string(iid);
                                 break;
                             }
                         }
@@ -100,6 +101,8 @@ private:
                             break;
                         }
                     }
+                    spdlog::info("evpusher {} {}, evpusher: {}",devSn, iid, evpusher.dump());
+                    spdlog::info("evpusher {} {}, ipc: {}",devSn, iid, ipc.dump());
 
                     if(ipc.size()!=0 && evpusher.size()!=0) {
                         found = true;
@@ -108,7 +111,7 @@ private:
                 }
 
                 if(!found) {
-                    spdlog::error("evpusher {} {}: no valid config found. retrying load config...", devSn, iid);
+                    spdlog::error("evpusher {} {}: no valid config found. retrying load config: {}", devSn, iid, config.dump());
                     this_thread::sleep_for(chrono::seconds(3));
                     continue;
                 }
@@ -120,7 +123,7 @@ private:
 
                 urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(evpuller["port-pub"]);
                 urlDealer = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(evmgr["port-router"]);
-                spdlog::info("evpusher {} {} will connect to {} for sub, {} for router", devSn, iid, urlPub, urlDealer);
+                spdlog::info("evpusher {} connect to {} for sub, {} for router", selfId, urlPub, urlDealer);
                 // TODO: multiple protocols support
                 urlOut = evpusher["urlDest"].get<string>();
             }
@@ -152,7 +155,7 @@ private:
             //TODO:
         }
         else {
-            spdlog::info("evpusher {} {} sent hello to router: {}", devSn, iid, mgrSn);
+            spdlog::info("evpusher {} sent hello to router: {}", selfId, mgrSn);
         }
 
         return ret;
@@ -182,7 +185,7 @@ private:
         ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());
         ret += zmq_setsockopt (pDealer, ZMQ_ROUTING_ID, selfId.c_str(), selfId.size());
         if(ret < 0) {
-            spdlog::error("evpusher {} {} failed setsockopts router: {}", devSn, iid, urlDealer);
+            spdlog::error("evpusher {} failed setsockopts router {}: {}", selfId, urlDealer, zmq_strerror(zmq_errno()));
             return -3;
         }
         ret = zmq_connect(pDealer, urlDealer.c_str());
@@ -210,7 +213,7 @@ private:
         int ret = 0;
         // req avformatcontext packet
         // send hello to puller
-        spdlog::info("evpusher {} {} send hello to puller: {}", devSn, iid, pullerGid);
+        spdlog::info("evpusher {} send hello to puller: {}", selfId, pullerGid);
         vector<vector<uint8_t> > body;
         body.push_back(str2body(pullerGid));
         json meta;

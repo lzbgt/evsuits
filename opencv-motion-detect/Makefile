@@ -7,7 +7,7 @@ CFLAGS = $(DEBUG) -Wall
 
 LIBOPENCV = `pkg-config opencv --cflags --libs`
 LIBFFMPEG = `pkg-config libavformat libavutil libavcodec libswscale --cflags --libs`
-LD_FLAGS=-Lvendor/lib -lpthread -lrocksdb
+LD_FLAGS=-Lvendor/lib -lpthread -lleveldb
 #-static
 HEADERS=-Iinc -Ivendor/include
 LIBS=

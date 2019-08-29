@@ -4,8 +4,10 @@
 #include <cstdlib>
 #include <mutex>
 #include <map>
+#include <fstream>
+#include <iomanip>
 
-using namespace rocksdb;
+using namespace leveldb;
 
 string _config_default_tmpl = "{\"time\":0,\"code\":0,\"data\":{\"<SN_MGR>\":{\"sn\":\"<SN_MGR>\",\"addr\":\"127.0.0.1\",\"addr-cloud\":\"<cloud_addr>\",\"proto\":\"zmq\",\"port-cloud\":5556,\"port-router\":5550,\"status\":1,\"ipcs\":[{\"addr\":\"172.31.0.51\",\"proto\":\"rtsp\",\"user\":\"admin\",\"password\":\"FWBWTU\",\"status\":0,\"modules\":{\"evpuller\":[{\"sn\":\"<SN_PULLER>\",\"addr\":\"127.0.0.1\",\"iid\":1,\"port-pub\":5556,\"status\":0}],\"evpusher\":[{\"sn\":\"<SN_PUSHER>\",\"iid\":1,\"urlDest\":\"rtsp://40.73.41.176:554/test1\",\"user\":\"\",\"password\":\"\",\"token\":\"\",\"enabled\":1,\"status\":0}],\"evslicer\":[{\"sn\":\"<SN_SLICER>\",\"iid\":1,\"path\":\"slices\",\"enabled\":1,\"status\":0}],\"evml\":[{\"type\":\"motion\",\"sn\":\"<SN_ML>\",\"iid\":1,\"enabled\":1,\"status\":0}]}}]}}}";
 
@@ -34,27 +36,26 @@ string getStrRand(int length)
 
 
 namespace LVDB {
-    map<string, DB*> mappDB;
     DB *_getDB(string fileName) {
+        static bool bmk = false;
         DB *pdb = NULL;
         int ret = 0;
-        if(mappDB.count(fileName) == 0) {
-            //
-            string mk = string("mkdir -p ") + LVDB_PATH;
-            ret = system(mk.c_str());
-            if(ret == -1) {
-                spdlog::error("failed to create db path: {}", LVDB_PATH);
-            }else{
-                Options options;
-                options.create_if_missing = true;
-                Status s = DB::Open(options, fileName, &pdb);
-                if(!s.ok()) {
-                    spdlog::error("failed to open db {}: {}", fileName, s.ToString());
-                }
-                mappDB[fileName] = pdb;
-            }   
-        }else{
-            pdb = mappDB[fileName];
+        Options options;
+        options.create_if_missing = true;
+        if(!bmk) {
+            string mkdir_ = "mkdir -p " + fileName;
+            //spdlog::info("creating directory: {}", mkdir_);
+            ret = system(mkdir_.c_str());
+            if(-1 == ret) {
+                spdlog::error("failed to create directory for {}", fileName);
+                exit(1);
+            }
+            bmk = true;
+        }
+        
+        Status s = DB::Open(options, fileName, &pdb);
+        if(!s.ok() && s.) {
+            spdlog::error("failed to open db {}: {}", fileName, s.ToString());
         }
 
         assert(pdb != NULL);
@@ -75,12 +76,14 @@ namespace LVDB {
         Status s = pdb->Get(ReadOptions(), key, &value);
         if(!s.ok()) {
             spdlog::debug("failed to get {} from {}: {}",key, fileName, s.ToString());
-            return -1;
+            ret = -1;
+        }else{
+            if(cb != NULL) {
+                ret = cb(value);
+            }
         }
-        if(cb != NULL) {
-            ret = cb(value);
-        }
-
+        
+        delete pdb;
         return ret;
     }
 
@@ -103,18 +106,23 @@ namespace LVDB {
         s = pdb->Put(WriteOptions(), key, value);
         if(!s.ok()) {
             spdlog::error("failed to put {} -> {}: {}", key, value, s.ToString());
-            return -2;
+            ret = -1;
+            goto togo_end;
         }
 
         if(!oldVal.empty()) {
             s = pdb->Put(WriteOptions(), key + LVDB_KEY_SUFFIX_BACK, oldVal);
             if(!s.ok()) {
                 spdlog::error("failed to put backup {} -> {}: {}", key, oldVal, s.ToString());
-                return -2;
+                ret = -2;
+                goto togo_end;
             }
         }
 
-        return 0;
+togo_end:
+        delete pdb;
+
+        return ret;
     }
 
     int getValue(json &value, string key, string fileName, cb_verify_json cb) {
@@ -156,13 +164,16 @@ namespace LVDB {
     }
 
     int delValue(string key, string fileName) {
+        int ret = 0;
         DB* pdb = _getDB(fileName);
         Status s = pdb->Delete(WriteOptions(), key);
         if(!s.ok()) {
             spdlog::error("failed to delete key {}: {} in {}",s.ToString(), key, fileName);
-            return -1;
+            ret = -1;
         }
-        return 0;
+
+        delete pdb;
+        return ret;
     }
     
     // sn
@@ -217,6 +228,26 @@ namespace LVDB {
     int setSn(json &info, string fileName){
         return setValue(info, LVDB_KEY_SN, fileName, _validateSn);
     };
+
+    // int setSn(json &info) {
+    //     std::ifstream i("file.json");
+    //     json j;
+    //     i >> j;
+    //     // write prettified JSON to another file
+    //     std::ofstream o("pretty.json");
+    //     o << std::setw(4) << j << std::endl;
+    //     return -1;
+    // }
+    // int getSn(json &info) {
+    //     fstream file;
+    //     file.open(LVDB_KEY_SN, ios::out|ios);
+    //     if(snfile.e)
+    //     json j;
+    //     i >> j;
+    //     // write prettified JSON to another file
+    //     std::ofstream o("pretty.json");
+    //     o << std::setw(4) << j << std::endl;
+    // }
 
     // config
     int _validateConfig(const json &config) {

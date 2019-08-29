@@ -1,9 +1,9 @@
 #ifndef __DATABSE_LEVEL_DB_H__
 #define __DATABSE_LEVEL_DB_H__
-// #include "leveldb/db.h"
-#include "rocksdb/db.h"
-#include "rocksdb/slice.h"
-#include "rocksdb/options.h"
+#include "leveldb/db.h"
+// #include "rocksdb/db.h"
+// #include "rocksdb/slice.h"
+// #include "rocksdb/options.h"
 #include "json.hpp"
 
 using namespace nlohmann;
@@ -22,12 +22,14 @@ namespace LVDB {
     #define LVDB_KEY_SN "SN"
     #define LVDB_KEY_CONFIG "CONFIG"
 
+
+
     //
     int delValue(string key, string fileName);
 
     // sn, updatetime, boottime
-    int setSn(json &info, string fileName=LVDB_FILE_GENERAL);
-    int getSn(json &info, string fileName=LVDB_FILE_GENERAL);
+    int setSn(json &info,string fileName=LVDB_FILE_GENERAL);
+    int getSn(json &info,string fileName=LVDB_FILE_GENERAL);
 
     // cloudutils::config
     int getLocalConfig(json &config, string fileName=LVDB_FILE_GENERAL);
