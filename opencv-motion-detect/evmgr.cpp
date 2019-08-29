@@ -76,7 +76,7 @@ private:
         ret = LVDB::traverseConfigureModules(config, [](string modname, json &m)->int{
             if(m.count("status") != 0)
             {
-                cout << modname <<" ," << m.dump() << endl;
+                //cout << modname <<" ," << m.dump() << endl;
                 m["status"] = 0;
             }
             return 0;
