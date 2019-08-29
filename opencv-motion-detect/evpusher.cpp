@@ -126,6 +126,47 @@ private:
                 spdlog::info("evpusher {} connect to {} for sub, {} for router", selfId, urlPub, urlDealer);
                 // TODO: multiple protocols support
                 urlOut = evpusher["urlDest"].get<string>();
+                        // setup sub
+                pSubCtx = zmq_ctx_new();
+                pSub = zmq_socket(pSubCtx, ZMQ_SUB);
+                ret = zmq_setsockopt(pSub, ZMQ_SUBSCRIBE, "", 0);
+                if(ret != 0) {
+                    spdlog::error("evpusher {} {} failed set setsockopt: {}", devSn, iid, urlPub);
+                    
+                }
+                ret = zmq_connect(pSub, urlPub.c_str());
+                if(ret != 0) {
+                    spdlog::error("evpusher {} {} failed connect pub: {}", devSn, iid, urlPub);
+                    goto togo_sc;
+                }
+
+                // setup dealer
+                pDealerCtx = zmq_ctx_new();
+                pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
+                ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());
+                ret += zmq_setsockopt (pDealer, ZMQ_ROUTING_ID, selfId.c_str(), selfId.size());
+                if(ret < 0) {
+                    spdlog::error("evpusher {} failed setsockopts router {}: {}", selfId, urlDealer, zmq_strerror(zmq_errno()));
+                    goto togo_sc;
+                }
+                ret = zmq_connect(pDealer, urlDealer.c_str());
+                if(ret != 0) {
+                    spdlog::error("evpusher {} {} failed connect dealer: {}", devSn, iid, urlDealer);
+                    goto togo_sc;
+                }
+
+                //update status and ping
+                evpusher["status"] = 1;
+                ret = LVDB::setLocalConfig(config);
+                if(ret < 0) {
+                    spdlog::error("evpusher {} failed to set config: {}", selfId, config.dump());
+                }
+                spdlog::info("new config: {}", config.dump());
+                ping();
+                break;
+togo_sc:
+                this_thread::sleep_for(chrono::seconds(2));
+                continue;
             }
             catch(exception &e) {
                 spdlog::error("evpusher {} {} exception in EvPuller.init {:s} retrying", devSn, iid, e.what());
@@ -143,12 +184,7 @@ private:
     {
         // send hello to router
         int ret = 0;
-        vector<vector<uint8_t> >body;
-        // since identity is auto set
-        body.push_back(str2body(mgrSn+":0:0"));
-        body.push_back(str2body(EV_MSG_META_PING)); // blank meta
-        body.push_back(str2body(MSG_HELLO));
-
+        vector<vector<uint8_t> >body = {str2body(mgrSn+":0:0"), str2body(EV_MSG_META_PING),str2body(MSG_HELLO)};
         ret = z_send_multiple(pDealer, body);
         if(ret < 0) {
             spdlog::error("evpusher {} {} failed to send multiple: {}", devSn, iid, zmq_strerror(zmq_errno()));
@@ -157,53 +193,6 @@ private:
         else {
             spdlog::info("evpusher {} sent hello to router: {}", selfId, mgrSn);
         }
-
-        return ret;
-    }
-
-    int setupMq()
-    {
-        int ret = 0;
-
-        // setup sub
-        pSubCtx = zmq_ctx_new();
-        pSub = zmq_socket(pSubCtx, ZMQ_SUB);
-        ret = zmq_setsockopt(pSub, ZMQ_SUBSCRIBE, "", 0);
-        if(ret != 0) {
-            spdlog::error("evpusher {} {} failed set setsockopt: {}", devSn, iid, urlPub);
-            return -1;
-        }
-        ret = zmq_connect(pSub, urlPub.c_str());
-        if(ret != 0) {
-            spdlog::error("evpusher {} {} failed connect pub: {}", devSn, iid, urlPub);
-            return -2;
-        }
-
-        // setup dealer
-        pDealerCtx = zmq_ctx_new();
-        pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
-        ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());
-        ret += zmq_setsockopt (pDealer, ZMQ_ROUTING_ID, selfId.c_str(), selfId.size());
-        if(ret < 0) {
-            spdlog::error("evpusher {} failed setsockopts router {}: {}", selfId, urlDealer, zmq_strerror(zmq_errno()));
-            return -3;
-        }
-        ret = zmq_connect(pDealer, urlDealer.c_str());
-        if(ret != 0) {
-            spdlog::error("evpusher {} {} failed connect dealer: {}", devSn, iid, urlDealer);
-            return -4;
-        }
-        //ping
-        ret = ping();
-        // TODO: don't need this anymore, since I've used the draft feature of ZOUTER_NOTIFICATION instead
-        // thPing = thread([&,this]() {
-        //     while(true) {
-        //         this_thread::sleep_for(chrono::seconds(EV_HEARTBEAT_SECONDS-2));
-        //         ping();
-        //     }
-        // });
-
-        // thPing.detach();
 
         return ret;
     }
@@ -448,7 +437,6 @@ public:
     EvPusher()
     {
         init();
-        setupMq();
         getInputFormat();
         setupStream();
     }

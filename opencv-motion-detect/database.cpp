@@ -6,6 +6,8 @@
 #include <map>
 #include <fstream>
 #include <iomanip>
+#include <thread>
+#include <chrono>
 
 using namespace leveldb;
 
@@ -36,9 +38,11 @@ string getStrRand(int length)
 
 
 namespace LVDB {
-    DB *_getDB(string fileName) {
+    #define LVDB_ERROR_HELD -1
+    #define LVDB_ERROR_OTHER -2
+
+    int _getDB(string fileName, DB** pdb) {
         static bool bmk = false;
-        DB *pdb = NULL;
         int ret = 0;
         Options options;
         options.create_if_missing = true;
@@ -53,14 +57,31 @@ namespace LVDB {
             bmk = true;
         }
         
-        Status s = DB::Open(options, fileName, &pdb);
-        if(!s.ok()) {
-            spdlog::error("failed to open db {}: {}", fileName, s.ToString());
-        }
+        int cnt = 0;
 
+        while(cnt < 10000){
+            Status s = DB::Open(options, fileName, pdb);
+            if(!s.ok()) {
+                size_t pos = s.ToString().find("already held by process");
+                if(pos != string::npos) {
+                    spdlog::warn("failed to open db {}: {}", fileName, "already opened by other");
+                    //wait for 100 * 10ms
+                    this_thread::sleep_for(chrono::milliseconds(10));
+                }
+                else{
+                    spdlog::error("failed to open db {}: {}", fileName, s.ToString());
+                    return LVDB_ERROR_OTHER;
+                }
+            }else{
+                break;
+            }
+            
+            cnt++;
+        }
+        
         assert(pdb != NULL);
 
-        return pdb;
+        return 0;
     }
 
     int clearDB(string fileName) {
@@ -72,7 +93,12 @@ namespace LVDB {
     
     int getValue(string &value, string key, string fileName, cb_verify_str cb) {
         int ret = 0;
-        DB* pdb = _getDB(fileName);
+        DB* pdb = NULL;
+        ret = _getDB(fileName, &pdb);
+        if(ret < 0) {
+            return ret;
+        }
+
         Status s = pdb->Get(ReadOptions(), key, &value);
         if(!s.ok()) {
             spdlog::debug("failed to get {} from {}: {}",key, fileName, s.ToString());
@@ -96,7 +122,11 @@ namespace LVDB {
             }
         }
 
-        DB* pdb = _getDB(fileName);
+        DB* pdb = NULL;
+        ret = _getDB(fileName, &pdb);
+        if(ret < 0) {
+            return ret;
+        }
         string oldVal;
         Status s = pdb->Get(ReadOptions(), key, &oldVal);
         if(!s.ok()) {
@@ -165,14 +195,18 @@ togo_end:
 
     int delValue(string key, string fileName) {
         int ret = 0;
-        DB* pdb = _getDB(fileName);
+        DB* pdb = NULL;
+        ret = _getDB(fileName, &pdb);
+        if(ret < 0) {
+            return ret;
+        }
         Status s = pdb->Delete(WriteOptions(), key);
         if(!s.ok()) {
             spdlog::error("failed to delete key {}: {} in {}",s.ToString(), key, fileName);
             ret = -1;
         }
 
-        delete pdb;
+        //delete pdb;
         return ret;
     }
     
