@@ -118,8 +118,7 @@ private:
 
                 if(!found) {
                     spdlog::error("evslicer {}: no valid config found. retrying load config...", devSn);
-                    this_thread::sleep_for(chrono::seconds(3));
-                    continue;
+                    goto togo_sc;
                 }
 
                 selfId = devSn + ":evslicer:" + to_string(iid);
@@ -159,23 +158,62 @@ private:
                 ret = system((string("mkdir -p ") + urlOut).c_str());
                 if(ret == -1) {
                     spdlog::error("failed to create {} dir", urlOut);
-                    return -1;
+                    exit(1);
                 }
 
                 urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(evpuller["port-pub"]);
                 urlRouter = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(evmgr["port-router"]);
                 spdlog::info("evslicer {} will connect to {} for sub, {} for router", selfId, urlPub, urlRouter);
+                
+                // setup sub
+                pSubCtx = zmq_ctx_new();
+                pSub = zmq_socket(pSubCtx, ZMQ_SUB);
+                ret = zmq_setsockopt(pSub, ZMQ_SUBSCRIBE, "", 0);
+                if(ret != 0) {
+                    spdlog::error("evslicer {} failed set setsockopt: {}", selfId, urlPub);
+                    goto togo_sc;
+                }
+                ret = zmq_connect(pSub, urlPub.c_str());
+                if(ret != 0) {
+                    spdlog::error("evslicer {} failed connect pub: {}", selfId, urlPub);
+                    goto togo_sc;
+                }
+
+                // setup dealer
+                pDealerCtx = zmq_ctx_new();
+                pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
+                spdlog::info("evslicer {} try create req to {}", selfId, urlRouter);
+                ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());
+                ret += zmq_setsockopt (pDealer, ZMQ_ROUTING_ID, selfId.c_str(), selfId.size());
+                if(ret < 0) {
+                    spdlog::error("evpusher {} {} failed setsockopts router: {}", selfId, urlRouter);
+                    goto togo_sc;
+                }
+                if(ret < 0) {
+                    spdlog::error("evslicer {} failed setsockopts router: {}", selfId, urlRouter);
+                    goto togo_sc;
+                }
+                ret = zmq_connect(pDealer, urlRouter.c_str());
+                if(ret != 0) {
+                    spdlog::error("evslicer {} failed connect dealer: {}", selfId, urlRouter);
+                    goto togo_sc;
+                }
+                //ping
+                ret = ping();
             }
             catch(exception &e) {
                 spdlog::error("evslicer {} exception in init {:s} retrying", selfId, e.what());
                 this_thread::sleep_for(chrono::seconds(3));
                 continue;
             }
-
             inited = true;
+            break;
+togo_sc:
+            this_thread::sleep_for(chrono::seconds(3));
+            continue;
         }
 
-        return 0;
+        return ret;
     }
 
     int ping()
@@ -196,58 +234,6 @@ private:
         else {
             spdlog::info("evslicer {} sent hello to router: {}", selfId, mgrSn);
         }
-
-        return ret;
-    }
-
-    int setupMq()
-    {
-        int ret = 0;
-
-        // setup sub
-        pSubCtx = zmq_ctx_new();
-        pSub = zmq_socket(pSubCtx, ZMQ_SUB);
-        ret = zmq_setsockopt(pSub, ZMQ_SUBSCRIBE, "", 0);
-        if(ret != 0) {
-            spdlog::error("evslicer {} failed set setsockopt: {}", selfId, urlPub);
-            return -1;
-        }
-        ret = zmq_connect(pSub, urlPub.c_str());
-        if(ret != 0) {
-            spdlog::error("evslicer {} failed connect pub: {}", selfId, urlPub);
-            return -2;
-        }
-
-        // setup dealer
-        pDealerCtx = zmq_ctx_new();
-        pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
-        spdlog::info("evslicer {} try create req to {}", selfId, urlRouter);
-        ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());
-        ret += zmq_setsockopt (pDealer, ZMQ_ROUTING_ID, selfId.c_str(), selfId.size());
-        if(ret < 0) {
-            spdlog::error("evpusher {} {} failed setsockopts router: {}", selfId, urlRouter);
-            return -3;
-        }
-        if(ret < 0) {
-            spdlog::error("evslicer {} failed setsockopts router: {}", selfId, urlRouter);
-            return -3;
-        }
-        ret = zmq_connect(pDealer, urlRouter.c_str());
-        if(ret != 0) {
-            spdlog::error("evslicer {} failed connect dealer: {}", selfId, urlRouter);
-            return -4;
-        }
-        //ping
-        ret = ping();
-        // TODO: don't need this anymore, since I've used the draft feature of ZOUTER_NOTIFICATION instead
-        // thPing = thread([&,this]() {
-        //     while(true) {
-        //         this_thread::sleep_for(chrono::seconds(EV_HEARTBEAT_SECONDS-2));
-        //         ping();
-        //     }
-        // });
-
-        // thPing.detach();
 
         return ret;
     }
@@ -485,7 +471,6 @@ public:
     EvSlicer()
     {
         init();
-        setupMq();
         getInputFormat();
         setupStream();
     };
