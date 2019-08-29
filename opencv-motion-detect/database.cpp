@@ -16,7 +16,6 @@ string _config_default_tmpl = "{\"time\":0,\"code\":0,\"data\":{\"<SN_MGR>\":{\"
 const string _sn_tmpl[] = {"<SN_MGR>", "<SN_PULLER>", "<SN_PUSHER>", "<SN_SLICER>", "<SN_ML>"};
 const string _addr_tmpl[] = {"<ADDR_CAMERA>"};
 
-
 // TODO:
 string getStrRand(int length)
 {
@@ -40,7 +39,6 @@ string getStrRand(int length)
 namespace LVDB {
     #define LVDB_ERROR_HELD -1
     #define LVDB_ERROR_OTHER -2
-
 
     json * findConfigModule(json &config, string sn, string moduleName, int iid) {
         json *ret = NULL;
