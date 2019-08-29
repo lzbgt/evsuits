@@ -22,8 +22,8 @@ namespace LVDB {
     #define LVDB_KEY_SN "SN"
     #define LVDB_KEY_CONFIG "CONFIG"
 
-
-
+    //
+    json * findConfigModule(json &config, string sn, string moduleName, int iid);
     //
     int delValue(string key, string fileName);
 

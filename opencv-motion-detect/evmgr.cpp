@@ -26,10 +26,10 @@ update: 2019/08/23
 namespace fs = std::filesystem;
 #endif
 
-#include "zmqhelper.hpp"
-#include "tinythread.hpp"
-#include "common.hpp"
-#include "database.h"
+#include "inc/zmqhelper.hpp"
+#include "inc/tinythread.hpp"
+#include "inc/common.hpp"
+#include "inc/database.h"
 
 using namespace std;
 using namespace zmqhelper;
@@ -144,15 +144,37 @@ togo_sleep_continue:
         if(body.size() == 2 && body[1].size() == 0) {
             selfId = body2str(body[0]);
             bool eventConn = false;
+            // XTF2BJR9:evslicer:1
+            auto sp = cloudutils::split(selfId, ':');
+            if(sp.size() != 3) {
+                spdlog::warn("evmg {} inproper peer id: {}", devSn, selfId);
+                return -1;
+            }
+            json *mod = LVDB::findConfigModule(config, sp[0], sp[1], stoi(sp[2]));
+            if(mod == NULL) {
+                spdlog::warn("evmgr {} failed to find module with id: {}", devSn, selfId);
+                return -1;
+            }
+
             if(peerStatus.count(selfId) == 0||peerStatus[selfId] == 0) {
                 peerStatus[selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                 spdlog::info("evmgr {} peer connected: {}", devSn, selfId);
                 eventConn = true;
+                mod->at("status") = 1;
+                spdlog::debug("evmgr {} update status of {} to 1", devSn, selfId);
             }
             else {
                 peerStatus[selfId] = 0;
+                mod->at("status") = 0;
                 spdlog::warn("evmgr {} peer disconnected: {}", devSn, selfId);
             }
+
+            //update config
+            ret = LVDB::setLocalConfig(config);
+            if(ret < 0) {
+                spdlog::error("evmgr {} failed to update localconfig", devSn);
+            }
+
             // event
             json jEvt;
             jEvt["type"] = EV_MSG_TYPE_CONN_STAT;

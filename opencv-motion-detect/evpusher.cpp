@@ -25,11 +25,11 @@ update: 2019/08/23
 namespace fs = std::filesystem;
 #endif
 
-#include "zmqhelper.hpp"
-#include "tinythread.hpp"
-#include "common.hpp"
-#include "database.h"
-#include "spdlog/spdlog.h"
+#include "inc/zmqhelper.hpp"
+#include "inc/tinythread.hpp"
+#include "inc/common.hpp"
+#include "inc/database.h"
+#include "inc/spdlog/spdlog.h"
 #define MAX_ZMQ_MSG_SIZE 1204 * 1024 * 2
 
 using namespace std;

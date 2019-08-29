@@ -17,6 +17,7 @@ extern "C"
 #include <libavutil/timestamp.h>
 #include <spdlog/spdlog.h>
 #include <json.hpp>
+#include <sstream>
 using json = nlohmann::json;
 
 #undef av_err2str
@@ -374,8 +375,17 @@ json registry(const char *sn, const json &config)
     return json();
 }
 
-
-
+vector<string> split(const std::string& s, char delimiter)
+{
+   std::vector<std::string> tokens;
+   std::string token;
+   std::istringstream tokenStream(s);
+   while (getline(tokenStream, token, delimiter))
+   {
+      tokens.push_back(token);
+   }
+   return tokens;
+}
 
 
 } // namespace cloudutils

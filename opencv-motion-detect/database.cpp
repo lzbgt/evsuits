@@ -41,6 +41,39 @@ namespace LVDB {
     #define LVDB_ERROR_HELD -1
     #define LVDB_ERROR_OTHER -2
 
+
+    json * findConfigModule(json &config, string sn, string moduleName, int iid) {
+        json *ret = NULL;
+        json &data = config["data"];
+        for(auto &[k,v]: data.items()){
+            json &mgr = data[k];
+            if(mgr.count("ipcs") == 0) {
+                break;
+            }else{
+                json &ipcs = mgr["ipcs"];
+                for(auto &ipc:ipcs) {
+                    if(ipc.count("modules") == 0) {
+                        break;
+                    }else{
+                        json &modules = ipc["modules"];
+                        if(modules.count(moduleName) == 0){
+                            break;
+                        }else{
+                            json &module = modules[moduleName];
+                            for(auto &inst: module) {
+                                if(inst.count("sn") != 0 && inst["sn"] == sn && inst.count("iid") != 0 && inst["iid"] == iid) {
+                                    return &inst;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+        }
+        return ret;
+    }
+
     int _getDB(string fileName, DB** pdb) {
         static bool bmk = false;
         int ret = 0;
