@@ -291,32 +291,6 @@ protected:
         bool bStopSig = false;
         int ret = 0;
         zmq_msg_t msg;
-        // TODO: don't need this anymore, since I've used the draft feature of ZOUTER_NOTIFICATION instead
-        // disabled because:
-        //    1. it can't determine which peer disconnected, but only the underline socket FD.
-        //    2. used the draft feature of ZMQ_ROUTER_NOTIFY instead to capture peer module disconnections such as evpuser, evmlmotion.
-        // thread thMon = thread([&,this](){
-        //     int ret = 0;
-        //     string addr = string("inproc://monitor-") + this->devSn;
-        //     ret = zmq_socket_monitor(this->pRouter, addr.c_str(), ZMQ_EVENT_ALL );//ZMQ_EVENT_DISCONNECTED
-        //     if(ret != 0) {
-        //         spdlog::error("evmgr {} failed mon1: {},  {}", this->devSn, addr, zmq_strerror(zmq_errno()));
-        //     }
-        //     void *mon = zmq_socket (this->pRouterCtx, ZMQ_PAIR);
-        //     ret = zmq_connect(mon, addr.c_str());
-        //     if(ret != 0) {
-        //         spdlog::error("evmgr {} failed mon2: {}", this->devSn, zmq_strerror(zmq_errno()));
-        //     }
-        //     spdlog::info("evmgr {} monitoring setup", this->devSn);
-        //     while(true){
-        //         int fd = 0;
-        //         char *pConn = NULL;
-        //         int event = get_monitor_event(mon, &fd, &pConn);
-        //         cout <<"event: " << event << ", fd: "<< fd << ", conn: "<<pConn <<endl;
-        //     }
-        // });
-
-        // thMon.detach();
 
         while (true) {
             if(checkStop() == true) {
