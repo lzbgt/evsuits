@@ -54,7 +54,7 @@ namespace LVDB {
         }
         
         Status s = DB::Open(options, fileName, &pdb);
-        if(!s.ok() && s.) {
+        if(!s.ok()) {
             spdlog::error("failed to open db {}: {}", fileName, s.ToString());
         }
 

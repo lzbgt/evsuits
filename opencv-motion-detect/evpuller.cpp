@@ -33,19 +33,11 @@ namespace fs = std::filesystem;
 using namespace std;
 using namespace zmqhelper;
 
-int mqErrorMsg(string cls, string devSn, int iid, string extraInfo, int ret)
-{
-    if(ret < 0) {
-        spdlog::error("{} {} {}, {}: {} ", cls, devSn, iid, extraInfo, zmq_strerror(zmq_errno()));
-    }
-
-    return ret;
-}
-
 class RepSrv: public TinyThread {
 private:
     string mgrSn;
     string devSn;
+    string selfId;
     int iid;
     string urlRep;
     const char * bytes;
@@ -64,7 +56,7 @@ private:
 
         ret = z_send_multiple(pDealer, body);
         if(ret < 0) {
-            spdlog::error("evpuller {} {} failed to send multiple: {}", devSn, iid, zmq_strerror(zmq_errno()));
+            spdlog::error("evpuller {} failed to send multiple: {}", selfId, zmq_strerror(zmq_errno()));
         }
         return ret;
     }
@@ -81,19 +73,19 @@ private:
                 vector<vector<uint8_t> > rep = {v[0], v[1], msgBody};
                 ret = z_send_multiple(pDealer, rep);
                 if(ret < 0) {
-                    spdlog::error("evpuller {} {} failed send rep to requester {}: {}", devSn, iid, body2str(v[0]), zmq_strerror(zmq_errno()));
+                    spdlog::error("evpuller {} failed send rep to requester {}: {}", selfId, body2str(v[0]), zmq_strerror(zmq_errno()));
                 }
             }
             else if(meta["type"].get<string>() == EV_MSG_META_EVENT) {
                 // event msg
-                spdlog::info("evpuller {} {} received event: {}", devSn, iid, body2str(v[2]));
+                spdlog::info("evpuller {} received event: {}", selfId, body2str(v[2]));
             }
             else {
-                spdlog::error("evpuller {} {} unknown meta from {}: {}", devSn, iid, body2str(v[0]), body2str(v[1]));
+                spdlog::error("evpuller {} unknown meta from {}: {}", selfId, body2str(v[0]), body2str(v[1]));
             }
         }
         catch(exception &e) {
-            spdlog::error("evpuller {} {} excpetion parse request from {}: {}", devSn, iid, body2str(v[0]), body2str(v[1]));
+            spdlog::error("evpuller {} excpetion parse request from {}: {}", selfId, body2str(v[0]), body2str(v[1]));
         }
 
         return ret;
@@ -128,7 +120,7 @@ protected:
             auto v = z_recv_multiple(pDealer, false);
             if(v.size() != 3) {
                 //TODO:
-                spdlog::error("evpuller {} {},  repSrv received invalid message: {}", devSn, iid, v.size());
+                spdlog::error("evpuller {},  repSrv received invalid message: {}", selfId, v.size());
                 continue;
             }
             handleMsg(v);
@@ -140,7 +132,9 @@ public:
     RepSrv(RepSrv&&) = delete;
     RepSrv(string mgrSn, string devSn, int iid, const char* formatBytes,
            int len, void *pDealer):mgrSn(mgrSn),devSn(devSn), iid(iid), bytes(formatBytes),
-        len(len), pDealer(pDealer) {};
+        len(len), pDealer(pDealer) {
+            selfId = devSn+":evpuller:" + to_string(iid);
+        };
 
     ~RepSrv() {};
 };
@@ -171,7 +165,7 @@ private:
         tsLastBoot = info["lastboot"];
         tsUpdateTime=info["updatetime"];
 
-        spdlog::info("evmgr info: sn = {}, lastboot = {}, updatetime = {}", info["sn"].get<string>(), ctime(&tsLastBoot), ctime(&tsUpdateTime));
+        spdlog::info("evpuller info: sn = {}, lastboot = {}, updatetime = {}", info["sn"].get<string>(), ctime(&tsLastBoot), ctime(&tsUpdateTime));
         devSn = info["sn"];
 
         ret = LVDB::getLocalConfig(config);
@@ -180,7 +174,6 @@ private:
             exit(1);
         }
 
-        selfId = devSn+":evpuller:" + to_string(iid);
         while(!inited) {
             // TODO: req config
             bool found = false;
@@ -200,8 +193,9 @@ private:
                     for(auto &j: ipcs) {
                         json pullers = j["modules"]["evpuller"];
                         for(auto &p:pullers) {
-                            if(p["sn"] == devSn && p["iid"] == iid) {
+                            if(p["sn"] == devSn && p["status"] == 0) {
                                 evpuller = p;
+                                iid = p["iid"];
                                 break;
                             }
                         }
@@ -217,9 +211,11 @@ private:
                 }
 
                 if(!found) {
-                    spdlog::error("evpuller {} {} no valid config found. retrying load config...", devSn, iid);
+                    spdlog::error("evpuller {} no valid config found", devSn);
                     goto togo_sleep_continue;
                 }
+
+                selfId = devSn+":evpuller:" + to_string(iid);
 
                 mgrSn = evmgr["sn"];
                 user = ipc["user"];
@@ -227,38 +223,43 @@ private:
                 urlIn = "rtsp://" + user + ":" + passwd + "@" + ipc["addr"].get<string>() + "/h264/ch1/sub/av_stream";
                 addr = evpuller["addr"].get<string>();
                 if(addr == "*" || addr == "0.0.0.0") {
-                    spdlog::error("evpuller {} {} invalid addr {} for pub", devSn, iid, evpuller.dump());
+                    spdlog::error("evpuller {} invalid addr {} for pub", selfId, evpuller.dump());
                     goto togo_sleep_continue;
                 }
 
                 urlPub = string("tcp://*:") + to_string(evpuller["port-pub"]);
                 // urlRep = string("tcp://") +data["addr"].get<string>() + ":" + to_string(data["port-rep"]);
                 urlDealer = "tcp://" + evmgr["addr"].get<string>() + string(":") + to_string(evmgr["port-router"]);
-                spdlog::info("evpuller {} {} bind on {} for pub, connect to {} for dealer", devSn, iid, urlPub, urlDealer);
+                spdlog::info("evpuller {} bind on {} for pub, connect to {} for dealer", selfId, urlPub, urlDealer);
 
                 pPubCtx = zmq_ctx_new();
                 pPub = zmq_socket(pPubCtx, ZMQ_PUB);
-                ret = mqErrorMsg("evpuller", devSn, iid, "failed to bind zmq", zmq_bind(pPub, urlPub.c_str()));
+                ret = zmq_bind(pPub, urlPub.c_str());
                 if(ret < 0) {
+                    spdlog::error("evpuller {} failed to bind to {}", selfId, urlPub);
                     goto togo_sleep_continue;
                 }
                 pDealerCtx = zmq_ctx_new();
                 pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
-                ret += mqErrorMsg("evpuller", devSn, iid, "failed to set socksopt", zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size()));
-                ret += zmq_setsockopt (pDealer, ZMQ_ROUTING_ID, selfId.c_str(), selfId.size());
+                ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());
                 if(ret < 0) {
-                    spdlog::error("evpusher {} {} failed setsockopts router: {}", devSn, iid, urlDealer);
+                    spdlog::error("evpuller {} failed to set identity", selfId);
                     goto togo_sleep_continue;
                 }
-                ret += mqErrorMsg("evpuller", devSn, iid, "failed to connect to router " + urlDealer, zmq_connect(pDealer, urlDealer.c_str()));
+                ret += zmq_setsockopt (pDealer, ZMQ_ROUTING_ID, selfId.c_str(), selfId.size());
+                if(ret < 0) {
+                    spdlog::error("evpusher {} {} failed setsockopts router: {}", selfId, urlDealer);
+                    goto togo_sleep_continue;
+                }
+                ret = zmq_connect(pDealer, urlDealer.c_str());
                 if(ret < 0) {    
-                    spdlog::error("evpuller {} {} zmq setup failed. retrying load config...", devSn, iid);
+                    spdlog::error("evpuller {} failed to connect to router {}", selfId, urlDealer);
                     goto togo_sleep_continue;
                 }
             }
             catch(exception &e) {
                 this_thread::sleep_for(chrono::seconds(3));
-                spdlog::error("evpuller {} {} exception in EvPuller.init {:s}, retrying... ",devSn, iid, e.what());
+                spdlog::error("evpuller {} exception in EvPuller.init {:s}, retrying... ", selfId, e.what());
                 continue;
             }
 

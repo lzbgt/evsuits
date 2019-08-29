@@ -108,7 +108,6 @@ private:
             exit(1);
         }
 
-        selfId = devSn + ":evmlmotion:" + to_string(iid);
         while(!inited) {
             // TODO: req config
             bool found = false;
@@ -126,8 +125,9 @@ private:
                     for(auto &j: ipcs) {
                         json mls = j["modules"]["evml"];
                         for(auto &p:mls) {
-                            if(p["sn"] == devSn && p["iid"] == iid && p["type"] == "motion") {
+                            if(p["sn"] == devSn && p["status"] == 0 && p["type"] == "motion") {
                                 evmlmotion = p;
+                                iid = p["iid"];
                                 break;
                             }
                         }
@@ -144,11 +144,13 @@ private:
                 }
 
                 if(!found) {
-                    spdlog::error("evmlmotion {} {}: no valid config found. retrying load config...", devSn, iid);
+                    spdlog::error("evmlmotion {}: no valid config found. retrying load config...", devSn);
                     this_thread::sleep_for(chrono::seconds(3));
                     continue;
                 }
 
+
+                selfId = devSn + ":evmlmotion:" + to_string(iid);
                 // TODO: currently just take the first puller, but should test connectivity
                 json evpuller = ipc["modules"]["evpuller"][0];
                 pullerGid = evpuller["sn"].get<string>() + ":evpuller:" + to_string(evpuller["iid"]);
@@ -156,11 +158,11 @@ private:
 
                 urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(evpuller["port-pub"]);
                 urlRouter = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(evmgr["port-router"]);
-                spdlog::info("evmlmotion {} {} will connect to {} for sub, {} for router", devSn, iid, urlPub, urlRouter);
+                spdlog::info("evmlmotion {} will connect to {} for sub, {} for router", selfId, urlPub, urlRouter);
                 
                 // TODO: multiple protocols support
                 if(evmlmotion.count("path") == 0) {
-                    spdlog::warn("evslicer {} {} no params for path, using default: {}", devSn, iid, URLOUT_DEFAULT);
+                    spdlog::warn("evslicer {} {} no params for path, using default: {}", selfId, URLOUT_DEFAULT);
                     urlOut = URLOUT_DEFAULT;
                 }
                 else {
@@ -174,7 +176,7 @@ private:
                 }
             }
             catch(exception &e) {
-                spdlog::error("evmlmotion {} {} exception in EvPuller.init {:s} retrying", devSn, iid, e.what());
+                spdlog::error("evmlmotion {} exception in EvPuller.init {:s} retrying", selfId, e.what());
                 this_thread::sleep_for(chrono::seconds(3));
                 continue;
             }
@@ -197,11 +199,11 @@ private:
 
         ret = z_send_multiple(pDealer, body);
         if(ret < 0) {
-            spdlog::error("evmlmotion {} {} failed to send multiple: {}", devSn, iid, zmq_strerror(zmq_errno()));
+            spdlog::error("evmlmotion {} failed to send multiple: {}", selfId, zmq_strerror(zmq_errno()));
             //TODO:
         }
         else {
-            spdlog::info("evmlmotion {} {} sent hello to router: {}", devSn, iid, mgrSn);
+            spdlog::info("evmlmotion {} sent hello to router: {}", selfId, mgrSn);
         }
 
         return ret;
@@ -216,32 +218,32 @@ private:
         pSub = zmq_socket(pSubCtx, ZMQ_SUB);
         ret = zmq_setsockopt(pSub, ZMQ_SUBSCRIBE, "", 0);
         if(ret != 0) {
-            spdlog::error("evmlmotion {} {} failed set setsockopt: {}", devSn, iid, urlPub);
+            spdlog::error("evmlmotion {} failed set setsockopt: {}", selfId, urlPub);
             return -1;
         }
         ret = zmq_connect(pSub, urlPub.c_str());
         if(ret != 0) {
-            spdlog::error("evmlmotion {} {} failed connect pub: {}", devSn, iid, urlPub);
+            spdlog::error("evmlmotion {} failed connect pub: {}", selfId, urlPub);
             return -2;
         }
 
         // setup dealer
         pDealerCtx = zmq_ctx_new();
         pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
-        spdlog::info("evmlmotion {} {} try create req to {}", devSn, iid, urlRouter);
+        spdlog::info("evmlmotion {} try create req to {}", selfId, urlRouter);
         ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());
         ret += zmq_setsockopt (pDealer, ZMQ_ROUTING_ID, selfId.c_str(), selfId.size());
         if(ret < 0) {
-            spdlog::error("evpusher {} {} failed setsockopts router: {}", devSn, iid, urlRouter);
+            spdlog::error("evpusher {} {} failed setsockopts router: {}", selfId, urlRouter);
             return -3;
         }
         if(ret < 0) {
-            spdlog::error("evmlmotion {} {} failed setsockopts router: {}", devSn, iid, urlRouter);
+            spdlog::error("evmlmotion {} failed setsockopts router: {}", selfId, urlRouter);
             return -3;
         }
         ret = zmq_connect(pDealer, urlRouter.c_str());
         if(ret != 0) {
-            spdlog::error("evmlmotion {} {} failed connect dealer: {}", devSn, iid, urlRouter);
+            spdlog::error("evmlmotion {} failed connect dealer: {}", selfId, urlRouter);
             return -4;
         }
         //ping
@@ -264,7 +266,7 @@ private:
         int ret = 0;
         // req avformatcontext packet
         // send hello to puller
-        spdlog::info("evmlmotion {} {} send hello to puller: {}", devSn, iid, pullerGid);
+        spdlog::info("evmlmotion {} send hello to puller: {}", selfId, pullerGid);
         vector<vector<uint8_t> > body;
         body.push_back(str2body(pullerGid));
         json meta;
@@ -276,7 +278,7 @@ private:
         while(!gotFormat) {
             ret = z_send_multiple(pDealer, body);
             if(ret < 0) {
-                spdlog::error("evmlmotion {} {}, failed to send hello to puller: {}", devSn, iid, zmq_strerror(zmq_errno()));
+                spdlog::error("evmlmotion {}, failed to send hello to puller: {}", selfId, zmq_strerror(zmq_errno()));
                 continue;
             }
 
@@ -286,18 +288,18 @@ private:
                 ret = zmq_errno();
                 if(ret != 0) {
                     if(failedCnt % 100 == 0) {
-                        spdlog::error("evmlmotion {} {}, error receive avformatctx: {}, {}", devSn, iid, v.size(), zmq_strerror(ret));
-                        spdlog::info("evmlmotion {} {} retry connect to peers", devSn, iid);
+                        spdlog::error("evmlmotion {}, error receive avformatctx: {}, {}", selfId, v.size(), zmq_strerror(ret));
+                        spdlog::info("evmlmotion {} retry connect to peers", selfId);
                     }
                     this_thread::sleep_for(chrono::seconds(5));
                     failedCnt++;
                 }
                 else {
-                    spdlog::error("evmlmotion {} {}, received bad size zmq msg for avformatctx: {}", devSn, iid, v.size());
+                    spdlog::error("evmlmotion {}, received bad size zmq msg for avformatctx: {}", selfId, v.size());
                 }
             }
             else if(body2str(v[0]) != pullerGid) {
-                spdlog::error("evmlmotion {} {}, invalid sender for avformatctx: {}, should be: {}", devSn, iid, body2str(v[0]), pullerGid);
+                spdlog::error("evmlmotion {}, invalid sender for avformatctx: {}, should be: {}", selfId, body2str(v[0]), pullerGid);
             }
             else {
                 try {
@@ -309,7 +311,7 @@ private:
                     }
                 }
                 catch(exception &e) {
-                    spdlog::error("evmlmotion {} {}, exception in parsing avformatctx packet: {}", devSn, iid, e.what());
+                    spdlog::error("evmlmotion {}, exception in parsing avformatctx packet: {}", selfId, e.what());
                 }
             }
         }
@@ -567,9 +569,9 @@ protected:
                     v[2] = str2body(evt);
                     this->evtQueue->pop();
                     ret = z_send_multiple(this->pDealer, v);
-                    spdlog::info("evmlmotion {} {} send event: {}", this->devSn, this->iid, evt);
+                    spdlog::info("evmlmotion {} send event: {}", this->devSn, this->iid, evt);
                     if(ret < 0) {
-                        spdlog::error("evmlmotion {} {} failed to send event: {}, {}", this->devSn, this->iid, evt, zmq_strerror(zmq_errno()));
+                        spdlog::error("evmlmotion {} failed to send event: {}, {}", this->devSn, this->iid, evt, zmq_strerror(zmq_errno()));
                     }
                 }
                 else {

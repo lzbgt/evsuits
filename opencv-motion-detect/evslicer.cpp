@@ -80,9 +80,7 @@ private:
             spdlog::error("failed to get local configuration");
             exit(1);
         }
-        selfId = devSn + ":evslicer:" + to_string(iid);
         // TODO: read local slices list and last index
-        
         while(!inited) {
             // TODO: req config
             bool found = false;
@@ -100,8 +98,9 @@ private:
                     for(auto &j: ipcs) {
                         json pullers = j["modules"]["evslicer"];
                         for(auto &p:pullers) {
-                            if(p["sn"] == devSn && p["iid"] == iid) {
+                            if(p["sn"] == devSn && p["status"] ==0) {
                                 evslicer = p;
+                                iid = p["iid"];
                                 break;
                             }
                         }
@@ -118,23 +117,25 @@ private:
                 }
 
                 if(!found) {
-                    spdlog::error("evslicer {} {}: no valid config found. retrying load config...", devSn, iid);
+                    spdlog::error("evslicer {}: no valid config found. retrying load config...", devSn);
                     this_thread::sleep_for(chrono::seconds(3));
                     continue;
                 }
+
+                selfId = devSn + ":evslicer:" + to_string(iid);
 
                 json evpuller = ipc["modules"]["evpuller"][0];
                 pullerGid = evpuller["sn"].get<string>() + ":evpuller:" + to_string(evpuller["iid"]);
                 mgrSn = evmgr["sn"];
                 if(evslicer.count("path") == 0) {
-                    spdlog::warn("evslicer {} {} no params for path, using default: {}", devSn, iid, URLOUT_DEFAULT);
+                    spdlog::warn("evslicer {} no params for path, using default: {}", selfId, URLOUT_DEFAULT);
                     urlOut = URLOUT_DEFAULT;
                 }
                 else {
                     urlOut = evslicer["path"];
                 }
                 if(evslicer.count("days") == 0) {
-                    spdlog::warn("evslicer {} {} no params for days, using default: {}", devSn, iid, NUM_DAYS_DEFAULT);
+                    spdlog::warn("evslicer {} no params for days, using default: {}", selfId, NUM_DAYS_DEFAULT);
                     days = NUM_DAYS_DEFAULT;
                 }
                 else {
@@ -142,7 +143,7 @@ private:
                 }
 
                 if(evslicer.count("minutes") == 0) {
-                    spdlog::warn("evslicer {} {} no params for minutes, using default: {}", devSn, iid, MINUTES_PER_SLICE_DEFAULT);
+                    spdlog::warn("evslicer {} no params for minutes, using default: {}", selfId, MINUTES_PER_SLICE_DEFAULT);
                     minutes = MINUTES_PER_SLICE_DEFAULT;
                 }
                 else {
@@ -163,10 +164,10 @@ private:
 
                 urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(evpuller["port-pub"]);
                 urlRouter = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(evmgr["port-router"]);
-                spdlog::info("evslicer {} {} will connect to {} for sub, {} for router", devSn, iid, urlPub, urlRouter);
+                spdlog::info("evslicer {} will connect to {} for sub, {} for router", selfId, urlPub, urlRouter);
             }
             catch(exception &e) {
-                spdlog::error("evslicer {} {} exception in init {:s} retrying", devSn, iid, e.what());
+                spdlog::error("evslicer {} exception in init {:s} retrying", selfId, e.what());
                 this_thread::sleep_for(chrono::seconds(3));
                 continue;
             }
@@ -189,11 +190,11 @@ private:
 
         ret = z_send_multiple(pDealer, body);
         if(ret < 0) {
-            spdlog::error("evslicer {} {} failed to send multiple: {}", devSn, iid, zmq_strerror(zmq_errno()));
+            spdlog::error("evslicer {} failed to send multiple: {}", selfId, zmq_strerror(zmq_errno()));
             //TODO:
         }
         else {
-            spdlog::info("evslicer {} {} sent hello to router: {}", devSn, iid, mgrSn);
+            spdlog::info("evslicer {} sent hello to router: {}", selfId, mgrSn);
         }
 
         return ret;
@@ -208,32 +209,32 @@ private:
         pSub = zmq_socket(pSubCtx, ZMQ_SUB);
         ret = zmq_setsockopt(pSub, ZMQ_SUBSCRIBE, "", 0);
         if(ret != 0) {
-            spdlog::error("evslicer {} {} failed set setsockopt: {}", devSn, iid, urlPub);
+            spdlog::error("evslicer {} failed set setsockopt: {}", selfId, urlPub);
             return -1;
         }
         ret = zmq_connect(pSub, urlPub.c_str());
         if(ret != 0) {
-            spdlog::error("evslicer {} {} failed connect pub: {}", devSn, iid, urlPub);
+            spdlog::error("evslicer {} failed connect pub: {}", selfId, urlPub);
             return -2;
         }
 
         // setup dealer
         pDealerCtx = zmq_ctx_new();
         pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
-        spdlog::info("evslicer {} {} try create req to {}", devSn, iid, urlRouter);
+        spdlog::info("evslicer {} try create req to {}", selfId, urlRouter);
         ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());
         ret += zmq_setsockopt (pDealer, ZMQ_ROUTING_ID, selfId.c_str(), selfId.size());
         if(ret < 0) {
-            spdlog::error("evpusher {} {} failed setsockopts router: {}", devSn, iid, urlRouter);
+            spdlog::error("evpusher {} {} failed setsockopts router: {}", selfId, urlRouter);
             return -3;
         }
         if(ret < 0) {
-            spdlog::error("evslicer {} {} failed setsockopts router: {}", devSn, iid, urlRouter);
+            spdlog::error("evslicer {} failed setsockopts router: {}", selfId, urlRouter);
             return -3;
         }
         ret = zmq_connect(pDealer, urlRouter.c_str());
         if(ret != 0) {
-            spdlog::error("evslicer {} {} failed connect dealer: {}", devSn, iid, urlRouter);
+            spdlog::error("evslicer {} failed connect dealer: {}", selfId, urlRouter);
             return -4;
         }
         //ping
@@ -256,7 +257,7 @@ private:
         int ret = 0;
         // req avformatcontext packet
         // send hello to puller
-        spdlog::info("evslicer {} {} send hello to puller: {}", devSn, iid, pullerGid);
+        spdlog::info("evslicer {} send hello to puller: {}", selfId, pullerGid);
         vector<vector<uint8_t> > body;
         body.push_back(str2body(pullerGid));
         json meta;
@@ -268,7 +269,7 @@ private:
         while(!gotFormat) {
             ret = z_send_multiple(pDealer, body);
             if(ret < 0) {
-                spdlog::error("evslicer {} {}, failed to send hello to puller: {}", devSn, iid, zmq_strerror(zmq_errno()));
+                spdlog::error("evslicer {}, failed to send hello to puller: {}", selfId, zmq_strerror(zmq_errno()));
                 continue;
             }
 
@@ -278,18 +279,18 @@ private:
                 ret = zmq_errno();
                 if(ret != 0) {
                     if(failedCnt % 100 == 0) {
-                        spdlog::error("evslicer {} {}, error receive avformatctx: {}, {}", devSn, iid, v.size(), zmq_strerror(ret));
-                        spdlog::info("evslicer {} {} retry connect to peers", devSn, iid);
+                        spdlog::error("evslicer {}, error receive avformatctx: {}, {}", selfId, v.size(), zmq_strerror(ret));
+                        spdlog::info("evslicer {} retry connect to peers", selfId);
                     }
                     this_thread::sleep_for(chrono::seconds(5));
                     failedCnt++;
                 }
                 else {
-                    spdlog::error("evslicer {} {}, received bad size zmq msg for avformatctx: {}", devSn, iid, v.size());
+                    spdlog::error("evslicer {}, received bad size zmq msg for avformatctx: {}", selfId, v.size());
                 }
             }
             else if(body2str(v[0]) != pullerGid) {
-                spdlog::error("evslicer {} {}, invalid sender for avformatctx: {}, should be: {}", devSn, iid, body2str(v[0]), pullerGid);
+                spdlog::error("evslicer {}, invalid sender for avformatctx: {}, should be: {}", selfId, body2str(v[0]), pullerGid);
             }
             else {
                 try {
@@ -301,7 +302,7 @@ private:
                     }
                 }
                 catch(exception &e) {
-                    spdlog::error("evslicer {} {}, exception in parsing avformatctx packet: {}", devSn, iid, e.what());
+                    spdlog::error("evslicer {}, exception in parsing avformatctx packet: {}", selfId, e.what());
                 }
             }
         }
@@ -370,7 +371,7 @@ protected:
             name = urlOut + "/" + name;
             ret = avformat_alloc_output_context2(&pAVFormatRemux, NULL, "mp4", name.c_str());
             if (ret < 0) {
-                spdlog::error("evslicer {} {} failed create avformatcontext for output: %s", devSn, iid, av_err2str(ret));
+                spdlog::error("evslicer {} failed create avformatcontext for output: %s", selfId, av_err2str(ret));
                 exit(1);
             }
 
@@ -379,12 +380,12 @@ protected:
                 if(streamList[i] != -1) {
                     out_stream = avformat_new_stream(pAVFormatRemux, NULL);
                     if (!out_stream) {
-                        spdlog::error("evslicer {} {} failed allocating output stream 1", devSn, iid);
+                        spdlog::error("evslicer {} failed allocating output stream 1", selfId);
                         ret = AVERROR_UNKNOWN;
                     }
                     ret = avcodec_parameters_copy(out_stream->codecpar, pAVFormatInput->streams[i]->codecpar);
                     if (ret < 0) {
-                        spdlog::error("evslicer {} {} failed to copy codec parameters", devSn, iid);
+                        spdlog::error("evslicer {} failed to copy codec parameters", selfId);
                     }
                 }
             }
@@ -393,13 +394,13 @@ protected:
             if (!(pAVFormatRemux->oformat->flags & AVFMT_NOFILE)) {
                 ret = avio_open2(&pAVFormatRemux->pb, name.c_str(), AVIO_FLAG_WRITE, NULL, &pOptsRemux);
                 if (ret < 0) {
-                    spdlog::error("evslicer {} {} could not open output file {}", devSn, iid, name);
+                    spdlog::error("evslicer {} could not open output file {}", selfId, name);
                 }
             }
 
             ret = avformat_write_header(pAVFormatRemux, &pOptsRemux);
             if (ret < 0) {
-                spdlog::error("evslicer {} {} error occurred when opening output file", devSn, iid);
+                spdlog::error("evslicer {} error occurred when opening output file", selfId);
             }
 
             // TODO:
