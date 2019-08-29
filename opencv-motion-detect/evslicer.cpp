@@ -27,10 +27,10 @@ namespace fs = std::filesystem;
 #endif
 
 #include <cstdlib>
-#include "zmqhelper.hpp"
-#include "tinythread.hpp"
-#include "common.hpp"
-#include "database.h"
+#include "inc/zmqhelper.hpp"
+#include "inc/tinythread.hpp"
+#include "inc/common.hpp"
+#include "inc/database.h"
 
 using namespace std;
 using namespace zmqhelper;
