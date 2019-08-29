@@ -68,7 +68,7 @@ class EvMLMotion: public TinyThread {
 private:
     void *pSubCtx = NULL, *pDealerCtx = NULL; // for packets relay
     void *pSub = NULL, *pDealer = NULL;
-    string urlOut, urlPub, urlRouter, devSn, mgrSn, selfId, pullerGid;
+    string urlOut, urlPub, urlRouter, devSn, mgrSn, selfId, pullerGid, slicerGid;
     int iid;
     AVFormatContext *pAVFormatInput = NULL;
     AVCodecContext *pCodecCtx = NULL;
@@ -138,6 +138,8 @@ private:
 
                     if(ipc.size()!=0 && evmlmotion.size()!=0) {
                         found = true;
+                        // get evslicer id
+
                         break;
                     }
                 }
@@ -154,6 +156,9 @@ private:
                 json evpuller = ipc["modules"]["evpuller"][0];
                 pullerGid = evpuller["sn"].get<string>() + ":evpuller:" + to_string(evpuller["iid"]);
                 mgrSn = evmgr["sn"];
+
+                json evslicer = ipc["modules"]["evslicer"][0];
+                slicerGid = evslicer["sn"].get<string>()+":evslicer:" + to_string(evslicer["iid"]);
 
                 urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(evpuller["port-pub"]);
                 urlRouter = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(evmgr["port-router"]);
@@ -545,16 +550,18 @@ protected:
             meta["type"] = EV_MSG_META_EVENT;
             string metaType = meta.dump();
             int ret = 0;
-            vector<vector<uint8_t> > v = {str2body(this->pullerGid), str2body(metaType), str2body("")};
+            vector<vector<uint8_t> > v = {str2body(this->slicerGid), str2body(metaType), str2body("")};
             while(true) {
                 if(!this->evtQueue->empty()) {
                     string evt = this->evtQueue->front();
                     v[2] = str2body(evt);
                     this->evtQueue->pop();
                     ret = z_send_multiple(this->pDealer, v);
-                    spdlog::info("evmlmotion {} send event: {}", this->devSn, this->iid, evt);
+                    
                     if(ret < 0) {
-                        spdlog::error("evmlmotion {} failed to send event: {}, {}", this->devSn, this->iid, evt, zmq_strerror(zmq_errno()));
+                        spdlog::error("evmlmotion {} failed to send event {} to {}: {}", this->selfId, evt, this->slicerGid, zmq_strerror(zmq_errno()));
+                    }else{
+                        spdlog::info("evmlmotion {} send event: {}", this->selfId, evt);
                     }
                 }
                 else {
