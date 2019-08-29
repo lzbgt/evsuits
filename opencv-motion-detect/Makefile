@@ -7,10 +7,10 @@ CFLAGS = $(DEBUG) -Wall
 
 LIBOPENCV = `pkg-config opencv --cflags --libs`
 LIBFFMPEG = `pkg-config libavformat libavutil libavcodec libswscale --cflags --libs`
-LD_FLAGS=-Lvendor/lib -lpthread -lleveldb
+LIBS=-Lvendor/lib -lpthread -lleveldb
 #-static
 HEADERS=-Iinc -Ivendor/include
-LIBS=
+
 #SQLITE_SRC=vendor/sqlite/sqlite3.
 #SQLITE=sqlite3.o
 SQLITE_SRC=
