@@ -36,24 +36,27 @@ class HttpSrv{
         });
 
         svr.Get("/config", [this](const Request& req, Response& res){
-            LVDB::getSn(this->info);
             LVDB::getLocalConfig(this->config);
             res.set_content(this->config.dump(), "text/json");
         });
 
         svr.Post("/config", [this](const Request& req, Response& res){
+            json ret;
+            ret["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
             try{
                 json newConfig = json::parse(req.body);
                 LVDB::setLocalConfig(newConfig);
                 this->config = newConfig;
-
+                ret["code"] = 0;
+                ret["msg"] = "ok";
+                // TODO: restart other components
+                //
             }catch(exception &e) {
-                json ret;
+                ret.clear();
                 ret["code"] = 1;
                 ret["msg"] = e.what();
-                ret["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
-                res.set_content(ret.dump(), "text/json");
             }
+            res.set_content(ret.dump(), "text/json");
         });
 
         svr.Post("/reset", [](const Request& req, Response& res){
@@ -70,6 +73,9 @@ class HttpSrv{
 };
 
 int main(){
+    json info;
+    LVDB::getSn(info);
+    spdlog::info("evdaemon: {}",info.dump());
     HttpSrv srv;
     srv.run();
 }
