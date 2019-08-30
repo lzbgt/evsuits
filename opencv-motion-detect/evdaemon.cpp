@@ -9,19 +9,41 @@ update: 2019/08/30
 #include "inc/httplib.h"
 #include "inc/zmqhelper.hpp"
 #include "inc/database.h"
+#include "inc/json.hpp"
 
+using namespace std;
+using namespace httplib;
+using namespace nlohmann;
 
-class EvDaemon: TinyThread{
+class HttpSrv{
     private:
-    protected:
-    void run(){
+    Server svr;
+    json config;
+
+    void setMonitorThread() {
 
     }
+
+    protected:
     public:
-    EvDaemon();
-    ~EvDaemon();
+    void run(){
+        setMonitorThread();
+        // get config
+        svr.Get("/config", [](const Request& req, Response& res){
+            json rep = R"({"code":0, "msg":"hello"})"_json;
+            res.set_content(rep.dump(), "text/json");
+        });
+
+        svr.listen("0.0.0.0", 8088);
+    }
+
+    HttpSrv(){
+        
+    };
+    ~HttpSrv(){};
 };
 
 int main(){
-
+    HttpSrv srv;
+    srv.run();
 }

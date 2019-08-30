@@ -37,6 +37,9 @@ evslicer: evslicer.cpp inc/common.hpp inc/tinythread.hpp inc/database.h inc/zmqh
 evmlmotion: evmlmotion.cpp inc/common.hpp inc/avcvhelpers.hpp inc/database.h inc/zmqhelper.hpp  inc/tinythread.hpp database.cpp $(SQLITE_SRC)
 	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evmlmotion evmlmotion.cpp database.cpp $(SQLITE) $(LIBFFMPEG) $(HEADERS) $(LIBOPENCV) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
 
+evdaemon: evdaemon.cpp inc/common.hpp inc/database.h inc/zmqhelper.hpp  inc/tinythread.hpp database.cpp
+	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evdaemon evdaemon.cpp database.cpp $(SQLITE) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
+
 rtspr: rtsp-relay.cpp
 	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o rtspr rtsp-relay.cpp $(LIBFFMPEG) $(LD_FLAGS)
 
@@ -48,7 +51,7 @@ mux: demuxing_decoding.c
 
 .PHONY: clean
 clean:
-	rm -fr evmgr evpuller evpusher evslicer evmlmotion *.dSYM *.out *.o
+	rm -fr evmgr evpuller evpusher evslicer evmlmotion evdaemon *.dSYM *.out *.o
 
 .PHONY: zmq
 zmq:
