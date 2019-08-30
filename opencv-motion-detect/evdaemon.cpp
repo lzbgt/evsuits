@@ -34,11 +34,19 @@ class HttpSrv{
             res.set_content(rep.dump(), "text/json");
         });
 
+        svr.Post("/config", [](const Request& req, Response& res){
+
+        });
+
+        svr.Post("/reset", [](const Request& req, Response& res){
+            
+        });
+
         svr.listen("0.0.0.0", 8088);
     }
 
     HttpSrv(){
-        
+
     };
     ~HttpSrv(){};
 };
