@@ -150,7 +150,7 @@ private:
     void *pDealerCtx = NULL;
     void *pDealer = NULL;
     AVFormatContext *pAVFormatInput = NULL;
-    string urlIn, urlPub, urlDealer, mgrSn, devSn, selfId;
+    string urlIn, urlPub, urlDealer, mgrSn, devSn, selfId, ipcPort;
     int *streamList = NULL, numStreams = 0, iid;
     time_t tsLastBoot, tsUpdateTime;
     json config;
@@ -223,7 +223,16 @@ private:
                 mgrSn = evmgr["sn"];
                 user = ipc["user"];
                 passwd = ipc["password"];
-                urlIn = "rtsp://" + user + ":" + passwd + "@" + ipc["addr"].get<string>() + "/h264/ch1/sub/av_stream";
+
+                // default stream port
+                if(ipc.count("port") == 0) {
+                    ipcPort = "554";
+                }else{
+                    ipcPort = ipc["port"];
+                }
+
+
+                urlIn = "rtsp://" + user + ":" + passwd + "@" + ipc["addr"].get<string>() + ":" + ipcPort + "/h264/ch1/sub/av_stream";
                 addr = evpuller["addr"].get<string>();
                 if(addr == "*" || addr == "0.0.0.0") {
                     spdlog::error("evpuller {} invalid addr {} for pub", selfId, evpuller.dump());
