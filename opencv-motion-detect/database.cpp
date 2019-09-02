@@ -199,9 +199,6 @@ namespace LVDB {
     int clearDB(string fileName) {
         return 0;
     }
-
-    typedef int (*cb_verify_str)(const string&);
-    typedef int (*cb_verify_json)(const json&);
     
     int getValue(string &value, string key, string fileName, cb_verify_str cb) {
         int ret = 0;
@@ -404,12 +401,21 @@ togo_end:
         return 0;
     }
 
-    int getLocalConfig(json &config, string fileName){
-        return getValue(config, LVDB_KEY_CONFIG, fileName, _validateConfig);   
+    int getLocalConfig(json &config, string key, string fileName){
+        if(key.empty()) {
+            return getValue(config, LVDB_KEY_CONFIG, fileName, _validateConfig); 
+        }else{
+            return getValue(config, key, fileName, _validateConfig);
+        }
+          
     };
 
-    int setLocalConfig(json &config, string fileName){
-        return setValue(config, LVDB_KEY_CONFIG, fileName, _validateConfig);
+    int setLocalConfig(json &config, string key, string fileName){
+        if(key.empty()) {
+            return setValue(config, LVDB_KEY_CONFIG, fileName, _validateConfig);
+        }else{
+            return setValue(config, key, fileName, _validateConfig);
+        } 
     };
 
     // slices

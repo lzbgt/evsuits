@@ -21,6 +21,14 @@ namespace LVDB {
     #define LVDB_KEY_SUFFIX_BACK "_bak"
     #define LVDB_KEY_SN "SN"
     #define LVDB_KEY_CONFIG "CONFIG"
+    typedef int (*cb_verify_str)(const string&);
+    typedef int (*cb_verify_json)(const json&);
+
+
+    int setValue(const string &value, string key, string fileName, cb_verify_str cb);
+    int getValue(string &value, string key, string fileName, cb_verify_str cb);
+    int setValue(const string &value, string key, string fileName, cb_verify_json cb);
+    int getValue(string &value, string key, string fileName, cb_verify_json cb);
 
     //
     json * findConfigModule(json &config, string sn, string moduleName, int iid);
@@ -32,8 +40,8 @@ namespace LVDB {
     int getSn(json &info,string fileName=LVDB_FILE_GENERAL);
 
     // cloudutils::config
-    int getLocalConfig(json &config, string fileName=LVDB_FILE_GENERAL);
-    int setLocalConfig(json &config, string fileName=LVDB_FILE_GENERAL);
+    int getLocalConfig(json &config, string key = "", string fileName=LVDB_FILE_GENERAL);
+    int setLocalConfig(json &config, string key = "", string fileName=LVDB_FILE_GENERAL);
 
     // slices
     int getSlices(json &slices, string fileName);

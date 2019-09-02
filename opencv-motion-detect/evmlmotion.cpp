@@ -560,7 +560,7 @@ protected:
                     
                     if(ret < 0) {
                         spdlog::error("evmlmotion {} failed to send event {} to {}: {}", this->selfId, evt, this->slicerGid, zmq_strerror(zmq_errno()));
-                    }else{
+                    }else {
                         spdlog::info("evmlmotion {} send event: {}", this->selfId, evt);
                     }
                 }

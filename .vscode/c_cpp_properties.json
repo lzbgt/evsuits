@@ -3,9 +3,11 @@
         {
             "name": "Mac",
             "includePath": [
-                "${workspaceFolder}/**",
+                "${workspaceFolder}/opencv-motion-detect/inc/**",
+                "${workspaceFolder}/opencv-motion-detect/vendor/include/**",
                 "/usr/local/Cellar/opencv/4.1.0_2/include/opencv4",
-                "/usr/local/Cellar/ffmpeg/4.1.4_1/include"
+                "/usr/local/Cellar/ffmpeg/4.1.4_1/include",
+                "${workspaceFolder}/opencv-motion-detect/vendor/leveldb/include"
             ],
             "defines": [],
             "macFrameworkPath": [

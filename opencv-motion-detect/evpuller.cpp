@@ -228,7 +228,7 @@ private:
                 if(ipc.count("port") == 0) {
                     ipcPort = "554";
                 }else{
-                    ipcPort = ipc["port"];
+                    ipcPort = to_string(ipc["port"]);
                 }
 
 
@@ -330,6 +330,7 @@ protected:
 
         bool bStopSig = false;
         uint64_t pktCnt = 0;
+        spdlog::info("evpulelr {} reading packets from {}", selfId, urlIn);
         while (true) {
             if(checkStop() == true) {
                 bStopSig = true;

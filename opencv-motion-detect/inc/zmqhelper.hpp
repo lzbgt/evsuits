@@ -22,15 +22,15 @@ namespace zmqhelper {
 #define MSG_HELLO "hello"
 #define EV_MSG_META_PING "ping"
 #define EV_MSG_META_PONG "pong"
-#define EV_MSG_META_PEEROFFLINE "offline"
-#define EV_MSG_META_RESTART "restart"
-#define EV_MSG_META_UPDATE "update"
 #define EV_MSG_META_EVENT "event"
+#define EV_MSG_META_CMD "cmd"
 #define EV_MSG_META_AVFORMATCTX "afctx"
 
 #define EV_MSG_TYPE_AI_MOTION "ai_motion"
 #define EV_MSG_TYPE_CONN_STAT "connstat"
 #define EV_MSG_TYPE_SYS_STAT "sysstat"
+// #define EV_MSG_CMD_RESTART "restart"
+// #define EV_MSG_CMD_UPDATE "update"
 
 #define EV_MSG_EVENT_MOTION_START "start"
 #define EV_MSG_EVENT_MOTION_END "end"

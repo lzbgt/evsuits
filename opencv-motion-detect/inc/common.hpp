@@ -301,9 +301,11 @@ namespace cloudutils
 /*
 {
    "time":0,
+   "lastupdated": 0,
    "code":0,
    "data":{
       "ILSEVMGR1":{
+         "lastupdated": 0,
          "sn":"ILSEVMGR1",
          "addr":"172.31.0.76",
          "addr-cloud":"172.31.0.76",
@@ -317,6 +319,7 @@ namespace cloudutils
                "proto":"rtsp",
                "user":"admin",
                "password":"FWBWTU",
+               "port": 554,
                "status":1,
                "modules":{
                   "evpuller":[
