@@ -16,7 +16,7 @@ HEADERS=-Iinc -Ivendor/include
 SQLITE_SRC=
 SQLITE=
 
-all: evmgr evpuller evpusher evslicer evmlmotion
+all: evmgr evpuller evpusher evslicer evmlmotion evdaemon evcloudsvc
 
 # sqlite C object
 sqlite3.o: vendor/sqlite/sqlite3.c
