@@ -53,6 +53,6 @@ namespace LVDB {
 
     typedef int(*cb_traverse_configration_module)(string modname, json &mod);
     int traverseConfigureModules(json &config, cb_traverse_configration_module cb, string moduleName = "");    
-}
+} // namespace LVDB
 
 #endif
