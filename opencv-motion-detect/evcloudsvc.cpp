@@ -26,6 +26,77 @@ class HttpSrv{
     // sn:module -> sn_of_evmgr
     json configMap;
 
+    json config(string body){
+        json ret;
+        ret["code"] = 0;
+        ret["msg"] = "ok";
+        ret["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+        try{
+            json newConfig = json::parse(body);
+            if(newConfig.count("data") == 0 || newConfig["data"].size() == 0) {
+                ret["code"] = 1;
+                ret["msg"] = "evcloudsvc invalid config body received: " + body;
+                spdlog::error(ret["msg"].get<string>());
+            }else{
+                json &data = newConfig["data"];
+                for(auto &[k, v]: data.items()) {
+                    // this is one evmgr
+                    if(v.count(k) == 0||v[k].size()==0) {
+                        ret["code"] = 2;
+                        ret["msg"] = "evcloudsvc invalid value for key " + k;
+                        spdlog::error(ret["msg"].get<string>());
+                        continue;
+                    }else{
+                        // find all modules
+                        if(v.count("ipcs") == 0||v["ipcs"].size() == 0) {
+                            spdlog::error("invalid ipcs in config body");
+                            continue;
+                        }else{
+                            json &ipcs = v["ipcs"];
+                            for(auto &ipc : ipcs) {
+                                if(ipc.count("modules") == 0||ipc["modules"].size() == 0) {
+                                    spdlog::error("invalid modules in ipcs config body");
+                                    continue;
+                                }else{
+                                    json &modules = ipc["modules"];
+                                    for(auto &[mn, ml]: modules.items()) {
+                                        if(ml.count("sn") != 0 && ml["sn"].size() != 0){
+                                            string modKey;
+                                            //ml
+                                            if(mn == "evml" && ml.count("type") != 0 && ml["type"].size() != 0) {
+                                                modKey = ml["sn"].get<string>() +":evml:" + ml["type"].get<string>();
+                                            }else{
+                                                modKey = ml["sn"].get<string>() + ":" + mn;
+                                            }
+                                            this->configMap[modKey] = v;
+                                        }
+                                    } // for modules
+                                }
+                            } // for ipc
+                        }  
+                    }
+                    // update evmgr config
+                    auto lastupdated = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                    json evmgrData;
+                    v["lastupdated"] = lastupdated;
+                    evmgrData[k] = v;
+                    //save
+                    LVDB::setLocalConfig(evmgrData, k);
+                } // for evmgr
+
+                // save configmap
+                LVDB::setValue(this->configMap, "configmap");
+                
+            }
+        }catch(exception &e) {
+            ret.clear();
+            ret["code"] = -1;
+            ret["msg"] = e.what();
+        }
+
+        return ret;
+    }
+
     protected:
     public:
     void run(){
@@ -35,6 +106,57 @@ class HttpSrv{
         if(cnfm.size() != 0){
             this->configMap = cnfm;
         }
+
+        svr.Post("/register", [this](const Request& req, Response& res){
+            json ret;
+            try{
+                json config = json::parse(req.body);
+                string sn = req.get_param_value("sn");
+                string module = req.get_param_value("module");
+                if(sn.empty()||module.empty()){
+                    throw "no para sn/module";
+                }
+                string modname = module.substr(0,4);
+                if(modname == "evml") {
+                    modname = "evml:" + module.substr(4, module.size());
+                }else{
+                    modname = module;
+                }
+
+                string key = sn + ":" + modname;
+
+                if(this->configMap.count(key) == 0){
+                    //
+                    spdlog::info("evcloudsvc no such edge module registred: {}, create new entry", key);
+                    ret = this->config(req.body);
+                    if(ret["code"] == 0) {
+                        ret["data"] = config["data"];
+                    }
+                }else{
+                    // TODO: calc md5
+                    int r;
+                    ret["code"] = 0;
+                    ret["msg"] = "ok";
+                    string dk = this->configMap[key];
+                    json data;
+                    r = LVDB::getLocalConfig(data, dk);
+                    if(ret < 0) {
+                        ret["code"] = r;
+                        ret["msg"] = "failed to get config for: " + dk;
+                    }else{
+                        ret["data"] = data;
+                    }
+                }
+
+            }catch(exception &e) {
+                ret.clear();
+                ret["code"] = -1;
+                ret["msg"] = e.what();
+            }
+
+            res.set_content(ret.dump(), "text/json");
+            
+        });
 
         svr.Get("/config", [this](const Request& req, Response& res){
             json ret;
@@ -77,74 +199,7 @@ class HttpSrv{
         });
 
         svr.Post("/config", [this](const Request& req, Response& res){
-            json ret;
-            ret["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
-            ret["code"] = 0;
-            ret["msg"] = "ok";
-            try{
-                json newConfig = json::parse(req.body);
-                if(newConfig.count("data") == 0 || newConfig["data"].size() == 0) {
-                    ret["code"] = 1;
-                    ret["msg"] = "evcloudsvc invalid config body received: " + req.body;
-                    spdlog::error(ret["msg"].get<string>());
-                }else{
-                    json &data = newConfig["data"];
-                    for(auto &[k, v]: data.items()) {
-                        // this is one evmgr
-                        if(v.count(k) == 0||v[k].size()==0) {
-                            ret["code"] = 2;
-                            ret["msg"] = "evcloudsvc invalid value for key " + k;
-                            spdlog::error(ret["msg"].get<string>());
-                            continue;
-                        }else{
-                            // find all modules
-                            if(v.count("ipcs") == 0||v["ipcs"].size() == 0) {
-                                spdlog::error("invalid ipcs in config body");
-                                continue;
-                            }else{
-                                json &ipcs = v["ipcs"];
-                                for(auto &ipc : ipcs) {
-                                    if(ipc.count("modules") == 0||ipc["modules"].size() == 0) {
-                                        spdlog::error("invalid modules in ipcs config body");
-                                        continue;
-                                    }else{
-                                        json &modules = ipc["modules"];
-                                        for(auto &[mn, ml]: modules.items()) {
-                                            if(ml.count("sn") != 0 && ml["sn"].size() != 0){
-                                                string modKey;
-                                                //ml
-                                                if(mn == "evml" && ml.count("type") != 0 && ml["type"].size() != 0) {
-                                                    modKey = ml["sn"].get<string>() +":evml:" + ml["type"].get<string>();
-                                                }else{
-                                                    modKey = ml["sn"].get<string>() + ":" + mn;
-                                                }
-                                                this->configMap[modKey] = v;
-                                            }
-                                        } // for modules
-                                    }
-                                } // for ipc
-                            }  
-                        }
-                        // update evmgr config
-                        auto lastupdated = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
-                        json evmgrData;
-                        v["lastupdated"] = lastupdated;
-                        evmgrData[k] = v;
-                        //save
-                        LVDB::setLocalConfig(evmgrData, k);
-                    } // for evmgr
-
-                    // save configmap
-                    LVDB::setValue(this->configMap, "configmap");
-                }
-                
-                // TODO: restart other components
-                //
-            }catch(exception &e) {
-                ret.clear();
-                ret["code"] = 1;
-                ret["msg"] = e.what();
-            }
+            auto ret = this->config(req.body);
             res.set_content(ret.dump(), "text/json");
         });
 
