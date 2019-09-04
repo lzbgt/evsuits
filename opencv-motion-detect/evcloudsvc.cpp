@@ -11,6 +11,7 @@ update: 2019/09/02
 #include "inc/database.h"
 #include "inc/json.hpp"
 #include "inc/spdlog/spdlog.h"
+#include "utils.hpp"
 
 using namespace std;
 using namespace httplib;
@@ -21,11 +22,19 @@ using namespace nlohmann;
 class HttpSrv{
     private:
     Server svr;
+    // sn:module -> sn_of_evmgr
     json configMap;
 
     protected:
     public:
     void run(){
+        // load configmap
+        json cnfm;
+        LVDB::getValue(cnfm, "configmap");
+        if(cnfm.size != 0){
+            this->configMap = cnfm;
+        }
+
         svr.Get("/config", [this](const Request& req, Response& res){
             json ret;
             ret["code"] = 0;
@@ -71,21 +80,54 @@ class HttpSrv{
                     ret["msg"] = "evcloudsvc invalid config body received: " + req.body;
                     spdlog::error(ret["msg"]);
                 }else{
-                    //LVDB::setLocalConfig(newConfig);
-                    //this->configMap = newConfig;
                     json &data = newConfig["data"];
                     for(auto &[k, v]: data.items()) {
+                        // this is one evmgr
                         if(v.count(k) == 0||v[k].size()==0) {
                             ret["code"] = 2;
                             ret["msg"] = "evcloudsvc invalid value for key " + k;
                             spdlog::error(ret["msg"]);
+                            continue;
                         }else{
-                            //
-                            LVDB::setLocalConfig(v, k);
-                            this->configMap[k]=v;
-                            LVDB::setValue(this->configMap, "configmap")
+                            // find all modules
+                            if(v.count("ipcs") == 0||v["ipcs"].size() == 0) {
+                                spdlog::error("invalid ipcs in config body");
+                                continue;
+                            }else{
+                                json &ipcs = v["ipcs"];
+                                for(auto &ipc : ipcs) {
+                                    if(ipc.count("modules") == 0||ipc["modules"].size() == 0) {
+                                        spdlog::error("invalid modules in ipcs config body");
+                                        continue;
+                                    }else{
+                                        json &modules = ipc["modules"];
+                                        for(auto &[mn, ml]: modules.items()) {
+                                            if(ml.count("sn") != 0 && ml["sn"].size() != 0){
+                                                string modKey;
+                                                //ml
+                                                if(mn == "evml" && ml.count("type") != 0 && ml["type"].size() != 0) {
+                                                    modKey = ml["sn"] + ":evml:" + ml["type"];
+                                                }else{
+                                                    modKey = ml["sn"] + ":" + mn;
+                                                }
+                                                this->configMap[modKey] = v;
+                                            }
+                                        } // for modules
+                                    }
+                                } // for ipc
+                            }  
                         }
-                    }
+                        // update
+                        auto lastupdated = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                        json evmgrData;
+                        v["lastupdated"] = lastupdated;
+                        evmgrData[k] = v;
+                        //save
+                        LVDB::setLocalConfig(evmgrData, k);
+                    } // for evmgr
+
+                    // save configmap
+                    LVDB::setValue(this->configMap, "configmap");
                 }
                 
 

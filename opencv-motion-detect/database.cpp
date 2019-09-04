@@ -1,3 +1,5 @@
+#pragma GCC diagnostic ignored "-Wunused-variable"
+
 #include "inc/database.h"
 //#include "inc/json.hpp"
 #include "spdlog/spdlog.h"
@@ -358,7 +360,7 @@ togo_end:
                 exit(1);
             }else{
                 // replace sn
-                int idx = 0;
+                size_t idx = 0;
                 for(auto &j:_sn_tmpl) {
                     idx = 0;
                     while(true) {
