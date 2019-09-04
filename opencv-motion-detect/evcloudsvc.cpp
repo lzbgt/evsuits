@@ -67,10 +67,27 @@ class HttpSrv{
             try{
                 json newConfig = json::parse(req.body);
                 if(newConfig.count("data") == 0 || newConfig["data"].size() == 0) {
-                    
+                    ret["code"] = 1;
+                    ret["msg"] = "evcloudsvc invalid config body received: " + req.body;
+                    spdlog::error(ret["msg"]);
+                }else{
+                    //LVDB::setLocalConfig(newConfig);
+                    //this->configMap = newConfig;
+                    json &data = newConfig["data"];
+                    for(auto &[k, v]: data.items()) {
+                        if(v.count(k) == 0||v[k].size()==0) {
+                            ret["code"] = 2;
+                            ret["msg"] = "evcloudsvc invalid value for key " + k;
+                            spdlog::error(ret["msg"]);
+                        }else{
+                            //
+                            LVDB::setLocalConfig(v, k);
+                            this->configMap[k]=v;
+                            LVDB::setValue(this->configMap, "configmap")
+                        }
+                    }
                 }
-                LVDB::setLocalConfig(newConfig);
-                this->configMap = newConfig;
+                
 
                 // TODO: restart other components
                 //

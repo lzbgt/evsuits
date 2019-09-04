@@ -37,7 +37,8 @@ using namespace std;
 using namespace zmqhelper;
 
 #define URLOUT_DEFAULT "frames"
-#define NUM_PKT_IGNORE 18*2
+#define NUM_PKT_IGNORE 18*10
+#define FRAME_SIZE 500
 
 #define DEBUG
 
@@ -157,6 +158,7 @@ private:
                 pullerGid = evpuller["sn"].get<string>() + ":evpuller:" + to_string(evpuller["iid"]);
                 mgrSn = evmgr["sn"];
 
+                // TODO: connect to the first slicer
                 json evslicer = ipc["modules"]["evslicer"][0];
                 slicerGid = evslicer["sn"].get<string>()+":evslicer:" + to_string(evslicer["iid"]);
 
@@ -166,7 +168,7 @@ private:
                 
                 // TODO: multiple protocols support
                 if(evmlmotion.count("path") == 0) {
-                    spdlog::warn("evslicer {} no params for path, using default: {}", selfId, URLOUT_DEFAULT);
+                    spdlog::warn("evmlmotion {} no params for path, using default: {}", selfId, URLOUT_DEFAULT);
                     urlOut = URLOUT_DEFAULT;
                 }
                 else {
@@ -177,6 +179,35 @@ private:
                 if(ret == -1) {
                     spdlog::error("failed mkdir {}", urlOut);
                     return -1;
+                }
+
+                // detection params
+                if(evmlmotion.count("thresh") == 0||evmlmotion["thresh"] < 10 ||evmlmotion["thresh"] >= 255) {
+                    spdlog::warn("evmlmotion {} invalid thresh value. should be in (10,255), default to 80", selfId);
+                    detPara.thre = 80;
+                }else{
+                    detPara.thre = evmlmotion["thresh"];
+                }
+
+                if(evmlmotion.count("area") == 0||evmlmotion["area"] < 10 ||evmlmotion["area"] >= int(FRAME_SIZE*FRAME_SIZE)*9/10) {
+                    spdlog::warn("evmlmotion {} invalid area value. should be in (10, 500*500*/10), default to 500", selfId);
+                    detPara.area = FRAME_SIZE;
+                }else{
+                    detPara.area = evmlmotion["area"];
+                }
+
+                if(evmlmotion.count("pre") == 0||evmlmotion["pre"] < 1 ||evmlmotion["pre"] >= 120) {
+                    spdlog::warn("evmlmotion {} invalid pre value. should be in (1, 120), default to 3", selfId);
+                    detPara.pre = 3;
+                }else{
+                    detPara.pre = evmlmotion["pre"];
+                }
+
+                if(evmlmotion.count("post") == 0||evmlmotion["post"] < 6 ||evmlmotion["post"] >= 120) {
+                    spdlog::warn("evmlmotion {} invalid post value. should be in (6, 120), default to 30", selfId);
+                    detPara.post = 30;
+                }else{
+                    detPara.post = evmlmotion["post"];
                 }
 
                 // setup sub
@@ -408,7 +439,7 @@ private:
         static vector<vector<cv::Point> > cnts;
         cv::Mat origin, gray, thresh;
         avcvhelpers::frame2mat(format, pFrame, origin);
-        cv::resize(origin, gray, cv::Size(500,500));
+        cv::resize(origin, gray, cv::Size(FRAME_SIZE,FRAME_SIZE));
         cv::cvtColor(gray, thresh, cv::COLOR_BGR2GRAY);
         cv::GaussianBlur(thresh, gray, cv::Size(21, 21), cv::THRESH_BINARY);
         if(first) {
@@ -430,7 +461,7 @@ private:
 #endif
 
         // TODO:
-        cv::threshold(thresh, gray, 25, 255, cv::THRESH_BINARY);
+        cv::threshold(thresh, gray, detPara.thre, 255, cv::THRESH_BINARY);
         cv::dilate(gray, thresh, cv::Mat(), cv::Point(-1,-1), 2);
 
 #ifdef DEBUG
@@ -441,7 +472,7 @@ private:
         bool hasEvent = false;
         for(int i =0; i < cnts.size(); i++) {
             // TODO:
-            if(cv::contourArea(cnts[i]) < 200) {
+            if(cv::contourArea(cnts[i]) < detPara.area) {
                 // nothing
             }
             else {

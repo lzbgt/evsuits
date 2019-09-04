@@ -25,10 +25,10 @@ namespace LVDB {
     typedef int (*cb_verify_json)(const json&);
 
 
-    int setValue(const string &value, string key, string fileName, cb_verify_str cb);
-    int getValue(string &value, string key, string fileName, cb_verify_str cb);
-    int setValue(const json &value, string key, string fileName, cb_verify_json cb);
-    int getValue(json &value, string key, string fileName, cb_verify_json cb);
+    int setValue(const string &value, string key, string fileName="", cb_verify_str cb=NULL);
+    int getValue(string &value, string key, string fileName="", cb_verify_str cb=NULL);
+    int setValue(const json &value, string key, string fileName="", cb_verify_json cb=NULL);
+    int getValue(json &value, string key, string fileName="", cb_verify_json cb=NULL);
 
     //
     json * findConfigModule(json &config, string sn, string moduleName, int iid);

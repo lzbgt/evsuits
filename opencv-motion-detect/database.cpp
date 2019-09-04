@@ -203,6 +203,12 @@ namespace LVDB {
     int getValue(string &value, string key, string fileName, cb_verify_str cb) {
         int ret = 0;
         DB* pdb = NULL;
+
+        if(fileName.empty()){
+            fileName = LVDB_FILE_GENERAL;
+        }
+
+
         ret = _getDB(fileName, &pdb);
         if(ret < 0) {
             return ret;
@@ -229,6 +235,10 @@ namespace LVDB {
             if(ret < 0) {
                 return ret;
             }
+        }
+
+        if(fileName.empty()){
+            fileName = LVDB_FILE_GENERAL;
         }
 
         DB* pdb = NULL;
