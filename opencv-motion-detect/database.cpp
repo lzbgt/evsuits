@@ -300,7 +300,7 @@ togo_end:
         return 0;
     }
 
-    int setValue(json &value, string key, string fileName, cb_verify_json cb) {
+    int setValue(const json &value, string key, string fileName, cb_verify_json cb) {
         int ret = 0;
         if(cb != NULL) {
             ret = cb(value);

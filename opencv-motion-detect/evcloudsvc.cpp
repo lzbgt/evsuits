@@ -138,7 +138,6 @@ class HttpSrv{
                     LVDB::setValue(this->configMap, "configmap");
                 }
                 
-
                 // TODO: restart other components
                 //
             }catch(exception &e) {
@@ -153,7 +152,7 @@ class HttpSrv{
             
         });
 
-        svr.listen("0.0.0.0", 8088);
+        svr.listen("0.0.0.0", 8089);
     }
 
     HttpSrv(){
@@ -163,5 +162,6 @@ class HttpSrv{
 };
 
 int main() {
-
+    HttpSrv srv;
+    srv.run();
 }
