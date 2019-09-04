@@ -39,6 +39,8 @@ evmlmotion: evmlmotion.cpp inc/common.hpp inc/avcvhelpers.hpp inc/database.h inc
 
 evdaemon: evdaemon.cpp inc/common.hpp inc/database.h inc/zmqhelper.hpp  inc/tinythread.hpp database.cpp
 	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evdaemon evdaemon.cpp database.cpp $(SQLITE) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
+evcloudsvc: evcloudsvc.cpp inc/utils.hpp inc/database.h inc/zmqhelper.hpp  inc/tinythread.hpp database.cpp
+	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evcloudsvc evcloudsvc.cpp inc/utils.hpp database.cpp $(SQLITE) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
 
 rtspr: rtsp-relay.cpp
 	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o rtspr rtsp-relay.cpp $(LIBFFMPEG) $(LD_FLAGS)

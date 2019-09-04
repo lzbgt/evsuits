@@ -12,6 +12,7 @@ update: 2019/09/02
 #include "inc/json.hpp"
 #include "inc/spdlog/spdlog.h"
 #include "utils.hpp"
+#include "inc/zmqhelper.hpp"
 
 using namespace std;
 using namespace httplib;
@@ -31,7 +32,7 @@ class HttpSrv{
         // load configmap
         json cnfm;
         LVDB::getValue(cnfm, "configmap");
-        if(cnfm.size != 0){
+        if(cnfm.size() != 0){
             this->configMap = cnfm;
         }
 
@@ -40,14 +41,21 @@ class HttpSrv{
             ret["code"] = 0;
             ret["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
             ret["msg"] = "ok";
-            if(!req.has_param("sn") || !req.has_param("module")){
+            if(!req.has_param("sn") || !req.has_param("module")||req.get_param_value("module").size()< 4){
                 ret["code"] = 1;
                 ret["msg"] = "evcloud bad req: no sn/module param";
-                spdlog::error("evcloud bad req: {}", req);
+                spdlog::error(ret["msg"].get<string>());
             }else{
                 string sn = req.get_param_value("sn");
                 string module = req.get_param_value("module");
-                string key = sn + ":" + module;
+                string modname = module.substr(0,4);
+                if(modname == "evml") {
+                    modname = "evml:" + module.substr(4, module.size());
+                }else{
+                    modname = module;
+                }
+
+                string key = sn + ":" + modname;
                 if(this->configMap.count(key) != 0) {
                     json config;
                     ret = LVDB::getLocalConfig(config, this->configMap[key]);
@@ -55,7 +63,7 @@ class HttpSrv{
                     if(ret < 0) {
                         ret["code"] = 1;
                         ret["msg"] = "evcloud failed to get config with k, v:" + key + " " + this->configMap[key].get<string>();
-                        spdlog::error(ret["msg"]);
+                        spdlog::error(ret["msg"].get<string>());
                     }else{
                         ret["data"] = config;
                     }
@@ -78,7 +86,7 @@ class HttpSrv{
                 if(newConfig.count("data") == 0 || newConfig["data"].size() == 0) {
                     ret["code"] = 1;
                     ret["msg"] = "evcloudsvc invalid config body received: " + req.body;
-                    spdlog::error(ret["msg"]);
+                    spdlog::error(ret["msg"].get<string>());
                 }else{
                     json &data = newConfig["data"];
                     for(auto &[k, v]: data.items()) {
@@ -86,7 +94,7 @@ class HttpSrv{
                         if(v.count(k) == 0||v[k].size()==0) {
                             ret["code"] = 2;
                             ret["msg"] = "evcloudsvc invalid value for key " + k;
-                            spdlog::error(ret["msg"]);
+                            spdlog::error(ret["msg"].get<string>());
                             continue;
                         }else{
                             // find all modules
@@ -106,9 +114,9 @@ class HttpSrv{
                                                 string modKey;
                                                 //ml
                                                 if(mn == "evml" && ml.count("type") != 0 && ml["type"].size() != 0) {
-                                                    modKey = ml["sn"] + ":evml:" + ml["type"];
+                                                    modKey = ml["sn"].get<string>() +":evml:" + ml["type"].get<string>();
                                                 }else{
-                                                    modKey = ml["sn"] + ":" + mn;
+                                                    modKey = ml["sn"].get<string>() + ":" + mn;
                                                 }
                                                 this->configMap[modKey] = v;
                                             }
@@ -117,7 +125,7 @@ class HttpSrv{
                                 } // for ipc
                             }  
                         }
-                        // update
+                        // update evmgr config
                         auto lastupdated = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                         json evmgrData;
                         v["lastupdated"] = lastupdated;

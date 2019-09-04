@@ -101,7 +101,8 @@ vector<vector<uint8_t> > z_recv_multiple(void *s, bool nowait=false)
 // proto [sender_id(only when no identifier set in setsockopts)] [target_id] [body]
 int z_send_multiple(void *s, vector<vector<uint8_t> >&body)
 {
-    int cnt = 0, ret = 0;
+    size_t cnt = 0;
+    int ret = 0;
     zmq_msg_t msg;
     for(auto &i:body) {
         ret = zmq_msg_init_size(&msg, i.size());
