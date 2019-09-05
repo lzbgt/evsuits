@@ -341,7 +341,7 @@ togo_end:
     // sn
     // {"sn":string, "updatetime": string, "lastboot": string}
     int _validateSn(const json &info) {
-        if(info.count("sn") == 0||info.count("updatetime") == 0||info.count("lastboot") == 0) {
+        if(info.count("sn") == 0 || info["sn"].size() == 0) {
                 spdlog::error("invalid sn config:{}", info.dump());
                 return -1;
         }
@@ -380,7 +380,8 @@ togo_end:
 
                 // replace camera addr, user, password, cloud-addr
                 spdlog::debug("new config: {}", _config_default_tmpl);
-                return setValue(_config_default_tmpl, LVDB_KEY_CONFIG, fileName, NULL);
+                json j = json::parse(_config_default_tmpl);
+                return setLocalConfig(j);
             }
         }
 
@@ -388,6 +389,7 @@ togo_end:
     };
 
     int setSn(json &info, string fileName){
+        info["lastupdated"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
         return setValue(info, LVDB_KEY_SN, fileName, _validateSn);
     };
 
@@ -430,10 +432,19 @@ togo_end:
     };
 
     int setLocalConfig(json &config, string key, string fileName){
+        if(config.count("data") == 0) {
+            spdlog::error("setLocalConfig no data field");
+            return -1;
+        }
+
+        json j;
+        j["lastupdated"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+        j["data"] = config["data"];
+
         if(key.empty()) {
-            return setValue(config, LVDB_KEY_CONFIG, fileName, _validateConfig);
+            return setValue(j, LVDB_KEY_CONFIG, fileName, _validateConfig);
         }else{
-            return setValue(config, key, fileName, _validateConfig);
+            return setValue(j, key, fileName, _validateConfig);
         } 
     };
 

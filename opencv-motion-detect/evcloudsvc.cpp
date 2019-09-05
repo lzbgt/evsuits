@@ -46,7 +46,7 @@ class HttpSrv{
                     json &data = newConfig["data"];
                     for(auto &[k, v]: data.items()) {
                         // this is one evmgr
-                        if(v.count(k) == 0||v.size()==0) {
+                        if(v.count("sn") == 0||v["sn"] != k) {
                             ret["code"] = 2;
                             ret["msg"] = "evcloudsvc invalid value for key " + k;
                             spdlog::error(ret["msg"].get<string>());
@@ -81,16 +81,23 @@ class HttpSrv{
                             }  
                         }
                         // update evmgr config
-                        auto lastupdated = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                         json evmgrData;
-                        v["lastupdated"] = lastupdated;
-                        evmgrData[k] = v;
+                        evmgrData["data"] = data;
                         //save
-                        LVDB::setLocalConfig(evmgrData, k);
+                        int r = LVDB::setLocalConfig(evmgrData, k);
+                        if(r < 0) {
+                            string msg = "failed to save config " + k + " -> " + evmgrData.dump();
+                            spdlog::error(msg);
+                            ret["code"] = r;
+                            ret["msg"] = msg;
+                        }
                     } // for evmgr
 
                     // save configmap
-                    LVDB::setValue(this->configMap, "configmap");
+                    if(ret >= 0) {
+                        LVDB::setValue(this->configMap, "configmap");
+                    }
+                    
                     ret["data"] = newConfig["data"];   
                 }
             }catch(exception &e) {

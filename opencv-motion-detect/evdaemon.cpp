@@ -41,6 +41,25 @@ class HttpSrv{
             res.set_content(this->info.dump(), "text/json");
         });
 
+        svr.Post("/info", [this](const Request& req, Response& res){
+            json ret;
+            ret["code"] = 0;
+            ret["msg"] = "ok";
+            string sn = req.get_param_value("sn");
+            if(sn.empty()){
+                ret["code"] = 1;
+                ret["msg"] = "no sn in param";
+            }else{
+                json info;
+                info["sn"] = sn;
+                // TODO:
+
+                info["lastboot"] =  chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                LVDB::setSn(info);
+            }
+            res.set_content(this->info.dump(), "text/json");
+        });
+
         svr.Get("/config", [this](const Request& req, Response& res){
             LVDB::getLocalConfig(this->config);
             res.set_content(this->config.dump(), "text/json");
@@ -54,7 +73,6 @@ class HttpSrv{
             try{
                 json newConfig;
                 newConfig["data"] = json::parse(req.body)["data"];
-                newConfig["lastupdated"] = ret["time"];
                 
                 LVDB::setLocalConfig(newConfig);
                 spdlog::info("evmgr new config: {}", newConfig.dump());
