@@ -4,5 +4,6 @@
     "files.associations": {
         "chrono": "cpp",
         "optional": "cpp"
-    }
+    },
+    "C_Cpp.errorSquiggles": "Disabled"
 }

@@ -34,6 +34,8 @@ namespace LVDB {
     json * findConfigModule(json &config, string sn, string moduleName, int iid);
     //
     int delValue(string key, string fileName);
+    //
+    vector<string> getKeys(string fileName = "");
 
     // sn, updatetime, boottime
     int setSn(json &info,string fileName=LVDB_FILE_GENERAL);

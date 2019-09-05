@@ -208,6 +208,27 @@ namespace LVDB {
     int clearDB(string fileName) {
         return 0;
     }
+
+    vector<string> getKeys(string fileName) {
+        DB* pdb = NULL;
+        if(fileName.empty()) {
+            fileName = LVDB_FILE_GENERAL;
+        }
+        vector<string> vec;
+        int ret = 0;
+        ret = _getDB(fileName, &pdb);
+        if(ret < 0) {
+            //
+        }else{
+            Iterator* it = pdb->NewIterator(leveldb::ReadOptions());
+            for (it->SeekToFirst(); it->Valid(); it->Next()) {
+                vec.push_back(it->key().ToString()); 
+            }
+            delete it;
+            delete pdb;
+        }
+        return vec;
+    }
     
     int getValue(string &value, string key, string fileName, cb_verify_str cb) {
         int ret = 0;

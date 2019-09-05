@@ -159,14 +159,18 @@ class HttpSrv{
                 if(sn.empty()||module.empty()){
                     throw StrException("no para sn/module");
                 }
-                string modname = module.substr(0,4);
-                if(modname == "evml") {
-                    modname = "evml:" + module.substr(4, module.size());
-                }else{
-                    modname = module;
-                }
 
-                string key = sn + ":" + modname;
+                string key, modname;
+                if(module == "evmgr") {
+                    key = sn;
+                }else {
+                    if(modname == "evml") {
+                        modname = "evml:" + module.substr(4, module.size());
+                    }else{
+                        modname = module;
+                    }
+                    key = sn + ":" + modname;
+                }
 
                 if(this->configMap.count(key) == 0){
                     //
@@ -181,7 +185,7 @@ class HttpSrv{
                     // TODO: calc md5
                     int r;
                     ret["code"] = 0;
-                    ret["msg"] = "ok";
+                    ret["msg"] = "all ready exist";
                     string dk = this->configMap[key];
                     json data;
                     r = LVDB::getLocalConfig(data, dk);
@@ -230,7 +234,7 @@ class HttpSrv{
                 
                 if(!key.empty()) {
                     json config;
-                    int iret = LVDB::getLocalConfig(config, key);
+                    int iret = LVDB::getLocalConfig(config, this->configMap[key]);
                     if(iret < 0) {
                         ret["code"] = 1;
                         ret["msg"] = "evcloud failed to get config with k, v:" + key + " " + this->configMap[key].get<string>();
@@ -255,6 +259,26 @@ class HttpSrv{
 
         svr.Post("/reset", [](const Request& req, Response& res){
             
+        });
+
+        svr.Get("/keys", [](const Request& req, Response& res){
+            string fileName = req.get_param_value("filename");
+            auto v = LVDB::getKeys(fileName);
+            json ret = v;
+            res.set_content(ret.dump(), "text/json");
+        });
+
+        svr.Get("/value", [](const Request& req, Response& res){
+            string key = req.get_param_value("key");
+            string filename = req.get_param_value("filename");
+            json j;
+            int ret = LVDB::getValue(j, key, filename);
+            if(ret < 0) {
+                j["code"] = 1;
+            }else{
+                j["code"] = 0;
+            }
+            res.set_content(j.dump(), "text/json");
         });
 
         svr.listen("0.0.0.0", 8089);
