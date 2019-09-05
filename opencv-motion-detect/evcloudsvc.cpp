@@ -46,7 +46,7 @@ class HttpSrv{
                     json &data = newConfig["data"];
                     for(auto &[k, v]: data.items()) {
                         // this is one evmgr
-                        if(v.count(k) == 0||v[k].size()==0) {
+                        if(v.count(k) == 0||v.size()==0) {
                             ret["code"] = 2;
                             ret["msg"] = "evcloudsvc invalid value for key " + k;
                             spdlog::error(ret["msg"].get<string>());
@@ -100,7 +100,6 @@ class HttpSrv{
             }
         }
         
-
         return ret;
     }
 
