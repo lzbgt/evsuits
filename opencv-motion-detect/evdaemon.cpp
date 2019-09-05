@@ -5,6 +5,10 @@ author: Bruce.Lu <lzbgt@icloud.com>
 update: 2019/08/30
 */
 
+
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored  "-Wunused-lambda-capture"
+
 #include "inc/tinythread.hpp"
 #include "inc/httplib.h"
 #include "inc/zmqhelper.hpp"
