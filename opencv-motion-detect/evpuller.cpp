@@ -234,6 +234,7 @@ private:
 
                 urlIn = "rtsp://" + user + ":" + passwd + "@" + ipc["addr"].get<string>() + ":" + ipcPort + "/h264/ch1/sub/av_stream";
                 addr = evpuller["addr"].get<string>();
+                spdlog::info("evpuller {} connecting to IPC {}", selfId, urlIn);
                 if(addr == "*" || addr == "0.0.0.0") {
                     spdlog::error("evpuller {} invalid addr {} for pub", selfId, evpuller.dump());
                     goto togo_sleep_continue;

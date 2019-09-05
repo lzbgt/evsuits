@@ -42,19 +42,23 @@ class HttpSrv{
 
         svr.Post("/config", [this](const Request& req, Response& res){
             json ret;
+            ret["code"] = 0;
+            ret["msg"] = "ok";
             ret["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
             try{
-                json newConfig = json::parse(req.body);
+                json newConfig;
+                newConfig["data"] = json::parse(req.body)["data"];
+                newConfig["lastupdated"] = ret["time"];
+                
                 LVDB::setLocalConfig(newConfig);
-                this->config = newConfig;
-                ret["code"] = 0;
-                ret["msg"] = "ok";
+                spdlog::info("evmgr new config: {}", newConfig.dump());
                 // TODO: restart other components
                 //
             }catch(exception &e) {
                 ret.clear();
-                ret["code"] = 1;
+                ret["code"] = -1;
                 ret["msg"] = e.what();
+                ret["data"] = req.body;
             }
             res.set_content(ret.dump(), "text/json");
         });
