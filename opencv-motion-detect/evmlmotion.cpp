@@ -37,7 +37,7 @@ using namespace std;
 using namespace zmqhelper;
 
 #define URLOUT_DEFAULT "frames"
-#define NUM_PKT_IGNORE 18*10
+#define NUM_PKT_IGNORE 18*5
 #define FRAME_SIZE 500
 
 #define DEBUG
@@ -56,6 +56,7 @@ struct DetectParam {
     int fpsProc;
     int pre;
     int post;
+    float entropy;
 };
 
 enum EventState {
@@ -74,7 +75,7 @@ private:
     AVFormatContext *pAVFormatInput = NULL;
     AVCodecContext *pCodecCtx = NULL;
     AVDictionary *pOptsRemux = NULL;
-    DetectParam detPara = {25,200,-1,10,3,30};
+    DetectParam detPara = {25,200,-1,10,3,30, 0.3};
     EventState evtState = EventState::NONE;
     chrono::system_clock::time_point evtStartTm, evtStartTmLast;
     queue<string> *evtQueue;
@@ -208,6 +209,13 @@ private:
                     detPara.post = 30;
                 }else{
                     detPara.post = evmlmotion["post"];
+                }
+
+                if(evmlmotion.count("entropy") == 0||evmlmotion["entropy"] < 0 || evmlmotion["entropy"] >= 10) {
+                    spdlog::warn("evmlmotion {} invalid entropy value. should be in (0, 10), default to 0.3", selfId);
+                    detPara.entropy = 0.3;
+                }else{
+                    detPara.entropy = evmlmotion["entropy"];
                 }
 
                 // setup sub
@@ -423,16 +431,14 @@ private:
                     pFrame->coded_picture_number
                 );
                 // string name = urlOut + "/"+ to_string(chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count()) + ".pgm";
-                if(detect) {
-                    detectMotion(pCodecContext->pix_fmt,pFrame);
-                }
+                detectMotion(pCodecContext->pix_fmt, pFrame, detect);
                 break;
             }
         }
         return 0;
     }
 
-    void detectMotion(AVPixelFormat format,AVFrame *pFrame)
+    void detectMotion(AVPixelFormat format,AVFrame *pFrame, bool detect = true)
     {
         static bool first = true;
         static cv::Mat avg;
@@ -441,6 +447,7 @@ private:
         avcvhelpers::frame2mat(format, pFrame, origin);
         cv::resize(origin, gray, cv::Size(FRAME_SIZE,FRAME_SIZE));
         cv::cvtColor(gray, thresh, cv::COLOR_BGR2GRAY);
+        float fent = avcvhelpers::getEntropy(thresh);
         cv::GaussianBlur(thresh, gray, cv::Size(21, 21), cv::THRESH_BINARY);
         if(first) {
             // avg = cv::Mat::zeros(gray.size(), CV_32FC3);
@@ -455,10 +462,12 @@ private:
         // TODO: AVG
         // cv::accumulateWeighted(gray, avg, 0.5);
         cv::absdiff(gray, avg, thresh);
-
 #ifdef DEBUG
         avg = gray.clone();
 #endif
+        if(!detect || fent < detPara.entropy){
+            return;
+        }
 
         // TODO:
         cv::threshold(thresh, gray, detPara.thre, 255, cv::THRESH_BINARY);

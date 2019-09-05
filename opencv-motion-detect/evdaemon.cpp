@@ -14,6 +14,7 @@ update: 2019/08/30
 #include "inc/zmqhelper.hpp"
 #include "inc/database.h"
 #include "inc/json.hpp"
+#include <cstdlib>
 
 using namespace std;
 using namespace httplib;
@@ -24,6 +25,7 @@ class HttpSrv{
     Server svr;
     json config;
     json info;
+    int port = 8088;
 
     void setMonitorThread() {
 
@@ -75,7 +77,10 @@ class HttpSrv{
     }
 
     HttpSrv(){
-
+        char* strPort = getenv("PORT");
+        if(strPort != NULL) {
+            port = stoi(strPort);
+        }
     };
     ~HttpSrv(){};
 };

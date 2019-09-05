@@ -89,6 +89,28 @@ void frame2mat(AVPixelFormat format, const AVFrame * frame, cv::Mat& image)
     sws_scale(conversion, frame->data, frame->linesize, 0, height, &image.data, cvLinesizes);
     sws_freeContext(conversion);
 }
+
+float getEntropy(cv::Mat &frame){
+    int histSize = 256;
+    /// Set the ranges ( for B,G,R) )
+    float range[] = { 0, 256 } ;
+    const float* histRange = { range };
+    bool uniform = true; 
+    bool accumulate = false;
+    /// Compute the histograms:
+    cv::Mat hist;
+    cv::calcHist( &frame, 1, 0, cv::Mat(), hist, 1, &histSize, &histRange, true, false );
+    hist /= frame.total();
+    hist += 1e-4; //prevent 0
+
+    cv::Mat logP;
+    cv::log(hist,logP);
+
+    float entropy = -1*sum(hist.mul(logP)).val[0];
+    spdlog::debug("entropy: {}", entropy);
+    return entropy;
+}
+
 }
 
 #endif
