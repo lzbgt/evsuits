@@ -26,9 +26,13 @@ class HttpSrv{
     json config;
     json info;
     int port = 8088;
+    thread thMon;
 
     void setMonitorThread() {
-
+        thMon = thread([this](){
+            //
+            
+        });
     }
 
     protected:

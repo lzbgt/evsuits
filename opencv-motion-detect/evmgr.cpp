@@ -76,24 +76,6 @@ private:
         }
 
         spdlog::info("evmgr local config:\n{}", config.dump(4));
-        
-        // // set all module status to 0
-        // ret = LVDB::traverseConfigureModules(config, [](string modname, json &m, void* pUser)->int{
-        //     if(m.count("status") != 0)
-        //     {
-        //         //cout << modname <<" ," << m.dump() << endl;
-        //         m["status"] = 0;
-        //     }
-        //     return 0;
-        // });
-
-
-        // if(ret < 0) {
-        //     spdlog::error("evmgr {} failed to set module status to 0", devSn);
-        // }else{
-        //     //spdlog::info("new config: {}", config.dump());
-        //     LVDB::setLocalConfig(config);
-        // }
 
         int opt_notify = ZMQ_NOTIFY_DISCONNECT|ZMQ_NOTIFY_CONNECT;
         string proto, addr;

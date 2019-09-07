@@ -113,7 +113,7 @@ private:
                     spdlog::error("failed to get local configuration");
                     exit(1);
                 }
-                spdlog::info("config: {:s}", config.dump());
+                spdlog::info("evmlmotion {} config: {}", devSn, config.dump(4));
                 json evmlmotion;
                 json evmgr;
                 json ipc;
