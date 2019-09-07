@@ -155,12 +155,12 @@ class HttpSrv{
             json ret;
             try{
                 string sn = req.get_param_value("sn");
-                string module = req.get_param_value("module");
-                auto cfg = json::parse(req.body);              
+                string module = req.get_param_value("module");             
                 if(sn.empty()||module.empty()){
                     throw StrException("no para sn/module");
                 }
 
+                auto cfg = json::parse(req.body); 
                 string key, modname;
                 if(module == "evmgr") {
                     key = sn;
