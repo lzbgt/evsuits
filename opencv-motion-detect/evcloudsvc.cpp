@@ -164,8 +164,8 @@ class HttpSrv{
                 string key, modname;
                 if(module == "evmgr") {
                     key = sn;
-                    // trigger exception if
-                    (void)cfg["data"][key];
+                    // trigger exception
+                    (void)cfg.at("data").at(key);                  
                 }else {
                     if(modname == "evml") {
                         string 
@@ -174,31 +174,33 @@ class HttpSrv{
                     }else{
                         modname = module;
                     }
-                    key = sn + ":" + modname;
-                }
-
-                if(this->configMap.count(key) == 0){
-                    //
-                    spdlog::info("evcloudsvc no such edge module registred: {}, create new entry", key);
-                    ret = this->config(req.body);
-                    if(ret["code"] == 0) {
-                        //ret["data"] =ret["data"];
+                    modname = sn + ":" + modname;
+                    if(this->configMap.count(modname) == 0){
+                        spdlog::info("evcloudsvc no such edge module registred: {}, create new entry", key);
+                        ret = this->config(req.body);
+                        if(ret["code"] == 0) {
+                        }else{
+                            spdlog::error("failed to config: {}", ret.dump());
+                        }
                     }else{
-                        spdlog::error("failed to config: {}", ret.dump());
+                        key = configMap[modname];
                     }
-                }else{
+                }
+                if(!key.empty()){
                     // TODO: calc md5
+                    spdlog::info("evcloudsvc key: {}", key);
                     int r;
                     ret["code"] = 0;
-                    ret["msg"] = "all ready exist";
-                    string dk = this->configMap[key];
+                    ret["msg"] = "diff";
                     json data;
-                    r = LVDB::getLocalConfig(data, dk);
-                    if(ret < 0) {
+                    r = LVDB::getLocalConfig(data, key);
+                    if(r < 0) {
                         ret["code"] = r;
-                        ret["msg"] = "failed to get config for: " + dk;
+                        ret["msg"] = "failed to get config for: " + key;
                     }else{
-                        ret["data"] = data;
+                        json diff = json::diff(data, cfg);
+                        spdlog::info("evcloudsvc diff: {}", diff.dump());
+                        ret["data"] = diff;
                     }
                 }
 
