@@ -231,12 +231,13 @@ class HttpSrv{
                     }else{
                         modname = module;
                     }
-                    key = sn + ":" + modname;
+
+                    key = this->configMap.at(sn + ":" + modname);
                 }
                 
                 if(!key.empty()) {
                     json config;
-                    int iret = LVDB::getLocalConfig(config, this->configMap[key]);
+                    int iret = LVDB::getLocalConfig(config, key);
                     if(iret < 0) {
                         ret["code"] = 1;
                         ret["msg"] = "evcloud failed to get config with k, v:" + key + " " + this->configMap[key].get<string>();
