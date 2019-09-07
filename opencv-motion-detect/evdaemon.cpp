@@ -75,7 +75,7 @@ class HttpSrv{
                 newConfig["data"] = json::parse(req.body)["data"];
                 
                 LVDB::setLocalConfig(newConfig);
-                spdlog::info("evmgr new config: {}", newConfig.dump());
+                spdlog::info("evmgr new config: {}", newConfig.dump(4));
                 // TODO: restart other components
                 //
             }catch(exception &e) {
@@ -106,7 +106,7 @@ class HttpSrv{
 int main(){
     json info;
     LVDB::getSn(info);
-    spdlog::info("evdaemon: {}",info.dump());
+    spdlog::info("evdaemon: \n{}",info.dump(4));
     HttpSrv srv;
     srv.run();
 }

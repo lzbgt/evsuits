@@ -103,7 +103,7 @@ int setInfo(void* info, const char*fileName)
     sqlite3 * pdb = NULL;
     auto v = static_cast<json*>(info);
     if(v==NULL||v->count("sn") == 0 ||v->count("lastboot") == 0) {
-        spdlog::error("failed to set info to file {}, parameter error: {}", fileName, v->dump());
+        spdlog::error("failed to set info to file {}, parameter error: {}", fileName, v->dump(4));
         return -1;
     }
 
@@ -183,7 +183,7 @@ int getInfo(void *info, int active, const char*fileName)
         return sqlite3_errcode(pdb);
     }
 
-    spdlog::debug("getInfo to file {}: {}", fileName, v->dump());
+    spdlog::debug("getInfo to file {}: {}", fileName, v->dump(4));
 
     return 0;
 }
@@ -213,7 +213,7 @@ int saveLocalConfigration(json &config, string fileName)
         std::ofstream o(fileName);
         o << std::setw(4) << config << std::endl;
     }catch(exception &e) {
-        spdlog::error("saveLocalConfigration failed to write configuration to file {}: {}\n{}", fileName, e.what(), config.dump());
+        spdlog::error("saveLocalConfigration failed to write configuration to file {}: {}\n{}", fileName, e.what(), config.dump(4));
         return -2;
     }
     

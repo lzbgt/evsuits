@@ -52,6 +52,8 @@ private:
     void init()
     {
         int ret;
+        json jret;
+
         bool inited = false;
         // TODO: load config from local db
         json info;
@@ -73,29 +75,56 @@ private:
             exit(1);
         }
 
+        spdlog::info("evmgr local config:\n{}", config.dump(4));
         
-        
-        // set all module status to 0
-        ret = LVDB::traverseConfigureModules(config, [](string modname, json &m, void* pUser)->int{
-            if(m.count("status") != 0)
-            {
-                //cout << modname <<" ," << m.dump() << endl;
-                m["status"] = 0;
-            }
-            return 0;
-        });
-        if(ret < 0) {
-            spdlog::error("evmgr {} failed to set module status to 0", devSn);
-        }else{
-            //spdlog::info("new config: {}", config.dump());
-            LVDB::setLocalConfig(config);
-        }
+        // // set all module status to 0
+        // ret = LVDB::traverseConfigureModules(config, [](string modname, json &m, void* pUser)->int{
+        //     if(m.count("status") != 0)
+        //     {
+        //         //cout << modname <<" ," << m.dump() << endl;
+        //         m["status"] = 0;
+        //     }
+        //     return 0;
+        // });
+
+
+        // if(ret < 0) {
+        //     spdlog::error("evmgr {} failed to set module status to 0", devSn);
+        // }else{
+        //     //spdlog::info("new config: {}", config.dump());
+        //     LVDB::setLocalConfig(config);
+        // }
 
         int opt_notify = ZMQ_NOTIFY_DISCONNECT|ZMQ_NOTIFY_CONNECT;
         string proto, addr;
         while(!inited) {
             try {
-                spdlog::info("config dumps: \n{}", config.dump());
+                // register
+                jret = cloudutils::registry(config, info["sn"], "evmgr");
+                spdlog::info("evmgr {} get config from cloud:\n{}", devSn, jret.dump(4));
+                if(jret["code"] != 0) {
+                    spdlog::error("evmgr {} failed to registry: {}", devSn, jret["msg"].get<string>());
+                    goto togo_sleep_continue;
+                }else{
+                    if(jret["msg"] == "diff") {
+                        json &data = jret["data"];
+                        if(data.size() == 1 && data[0].at("path") == "/lastupdated") {
+                            // no diff
+                            spdlog::info("evmgr {} no change in config", devSn);
+                        }else{
+                            // patch
+                            spdlog::info("evmgr config changed in cloud, merge patch:\n{}", jret["data"].dump(4));
+                            config.merge_patch(jret["data"]);
+                            ret = LVDB::setLocalConfig(config);
+                            if(ret < 0) {
+                                spdlog::error("evmgr {} failed to update local config:\n{}", devSn, config.dump(4));
+                                goto togo_sleep_continue;
+                            }
+                        }        
+                    }
+                }
+
+                spdlog::info("new config dumps: \n{}", config.dump(4));
                 // TODO: verify sn
                 if(!config.count("data")||!config["data"].count(devSn)||!config["data"][devSn].count("ipcs")) {
                     spdlog::error("evmgr {} invalid config. reload now...", devSn);
@@ -110,7 +139,7 @@ private:
 
                 //
                 if(jmgr["addr"].get<string>()  == "*" || jmgr["addr"].get<string>() == "0.0.0.0") {
-                    spdlog::error("invalid mgr address: {} in config:\n{}", jmgr["addr"].get<string>(), jmgr.dump());
+                    spdlog::error("invalid mgr address: {} in config:\n{}", jmgr["addr"].get<string>(), jmgr.dump(4));
                     goto togo_sleep_continue;
                 }
 

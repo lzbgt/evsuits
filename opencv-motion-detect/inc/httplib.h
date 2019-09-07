@@ -83,6 +83,10 @@ typedef int socket_t;
 #include <sys/stat.h>
 #include <thread>
 
+// for uri
+#include <algorithm>    // find
+
+
 #ifdef CPPHTTPLIB_OPENSSL_SUPPORT
 #include <openssl/err.h>
 #include <openssl/ssl.h>
@@ -118,6 +122,73 @@ inline const unsigned char *ASN1_STRING_get0_data(const ASN1_STRING *asn1) {
 #define CPPHTTPLIB_THREAD_POOL_COUNT 8
 
 namespace httplib {
+struct Uri
+{
+  public:
+  std::string QueryString, Path, Protocol, Host, Port;
+
+  static Uri Parse(const std::string &uri)
+  {
+      Uri result;
+
+      typedef std::string::const_iterator iterator_t;
+
+      if (uri.length() == 0)
+          return result;
+
+      iterator_t uriEnd = uri.end();
+
+      // get query start
+      iterator_t queryStart = std::find(uri.begin(), uriEnd, L'?');
+
+      // protocol
+      iterator_t protocolStart = uri.begin();
+      iterator_t protocolEnd = std::find(protocolStart, uriEnd, L':');            //"://");
+
+      if (protocolEnd != uriEnd)
+      {
+          std::string prot = &*(protocolEnd);
+          if ((prot.length() > 3) && (prot.substr(0, 3) == "://"))
+          {
+              result.Protocol = std::string(protocolStart, protocolEnd);
+              protocolEnd += 3;   //      ://
+          }
+          else
+              protocolEnd = uri.begin();  // no protocol
+      }
+      else
+          protocolEnd = uri.begin();  // no protocol
+
+      // host
+      iterator_t hostStart = protocolEnd;
+      iterator_t pathStart = std::find(hostStart, uriEnd, '/');  // get pathStart
+
+      iterator_t hostEnd = std::find(protocolEnd, 
+          (pathStart != uriEnd) ? pathStart : queryStart,
+          ':');  // check for port
+
+      result.Host = std::string(hostStart, hostEnd);
+
+      // port
+      if ((hostEnd != uriEnd) && ((&*(hostEnd))[0] == ':'))  // we have a port
+      {
+          hostEnd++;
+          iterator_t portEnd = (pathStart != uriEnd) ? pathStart : queryStart;
+          result.Port = std::string(hostEnd, portEnd);
+      }
+
+      // path
+      if (pathStart != uriEnd)
+          result.Path = std::string(pathStart, queryStart);
+
+      // query
+      if (queryStart != uriEnd)
+          result.QueryString = std::string(queryStart, uri.end());
+
+      return result;
+
+  }   // Parse
+};  // uri
 
 namespace detail {
 
@@ -504,6 +575,13 @@ public:
 
   std::shared_ptr<Response> Head(const char *path);
   std::shared_ptr<Response> Head(const char *path, const Headers &headers);
+
+  /// patched by bruce.lu
+  std::shared_ptr<Response> Post(const char *path,
+                                              const Headers &headers,
+                                              const Params & params,
+                                              const std::string &body,
+                                              const char *content_type);
 
   std::shared_ptr<Response> Post(const char *path, const std::string &body,
                                  const char *content_type);
@@ -2846,6 +2924,35 @@ inline std::shared_ptr<Response> Client::Post(const char *path,
                                               const std::string &body,
                                               const char *content_type) {
   return Post(path, Headers(), body, content_type);
+}
+
+/// patched by bruce.lu
+inline std::shared_ptr<Response> Client::Post(const char *path,
+                                              const Headers &headers,
+                                              const Params & params,
+                                              const std::string &body,
+                                              const char *content_type) {
+  Request req;
+  req.method = "POST";
+  req.headers = headers;
+  req.params = params;
+
+  std::string query;
+  for (auto it = params.begin(); it != params.end(); ++it) {
+    if (it != params.begin()) { query += "&"; }
+    query += it->first;
+    query += "=";
+    query += detail::encode_url(it->second);
+  }
+
+  req.path = string(path) + "?" + query;
+
+  req.headers.emplace("Content-Type", content_type);
+  req.body = body;
+
+  auto res = std::make_shared<Response>();
+
+  return send(req, *res) ? res : nullptr;
 }
 
 inline std::shared_ptr<Response> Client::Post(const char *path,

@@ -38,7 +38,7 @@ class HttpSrv{
         try{
             if(newConfig.count("data") == 0 || newConfig["data"].size() == 0) {
                 ret["code"] = 1;
-                ret["msg"] = "evcloudsvc invalid config body received: " + newConfig.dump();
+                ret["msg"] = "evcloudsvc invalid config body received: " + newConfig.dump(4);
                 spdlog::error(ret["msg"].get<string>());
             }else{
                 json &data = newConfig["data"];
@@ -77,7 +77,7 @@ class HttpSrv{
                                                 // modkey -> sn_of_evmgr
                                                 this->configMap[modKey] = k;
                                             }else{
-                                                string msg = "evcloudsvc invalid config: " + data.dump();;
+                                                string msg = "evcloudsvc invalid config: " + data.dump(4);;
                                                 ret["code"] = -1;
                                                 ret["msg"] = msg;
                                                 spdlog::error(msg);
@@ -104,7 +104,7 @@ class HttpSrv{
                     //save
                     iret = LVDB::setLocalConfig(evmgrData, k);
                     if(iret < 0) {
-                        string msg = "failed to save config " + k + " -> " + evmgrData.dump();
+                        string msg = "failed to save config " + k + " -> " + evmgrData.dump(4);
                         spdlog::error(msg);
                         ret["code"] = iret;
                         ret["msg"] = msg;
@@ -176,7 +176,7 @@ class HttpSrv{
                         ret = this->config(cfg);
                         if(ret["code"] == 0) {
                         }else{
-                            spdlog::error("failed to config: {}", ret.dump());
+                            spdlog::error("failed to config: {}", ret.dump(4));
                         }
                     }else{
                         key = configMap[modname];
@@ -195,7 +195,7 @@ class HttpSrv{
                         ret = this->config(cfg);
                     }else{
                         json diff = json::diff(cfg, data);
-                        spdlog::info("evcloudsvc diff: {}", diff.dump());
+                        spdlog::info("evcloudsvc diff: {}", diff.dump(4));
                         ret["data"] = diff;
                     }
                 }

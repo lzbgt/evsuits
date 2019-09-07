@@ -220,12 +220,8 @@ togo_sc:
     {
         // send hello to router
         int ret = 0;
-        vector<vector<uint8_t> >body;
-        // since identity is auto set
-        body.push_back(str2body(mgrSn+":0:0"));
-        body.push_back(str2body(EV_MSG_META_PING)); // blank meta
-        body.push_back(str2body(MSG_HELLO));
-
+        /// identity is auto set
+        vector<vector<uint8_t> >body = {str2body(mgrSn+":0:0"), str2body(EV_MSG_META_PING), str2body(MSG_HELLO)};
         ret = z_send_multiple(pDealer, body);
         if(ret < 0) {
             spdlog::error("evslicer {} failed to send multiple: {}", selfId, zmq_strerror(zmq_errno()));
