@@ -27,116 +27,110 @@ class HttpSrv{
     // sn:module -> sn_of_evmgr
     json configMap;
 
-    json config(string body){
+    json config(json &newConfig){
         json ret;
         int iret;
         json oldConfigMap = this->configMap;
         ret["code"] = 0;
         ret["msg"] = "ok";
         ret["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
-        spdlog::info(body);
-        if(body.empty()){
-            ret["code"] = 1;
-            ret["msg"] = "no body payload";
-        }else{
-           try{
-                json newConfig = json::parse(body);
-                if(newConfig.count("data") == 0 || newConfig["data"].size() == 0) {
-                    ret["code"] = 1;
-                    ret["msg"] = "evcloudsvc invalid config body received: " + body;
-                    spdlog::error(ret["msg"].get<string>());
-                }else{
-                    json &data = newConfig["data"];
-                    for(auto &[k, v]: data.items()) {
-                        // this is one evmgr
-                        if(v.count("sn") == 0||v["sn"] != k) {
-                            ret["code"] = 2;
-                            ret["msg"] = "evcloudsvc invalid value for key " + k;
-                            spdlog::error(ret["msg"].get<string>());
+        spdlog::info(newConfig.dump());   
+        try{
+            if(newConfig.count("data") == 0 || newConfig["data"].size() == 0) {
+                ret["code"] = 1;
+                ret["msg"] = "evcloudsvc invalid config body received: " + newConfig.dump();
+                spdlog::error(ret["msg"].get<string>());
+            }else{
+                json &data = newConfig["data"];
+                for(auto &[k, v]: data.items()) {
+                    // this is one evmgr
+                    if(v.count("sn") == 0||v["sn"] != k) {
+                        ret["code"] = 2;
+                        ret["msg"] = "evcloudsvc invalid value for key " + k;
+                        spdlog::error(ret["msg"].get<string>());
+                        break;
+                    }else{
+                        // find all modules
+                        if(v.count("ipcs") == 0||v["ipcs"].size() == 0) {
+                            spdlog::error("invalid ipcs in config body");
+                            ret["code"] = 3;
                             break;
                         }else{
-                            // find all modules
-                            if(v.count("ipcs") == 0||v["ipcs"].size() == 0) {
-                                spdlog::error("invalid ipcs in config body");
-                                ret["code"] = 3;
-                                break;
-                            }else{
-                                json &ipcs = v["ipcs"];
-                                for(auto &ipc : ipcs) {
-                                    if(ipc.count("modules") == 0||ipc["modules"].size() == 0) {
-                                        spdlog::error("invalid modules in ipcs config body");
-                                        ret["code"] = 4;
-                                        break;
-                                    }else{
-                                        json &modules = ipc["modules"];
-                                        for(auto &[mn, ma]: modules.items()) {
-                                            for(auto &m:ma) {
-                                                if(m.count("sn") != 0 && m["sn"].size() != 0){
-                                                    string modKey;
-                                                    //ml
-                                                    if(mn == "evml" && m.count("type") != 0 && m["type"].size() != 0) {
-                                                        modKey = m["sn"].get<string>() +":evml:" + m["type"].get<string>();
-                                                    }else{
-                                                        modKey = m["sn"].get<string>() + ":" + mn;
-                                                    }
-                                                    // modkey -> sn_of_evmgr
-                                                    this->configMap[modKey] = k;
+                            json &ipcs = v["ipcs"];
+                            for(auto &ipc : ipcs) {
+                                if(ipc.count("modules") == 0||ipc["modules"].size() == 0) {
+                                    spdlog::error("invalid modules in ipcs config body");
+                                    ret["code"] = 4;
+                                    break;
+                                }else{
+                                    json &modules = ipc["modules"];
+                                    for(auto &[mn, ma]: modules.items()) {
+                                        for(auto &m:ma) {
+                                            if(m.count("sn") != 0 && m["sn"].size() != 0){
+                                                string modKey;
+                                                //ml
+                                                if(mn == "evml" && m.count("type") != 0 && m["type"].size() != 0) {
+                                                    modKey = m["sn"].get<string>() +":evml:" + m["type"].get<string>();
                                                 }else{
-                                                    string msg = "evcloudsvc invalid config: " + data.dump();;
-                                                    ret["code"] = -1;
-                                                    ret["msg"] = msg;
-                                                    spdlog::error(msg);
-                                                    break;
+                                                    modKey = m["sn"].get<string>() + ":" + mn;
                                                 }
+                                                // modkey -> sn_of_evmgr
+                                                this->configMap[modKey] = k;
+                                            }else{
+                                                string msg = "evcloudsvc invalid config: " + data.dump();;
+                                                ret["code"] = -1;
+                                                ret["msg"] = msg;
+                                                spdlog::error(msg);
+                                                break;
                                             }
-                                        } // for modules
-
-                                        if(ret["code"] != 0) {
-                                            break;
                                         }
-                                    } // for ipc
-                                }
-                            } 
+                                    } // for modules
 
-                            if(ret["code"] != 0) {
-                                break;
-                            } 
-                        }
-                        // update evmgr config
-                        json evmgrData;
-                        evmgrData["data"] = data;
-                        //evmgrData["lastupdated"] = newConfig["lastupdated"];
+                                    if(ret["code"] != 0) {
+                                        break;
+                                    }
+                                } // for ipc
+                            }
+                        } 
 
-                        //save
-                        iret = LVDB::setLocalConfig(evmgrData, k);
-                        if(iret < 0) {
-                            string msg = "failed to save config " + k + " -> " + evmgrData.dump();
-                            spdlog::error(msg);
-                            ret["code"] = iret;
-                            ret["msg"] = msg;
-                        }
-                    } // for evmgr
-
-                    // save configmap
-                    if(ret["code"] == 0) {
-                        iret = LVDB::setValue(this->configMap, KEY_CONFIG_MAP);
-                        if(iret >= 0) {
-                        }else{
-                            ret["code"] = iret;
-                            ret["msg"] = "failed to save configmap";
-                        }
-                    }else{
-                        this->configMap = oldConfigMap;
+                        if(ret["code"] != 0) {
+                            break;
+                        } 
                     }
+                    // update evmgr config
+                    json evmgrData;
+                    evmgrData["data"] = data;
 
-                    ret["data"] = newConfig["data"];   
+                    //save
+                    iret = LVDB::setLocalConfig(evmgrData, k);
+                    if(iret < 0) {
+                        string msg = "failed to save config " + k + " -> " + evmgrData.dump();
+                        spdlog::error(msg);
+                        ret["code"] = iret;
+                        ret["msg"] = msg;
+                    }
+                } // for evmgr
+
+                // save configmap
+                if(ret["code"] == 0) {
+                    iret = LVDB::setValue(this->configMap, KEY_CONFIG_MAP);
+                    if(iret >= 0) {
+                    }else{
+                        ret["code"] = iret;
+                        ret["msg"] = "failed to save configmap";
+                    }
+                }else{
+                    this->configMap = oldConfigMap;
                 }
-            }catch(exception &e) {
-                ret.clear();
-                ret["code"] = -1;
-                ret["msg"] = e.what();
+
+                ret["data"] = newConfig["data"];   
             }
+        }catch(exception &e) {
+            ret.clear();
+            ret["code"] = -1;
+            ret["msg"] = e.what();
         }
+    
         
         return ret;
     }
@@ -155,7 +149,9 @@ class HttpSrv{
             json ret;
             try{
                 string sn = req.get_param_value("sn");
-                string module = req.get_param_value("module");             
+                string module = req.get_param_value("module");
+                bool force = (req.get_param_value("force") == "true") ? true: false;
+
                 if(sn.empty()||module.empty()){
                     throw StrException("no para sn/module");
                 }
@@ -177,7 +173,7 @@ class HttpSrv{
                     modname = sn + ":" + modname;
                     if(this->configMap.count(modname) == 0){
                         spdlog::info("evcloudsvc no such edge module registred: {}, create new entry", key);
-                        ret = this->config(req.body);
+                        ret = this->config(cfg);
                         if(ret["code"] == 0) {
                         }else{
                             spdlog::error("failed to config: {}", ret.dump());
@@ -194,16 +190,15 @@ class HttpSrv{
                     ret["msg"] = "diff";
                     json data;
                     r = LVDB::getLocalConfig(data, key);
-                    if(r < 0) {
-                        ret["code"] = r;
-                        ret["msg"] = "failed to get config for: " + key;
+                    if(r < 0||force) {
+                        spdlog::error("failed to get localconfig or force to updaste. create new");
+                        ret = this->config(cfg);
                     }else{
-                        json diff = json::diff(data, cfg);
+                        json diff = json::diff(cfg, data);
                         spdlog::info("evcloudsvc diff: {}", diff.dump());
                         ret["data"] = diff;
                     }
                 }
-
             }catch(exception &e) {
                 ret.clear();
                 ret["code"] = -1;
@@ -260,7 +255,16 @@ class HttpSrv{
         });
 
         svr.Post("/config", [this](const Request& req, Response& res){
-            auto ret = this->config(req.body);
+            json ret;
+            string msg;
+            try{
+                json cfg = json::parse(req.body);
+                ret = this->config(cfg);
+            }catch (exception &e) {
+                msg = string("evcloudsvc exception on POST /config: ") +  e.what();
+                ret["msg"] = msg;
+                ret["code"]= -1;
+            }
             res.set_content(ret.dump(), "text/json");
         });
 
