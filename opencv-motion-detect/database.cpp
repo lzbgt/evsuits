@@ -139,7 +139,7 @@ namespace LVDB {
                                             ret = cb(modname, m, pUser);
                                             cnt++;
                                             if(ret <0) {
-                                                spdlog::error("failed to traverse and callback config on module: {}", m.dump());
+                                                spdlog::error("failed to traverse and callback config on module: {}", m.dump(4));
                                                 return ret;
                                             }
                                         }
@@ -152,7 +152,7 @@ namespace LVDB {
                                     ret = cb(mn,m, pUser);
                                     cnt++;
                                     if(ret <0) {
-                                        spdlog::error("failed to traverse and callback config on module: {}", m.dump());
+                                        spdlog::error("failed to traverse and callback config on module: {}", m.dump(4));
                                         return ret;
                                     }
                                 }
@@ -341,7 +341,7 @@ togo_end:
             }
         }
 
-        ret = setValue(value.dump(), key,fileName, NULL);
+        ret = setValue(value.dump(4), key,fileName, NULL);
 
         return ret;
     }
@@ -367,7 +367,7 @@ togo_end:
     // {"sn":string, "updatetime": string, "lastboot": string}
     int _validateSn(const json &info) {
         if(info.count("sn") == 0 || info["sn"].size() == 0) {
-                spdlog::error("invalid sn config:{}", info.dump());
+                spdlog::error("invalid sn config:{}", info.dump(4));
                 return -1;
         }
 
@@ -441,7 +441,7 @@ togo_end:
     // config
     int _validateConfig(const json &config) {
         if(config.count("data") == 0|| config["data"].size() == 0) {
-            spdlog::error("invliad config: {}", config.dump());
+            spdlog::error("invliad config: {}", config.dump(4));
             return -1;
         }
         return 0;
