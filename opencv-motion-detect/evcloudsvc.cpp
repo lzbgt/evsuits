@@ -221,35 +221,42 @@ class HttpSrv{
                 ret["msg"] = "evcloud bad req: no sn/module param";
                 spdlog::error(ret["msg"].get<string>());
             }else{
-                string modname = module.substr(0,4);
-                string key;
-                if(module == "evmgr") {
-                    key = sn;
-                }else {
-                    if(modname == "evml") {
-                        modname = "evml:" + module.substr(4, module.size());
-                    }else{
-                        modname = module;
-                    }
+                try{
+                    string modname = module.substr(0,4);
+                    string key;
+                    if(module == "evmgr") {
+                        key = sn;
+                    }else {
+                        if(modname == "evml") {
+                            modname = "evml:" + module.substr(4, module.size());
+                        }else{
+                            modname = module;
+                        }
 
-                    key = this->configMap.at(sn + ":" + modname);
-                }
-                
-                if(!key.empty()) {
-                    json config;
-                    int iret = LVDB::getLocalConfig(config, key);
-                    if(iret < 0) {
-                        ret["code"] = 1;
-                        ret["msg"] = "evcloud failed to get config with k, v:" + key + " " + this->configMap[key].get<string>();
-                        spdlog::error(ret["msg"].get<string>());
-                    }else{
-                        ret["data"] = config["data"];
-                        ret["lastupdated"] = config["lastupdated"];
+                        key = this->configMap.at(sn + ":" + modname);
+                        spdlog::debug("key: ", key);
                     }
-                }else{
-                    ret["code"] = 1;
-                    ret["msg"] = "no config for sn " +  sn + ", module " + module;
-                }  
+                    
+                    if(!key.empty()) {
+                        json config;
+                        int iret = LVDB::getLocalConfig(config, key);
+                        if(iret < 0) {
+                            ret["code"] = 1;
+                            ret["msg"] = "evcloud failed to get config with key: " + key ;
+                            spdlog::error(ret["msg"].get<string>());
+                        }else{
+                            ret["data"] = config["data"];
+                            ret["lastupdated"] = config["lastupdated"];
+                        }
+                    }else{
+                        ret["code"] = 1;
+                        ret["msg"] = "no config for sn " +  sn + ", module " + module;
+                    }  
+                }catch(exception &e){
+                    ret["code"] = -1;
+                    ret["msg"] = string("evcloudsvc exception: ") + e.what();
+                    spdlog::error(ret["msg"].get<string>());
+                }
             }
 
             res.set_content(ret.dump(), "text/json");
