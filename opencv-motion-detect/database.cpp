@@ -391,22 +391,22 @@ togo_end:
                 spdlog::error("failed to save new generated sn");
                 exit(1);
             }else{
-                // replace sn
-                size_t idx = 0;
-                for(auto &j:_sn_tmpl) {
-                    idx = 0;
-                    while(true) {
-                        idx = _config_default_tmpl.find(j, idx);
-                        if(idx == string::npos) break;
-                        _config_default_tmpl.replace(idx, j.size(), sn);
-                        idx+=sn.size();
-                    }
-                }
+                // // replace sn
+                // size_t idx = 0;
+                // for(auto &j:_sn_tmpl) {
+                //     idx = 0;
+                //     while(true) {
+                //         idx = _config_default_tmpl.find(j, idx);
+                //         if(idx == string::npos) break;
+                //         _config_default_tmpl.replace(idx, j.size(), sn);
+                //         idx+=sn.size();
+                //     }
+                // }
 
-                // replace camera addr, user, password, cloud-addr
-                spdlog::debug("new config: {}", _config_default_tmpl);
-                json j = json::parse(_config_default_tmpl);
-                return setLocalConfig(j);
+                // // replace camera addr, user, password, cloud-addr
+                // spdlog::debug("new config: {}", _config_default_tmpl);
+                // json j = json::parse(_config_default_tmpl);
+                // return setLocalConfig(j);
             }
         }
 
@@ -417,26 +417,6 @@ togo_end:
         info["lastupdated"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
         return setValue(info, LVDB_KEY_SN, fileName, _validateSn);
     };
-
-    // int setSn(json &info) {
-    //     std::ifstream i("file.json");
-    //     json j;
-    //     i >> j;
-    //     // write prettified JSON to another file
-    //     std::ofstream o("pretty.json");
-    //     o << std::setw(4) << j << std::endl;
-    //     return -1;
-    // }
-    // int getSn(json &info) {
-    //     fstream file;
-    //     file.open(LVDB_KEY_SN, ios::out|ios);
-    //     if(snfile.e)
-    //     json j;
-    //     i >> j;
-    //     // write prettified JSON to another file
-    //     std::ofstream o("pretty.json");
-    //     o << std::setw(4) << j << std::endl;
-    // }
 
     // config
     int _validateConfig(const json &config) {

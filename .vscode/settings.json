@@ -4,7 +4,8 @@
     "files.associations": {
         "chrono": "cpp",
         "optional": "cpp",
-        "string": "cpp"
+        "string": "cpp",
+        "set": "cpp"
     },
     "C_Cpp.errorSquiggles": "Disabled"
 }
