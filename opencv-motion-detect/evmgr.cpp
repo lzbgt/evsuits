@@ -74,7 +74,7 @@ private:
         }
         
         // set all module status to 0
-        ret = LVDB::traverseConfigureModules(config, [](string modname, json &m)->int{
+        ret = LVDB::traverseConfigureModules(config, [](string modname, json &m, void* pUser)->int{
             if(m.count("status") != 0)
             {
                 //cout << modname <<" ," << m.dump() << endl;

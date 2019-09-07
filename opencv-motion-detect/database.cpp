@@ -96,8 +96,9 @@ namespace LVDB {
         return ret;
     }
 
-    int traverseConfigureModules(json &config, cb_traverse_configration_module cb, string moduleName){
+    int traverseConfigureModules(json &config, cb_traverse_configration_module cb, void *pUser, string moduleName){
         int ret = 0;
+        int cnt = 0;
         if(config.count("data") == 0) {
             return -1;
         }
@@ -135,7 +136,8 @@ namespace LVDB {
                                 if(!sub.empty()) {
                                     for(auto &m:module) {
                                         if(m.count("type") != 0 && m["type"] == sub) {
-                                            ret = cb(modname, m);
+                                            ret = cb(modname, m, pUser);
+                                            cnt++;
                                             if(ret <0) {
                                                 spdlog::error("failed to traverse and callback config on module: {}", m.dump());
                                                 return ret;
@@ -147,7 +149,8 @@ namespace LVDB {
                         }else{
                             for(auto &[mn, mod]:modules.items()) {
                                 for(auto &m:mod) {
-                                    ret = cb(mn,m);
+                                    ret = cb(mn,m, pUser);
+                                    cnt++;
                                     if(ret <0) {
                                         spdlog::error("failed to traverse and callback config on module: {}", m.dump());
                                         return ret;
@@ -159,7 +162,8 @@ namespace LVDB {
                 }
             }    
         }
-        return 0;
+        
+        return cnt;
     }
 
     int _getDB(string fileName, DB** pdb) {

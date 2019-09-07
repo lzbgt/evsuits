@@ -156,6 +156,7 @@ class HttpSrv{
             try{
                 string sn = req.get_param_value("sn");
                 string module = req.get_param_value("module");
+                auto cfg = json::parse(req.body);              
                 if(sn.empty()||module.empty()){
                     throw StrException("no para sn/module");
                 }
@@ -163,9 +164,13 @@ class HttpSrv{
                 string key, modname;
                 if(module == "evmgr") {
                     key = sn;
+                    // trigger exception if
+                    (void)cfg["data"][key];
                 }else {
                     if(modname == "evml") {
+                        string 
                         modname = "evml:" + module.substr(4, module.size());
+
                     }else{
                         modname = module;
                     }
