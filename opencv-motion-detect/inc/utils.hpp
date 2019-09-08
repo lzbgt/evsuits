@@ -73,7 +73,7 @@ json reqConfig(json &info){
       Uri uri=Uri::Parse(api);
       string sn = info.at("sn").get<string>();
       if(uri.Host.empty()||uri.Port.empty()||uri.Protocol.find("http") == string::npos) {
-         string msg = "reqConfig error. invalid api-cloud in info: " + api;
+         string msg = string(__FILE__) +":" + to_string(__LINE__) + ": request cloud configuration error. invalid api-cloud in info: " + api;
          ret["code"] = 1;
          ret["msg"] = msg;
          spdlog::error(msg);
@@ -85,8 +85,21 @@ json reqConfig(json &info){
       Client cli(uri.Host.c_str(), stoi(uri.Port));
 
       auto res = cli.Get("/config", Headers(), params);
-      spdlog::debug("{} {} registry res from cloud : {}", __FILE__, __LINE__, res->body);
-      ret = json::parse(res->body);
+      if(res == nullptr || res->status != 200) {
+         const char *msg = NULL;
+         if(res == nullptr) {
+            msg = (string("error to connect to server: ") + api + "/config").c_str();
+            ret["code"] = -2;
+         }else{
+            msg = httplib::detail::status_message(res->status);
+            ret["code"] = res->status;
+         }
+         spdlog::debug("failed to reqConfig. {}", msg);         
+         ret["msg"] = msg;
+      }else{
+         spdlog::debug("{} {} registry res from cloud : {}", __FILE__, __LINE__, res->body);
+         ret = json::parse(res->body);
+      }
    }catch(exception &e) {
       ret["code"] = -1;
       string msg = string(__FILE__) + ":" + to_string(__LINE__) + string(": registry exception - ") + e.what();

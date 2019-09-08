@@ -52,29 +52,55 @@ class EvDaemon{
         this->devSn = this->info["sn"];
         /// req config
         json jret = cloudutils::reqConfig(this->info);
-        spdlog::info("evmgr {} got cloud config:\n{}", devSn, jret.dump(4));
         // apply config
         try{
             if(jret["code"] != 0) {
-                spdlog::error("evdaemon {} reqConfig error: {}", this->devSn, jret["msg"].get<string>());
+                spdlog::error("evdaemon {} request cloud configration error: {}", this->devSn, jret["msg"].get<string>());
                 return 2;
             }
+
+            spdlog::info("evmgr {} got cloud config:\n{}", devSn, jret.dump(4));
 
             json &data = jret["data"];
             for(auto &[k,v]:data.items()) {
                 if(k == this->devSn) {
                     // startup evmgr
-                    pid_t pid = fork();
-                    
-                    ret = system("./evmgr");
-                    if(ret == -1) {
-                        spdlog::error("evdaemon {} failed to start evmgr", this->devSn);
-                        break;
+                    pid_t pid;
+                    if( (pid = fork()) == -1 ) {
+                        spdlog::error("evdamon {} failed to fork subsytem - evmgr", this->devSn);
+                    }else if(pid == 0) {
+                        // child
+                        // execl("./evmgr", "arg1", "arg2", (char *)0);
+                        ret = setenv("ADDR", v["addr"].get<string>().c_str(), 1);
+                        ret += setenv("SN", v["sn"].get<string>().c_str(), 1);
+                        ret += setenv("PORT_ROUTER", to_string(v["port-router"].get<int>()).c_str(), 1);
+                        ret += setenv("PORT_CLOUD", to_string(v["port-cloud"].get<int>()).c_str(), 1);
+                        ret += setenv("ADDR_CLOUD", v["mqtt-cloud"].get<string>().c_str(), 1);
+                        if(ret < 0) {
+                            spdlog::error("evdaemon {} failed to set env", this->devSn);
+                            return -3;
+                        }
+                        execl("./evmgr", NULL, NULL, NULL);
+                        spdlog::error("evdaemon {} failed to startup evmgr", this->devSn);
+                    }else{
+                        // parent
+                        spdlog::info("evdaemon {} created evmgr", this->devSn);
+                    }
+                }
+
+                // startup other submodules
+
+                json &ipcs = v["ipcs"];
+                for(auto &ipc : ipcs) {
+                    json &modules = ipc["modules"];
+                    for(auto &[mn, ml] : modules.items()) {
+                        //
+                        if()
                     }
                 }
             }
         }catch(exception &e) {
-            spdlog::error("evdaemon {} exception to reload and apply configuration:\n{}", this->devSn, jret.dump(4));
+            spdlog::error("evdaemon {} exception {} to reload and apply configuration:\n{}", this->devSn, e.what(), jret.dump(4));
             return -1;
         }
 
@@ -89,6 +115,7 @@ class EvDaemon{
                     spdlog::error("evdaemon {} failed to setup subsystems, please check log for more info", this->devSn);
                 }
                 this_thread::sleep_for(chrono::seconds(5));
+                break;
             }
         });
     }
@@ -184,7 +211,13 @@ class EvDaemon{
     ~EvDaemon(){};
 };
 
+void cleanup(int signal) {
+  int status;
+  while (waitpid((pid_t) (-1), 0, WNOHANG) > 0) {}
+}
+
 int main(){
+    signal(SIGCHLD, cleanup);
     json info;
     LVDB::getSn(info);
     spdlog::info("evdaemon: \n{}",info.dump(4));

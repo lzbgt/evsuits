@@ -386,7 +386,6 @@ togo_end:
             spdlog::warn("no local sn set. create a new one: {}", sn);
             auto tsNow = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
             info["lastboot"] = tsNow;
-            info["updatetime"] = tsNow;
             ret = setSn(info, fileName);
             if(ret < 0) {
                 spdlog::error("failed to save new generated sn");
