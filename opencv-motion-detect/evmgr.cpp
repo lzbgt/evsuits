@@ -38,6 +38,7 @@ class EvMgr:public TinyThread {
 private:
     void *pRouterCtx = NULL;
     void *pRouter = NULL;
+    void *pCtxDealer = NULL, *pDealer = NULL;
     json config;
     string devSn;
     json peerStatus;
@@ -102,113 +103,6 @@ private:
         
         spdlog::info("evmgr {} successfuly inited", devSn);
     }
-
-//     // TODO: deprecated
-//     void _init()
-//     {
-//         int ret;
-//         json jret;
-
-//         bool inited = false;
-//         // TODO: load config from local db
-//         json info;
-//         ret = LVDB::getSn(info);
-//         if(ret < 0) {
-//             spdlog::error("failed to get sn");
-//             exit(1);
-//         }
-
-//         tsLastBoot = info["lastboot"];
-//         tsUpdateTime=info["updatetime"];
-
-//         spdlog::info("evmgr info: sn = {}, lastboot = {}, updatetime = {}", config["sn"].get<string>(), ctime(&tsLastBoot), ctime(&tsUpdateTime));
-//         devSn = config["sn"];
-
-
-//         ret = LVDB::getLocalConfig(config);
-//         if(ret < 0) {
-//             spdlog::error("evmgr failed to get local configuration");
-//             exit(1);
-//         }
-
-//         spdlog::info("evmgr local config:\n{}", config.dump(4));
-
-//         int opt_notify = ZMQ_NOTIFY_DISCONNECT|ZMQ_NOTIFY_CONNECT;
-//         string proto, addr;
-//         while(!inited) {
-//             try {
-//                 //
-//                 jret = cloudutils::registry(this->config, info["sn"], "evmgr");
-//                 if(jret["code"] != 0) {
-//                     spdlog::error("evmgr {} failed to registry: {}", devSn, jret["msg"].get<string>());
-//                     goto error_exit;
-//                 }else{
-//                     if(jret["msg"] == "diff") {
-//                         json &data = jret["data"];
-//                         if(data.size() == 1 && data[0].at("path") == "/lastupdated") {
-//                             // no diff
-//                             spdlog::info("evmgr {} no change in config", devSn);
-//                         }else{
-//                             // patch
-//                             spdlog::info("evmgr config changed in cloud, merge patch:\n{}", jret["data"].dump(4));
-//                             config.merge_patch(jret["data"]);
-//                             ret = LVDB::setLocalConfig(config);
-//                             if(ret < 0) {
-//                                 spdlog::error("evmgr {} failed to update local config:\n{}", devSn, config.dump(4));
-//                                 goto error_exit;
-//                             }
-//                         }        
-//                     }
-//                 }
-
-//                 // TODO: verify sn
-//                 if(!config.count("data")||!config["data"].count(devSn)||!config["data"][devSn].count("ipcs")) {
-//                     spdlog::error("evmgr {} invalid config. reload now...", devSn);
-//                     goto error_exit;
-//                 }
-//                 jmgr =  config["data"][devSn];
-//                 proto = jmgr["proto"];
-
-//                 if(proto != "zmq") {
-//                     spdlog::warn("evmgr {} unsupported protocol: {}, try fallback to zmq instead now...", devSn, proto);
-//                 }
-
-//                 //
-//                 if(jmgr["addr"].get<string>()  == "*" || jmgr["addr"].get<string>() == "0.0.0.0") {
-//                     spdlog::error("invalid mgr address: {} in config:\n{}", jmgr["addr"].get<string>(), jmgr.dump(4));
-//                     goto error_exit;
-//                 }
-
-//                 //addr = "tcp://" + jmgr["addr"].get<string>() + ":" + to_string(jmgr["port-router"]);
-//                 addr = "tcp://*:" + to_string(jmgr["port-router"]);
-//                 // setup zmq
-//                 // TODO: connect to cloud
-
-//                 // router service
-//                 pRouterCtx = zmq_ctx_new();
-//                 pRouter = zmq_socket(pRouterCtx, ZMQ_ROUTER);
-//                 zmq_setsockopt (pRouter, ZMQ_ROUTER_NOTIFY, &opt_notify, sizeof (opt_notify));
-//                 ret = zmq_bind(pRouter, addr.c_str());
-//                 if(ret < 0) {
-//                     spdlog::error("evmgr {} failed to bind zmq at {} for reason: {}, retrying load configuration...", devSn, addr, zmq_strerror(zmq_errno()));
-//                     goto error_exit;
-//                 }
-//                 spdlog::info("evmgr {} bind success to {}", devSn, addr);
-//                 inited = true;
-//                 break;
-
-// error_exit:
-//                 this_thread::sleep_for(chrono::seconds(3));
-//                 //continue;
-//             }
-//             catch(exception &e) {
-//                 spdlog::error("evmgr {} exception on init() for: {}, retrying load configuration...", devSn, e.what());
-//                 this_thread::sleep_for(chrono::seconds(3));
-//                 continue;
-//             }
-//         }
-//         spdlog::info("evmgr {} successfuly inited", devSn);
-//     }
 
     int mqErrorMsg(string cls, string devSn, string extraInfo, int ret)
     {
@@ -320,6 +214,7 @@ private:
                     }
                 }
             }
+
             catch(exception &e) {
                 spdlog::error("evmgr {} exception parse event msg from {} to {}: ", devSn, selfId, peerId, e.what());
             }
@@ -382,42 +277,50 @@ public:
     EvMgr& operator=(EvMgr &&) = delete;
     EvMgr()
     {
-        config["addr"] = "127.0.0.1";
-        // config["api-cloud"] = "http://127.0.0.1:8089";
-        config["port-daemon"] = 5549;
-        // config["mqtt-cloud"] = "<cloud_addr>";
-        config["addr-cloud"] = "127.0.0.1";
-        config["port-cloud"] = 5556;
-        config["proto"] = "zmq";
-        config["sn"] = "none";
-        config["port-router"] = 5550;
-        //
 
-        const char *strEnv = getenv("ADDR");
+        const char *strEnv = getenv("DR_PORT");
         if(strEnv != NULL) {
-            config["addr"] = strEnv;
-        }
-
-        strEnv = getenv("PORT_DAEMON");
-        if(strEnv != NULL) {
-            config["port-daemon"] = atoi(strEnv);
-        }
-
-        strEnv = getenv("PORT_CLOUD");
-        if(strEnv != NULL) {
-            config["port-cloud"] = atoi(strEnv);
+            config["dr-port"] = atoi(strEnv);
         }else{
-            // TODO:
+            spdlog::error("evmgr failed to start. no DR_PORT set");
+            exit(1);
         }
 
         strEnv = getenv("SN");
         if(strEnv != NULL) {
             config["sn"] = strEnv;
+            devSn = strEnv;
         }else{
-            spdlog::error("evmgr failed to start. no sn set");
+            spdlog::error("evmgr failed to start. no SN set");
             exit(1);
         }
 
+        //
+        string addr = string("tcp://127.0.0.1:") + to_string(config["dr-port"]);
+        string ident = config["sn"].get<string>() + ":evmgr:0";
+        int ret = zmqhelper::setupDealer(&pCtxDealer, &pDealer, addr, ident);
+        
+        bool bConfigGot = false;
+        while(!bConfigGot){
+            auto v = zmqhelper::z_recv_multiple(pDealer);
+            if(v.size() != 3) {
+                spdlog::error("evmgr {} invalid msg from daemon: {}", ident, addr);
+                continue;
+            }
+
+            spdlog::info("evmgr {} msg received: {} {} {}", ident, body2str(v[0]), body2str(v[1]), body2str(v[2]));
+            try{
+                string sMeta = json::parse(body2str(v[1]))["type"];
+                if(sMeta != EV_MSG_META_CONFIG) {
+                    throw StrException("meta type is:" + sMeta + ", but expecting " + EV_MSG_META_CONFIG);
+                }
+                config = json::parse(body2str(v[2]));
+                bConfigGot = true;
+            }catch(exception &e) {
+                spdlog::error("evmgr {} invalid config msg from daemon {}, {}", ident, addr, e.what());
+            }
+        }
+        
         init();
     }
     ~EvMgr()

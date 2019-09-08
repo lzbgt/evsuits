@@ -24,6 +24,7 @@ namespace zmqhelper {
 #define EV_MSG_META_PONG "pong"
 #define EV_MSG_META_EVENT "event"
 #define EV_MSG_META_CMD "cmd"
+#define EV_MSG_META_CONFIG "config"
 #define EV_MSG_META_AVFORMATCTX "afctx"
 
 #define EV_MSG_TYPE_AI_MOTION "ai_motion"
@@ -122,6 +123,42 @@ int z_send_multiple(void *s, vector<vector<uint8_t> >&body)
     }
     return ret;
 }
+
+/// setup router
+int setupRouter(void **ctx, void **s, string addr){
+    int ret = 0;
+    int opt_notify = ZMQ_NOTIFY_DISCONNECT|ZMQ_NOTIFY_CONNECT;
+    *ctx = zmq_ctx_new();
+    *s = zmq_socket(*ctx, ZMQ_ROUTER);
+    zmq_setsockopt (*s, ZMQ_ROUTER_NOTIFY, &opt_notify, sizeof (opt_notify));
+    ret = zmq_bind(*s, addr.c_str());
+    if(ret < 0) {
+        spdlog::debug("failed to bind zmq at {} for reason: {}, retrying load configuration...", addr, zmq_strerror(zmq_errno()));
+    }
+    return ret;
+}
+
+/// setup dealer
+int setupDealer(void **ctx, void **s, string addr, string ident) {
+    int ret = 0;
+    *ctx = zmq_ctx_new();
+    *s = zmq_socket(*ctx, ZMQ_DEALER);
+    ret = zmq_setsockopt(*s, ZMQ_IDENTITY, ident.c_str(), ident.size());
+    ret += zmq_setsockopt (*s, ZMQ_ROUTING_ID, ident.c_str(), ident.size());
+    if(ret < 0) {
+        spdlog::debug("{} failed setsockopts ZMQ_ROUTING_ID to {}: {}", ident, addr, zmq_strerror(zmq_errno()));
+    }else{
+        ret = zmq_connect(*s, addr.c_str());
+            if(ret != 0) {
+                spdlog::error("{} failed connect dealer: {}", ident, addr);
+            }
+    }
+
+    return ret;  
+}
+
+
+
 }
 
 
