@@ -1,0 +1,12 @@
+*.a
+*.bin
+*.dSYM
+*.o
+*.pyc
+*.so
+build/
+__pycache__/
+
+# Random junk
+*.sw?
+*.db
