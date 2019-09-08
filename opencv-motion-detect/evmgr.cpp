@@ -40,7 +40,7 @@ private:
     void *pRouter = NULL;
     void *pCtxDealer = NULL, *pDealer = NULL;
     json config;
-    string devSn;
+    string devSn, ident;
     json peerStatus;
     unordered_map<string, queue<vector<vector<uint8_t> >> > cachedMsg;
     mutex cacheLock;
@@ -286,10 +286,16 @@ public:
             exit(1);
         }
 
-        strEnv = getenv("SN");
+        strEnv = getenv("GID");
         if(strEnv != NULL) {
-            config["sn"] = strEnv;
-            devSn = strEnv;
+            ident = strEnv;
+            auto v = cloudutils::split(ident, ':');
+            if(v.size() != 3||v[1] != "evmgr" || v[2] != "0") {
+                spdlog::error("evmgr received invalid gid: {}", ident);
+                exit(1);
+            }
+            config["sn"] = v[0];
+            devSn = v[0];
         }else{
             spdlog::error("evmgr failed to start. no SN set");
             exit(1);
@@ -297,7 +303,7 @@ public:
 
         //
         string addr = string("tcp://127.0.0.1:") + to_string(config["dr-port"]);
-        string ident = config["sn"].get<string>() + ":evmgr:0";
+        ident = config["sn"].get<string>() + ":evmgr:0";
         int ret = zmqhelper::setupDealer(&pCtxDealer, &pDealer, addr, ident);
         
         bool bConfigGot = false;

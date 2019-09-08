@@ -83,9 +83,7 @@ class EvDaemon{
                     if( (pid = fork()) == -1 ) {
                         spdlog::error("evdamon {} failed to fork subsytem - evmgr", this->devSn);
                     }else if(pid == 0) {
-                        // child
-                        // execl("./evmgr", "arg1", "arg2", (char *)0);
-                        ret += setenv("SN", v["sn"].get<string>().c_str(), 1);
+                        ret += setenv("GID", peerId.c_str(), 1);
                         ret += setenv("DR_PORT", to_string(portRouter).c_str(), 1);
                         if(ret < 0) {
                             spdlog::error("evdaemon {} failed to set env", this->devSn);
@@ -97,7 +95,7 @@ class EvDaemon{
                     }else{
                         // parent
                         spdlog::info("evdaemon {} created evmgr", this->devSn);
-                    }
+                    }                    
                 }
 
                 // startup other submodules
@@ -106,7 +104,14 @@ class EvDaemon{
                 for(auto &ipc : ipcs) {
                     json &modules = ipc["modules"];
                     for(auto &[mn, ml] : modules.items()) {
-                        //
+                        for(auto &m : ml) {
+                            if(m["sn"] != this->devSn) {
+                                continue;
+                            }
+                            if(m["enabled"].get<int>() != 0) {
+
+                            }
+                        }
                     }
                 }
             }
