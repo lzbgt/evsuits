@@ -561,6 +561,8 @@ public:
   virtual ~Client();
 
   virtual bool is_valid() const;
+  // patched by bruce.lu
+  std::shared_ptr<Response> Get(const char *path, const Headers &headers, const Params &params);
 
   std::shared_ptr<Response> Get(const char *path, Progress progress = nullptr);
   std::shared_ptr<Response> Get(const char *path, const Headers &headers,
@@ -2870,6 +2872,30 @@ inline std::shared_ptr<Response> Client::Get(const char *path,
                                              Progress progress) {
   return Get(path, Headers(), progress);
 }
+
+/// patched by bruce.lu
+inline std::shared_ptr<Response> Client::Get(const char *path, const Headers &headers, const Params &params) {
+  Request req;
+
+  req.method = "GET";
+  req.path = path;
+  req.params = params;
+  req.headers = headers;
+
+  std::string query;
+  for (auto it = params.begin(); it != params.end(); ++it) {
+    if (it != params.begin()) { query += "&"; }
+    query += it->first;
+    query += "=";
+    query += detail::encode_url(it->second);
+  }
+  req.path = string(path) + "?" + query;
+
+  auto res = std::make_shared<Response>();
+  return send(req, *res) ? res : nullptr;
+}
+
+
 
 inline std::shared_ptr<Response>
 Client::Get(const char *path, const Headers &headers, Progress progress) {

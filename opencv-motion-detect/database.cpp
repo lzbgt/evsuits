@@ -382,6 +382,7 @@ togo_end:
             // create default sn.
             string sn = getStrRand(8);
             info["sn"] = sn;
+            info["api-cloud"] = "http://127.0.0.1:8089";
             spdlog::warn("no local sn set. create a new one: {}", sn);
             auto tsNow = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
             info["lastboot"] = tsNow;

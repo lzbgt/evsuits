@@ -30,7 +30,7 @@ vector<string> split(const std::string& s, char delimiter)
    return tokens;
 }
 
-/// ref: ../config.json
+/// [deprecated] ref: ../config.json
 json registry(json &conf, string sn, string module) {
    json ret;
    string api;
@@ -63,6 +63,41 @@ json registry(json &conf, string sn, string module) {
    // /Client cli;
    return ret;
 }
+
+/// req config
+json reqConfig(json &info){
+   json ret;
+   string api;
+   try{
+      api = info.at("api-cloud").get<string>();
+      Uri uri=Uri::Parse(api);
+      string sn = info.at("sn").get<string>();
+      if(uri.Host.empty()||uri.Port.empty()||uri.Protocol.find("http") == string::npos) {
+         string msg = "reqConfig error. invalid api-cloud in info: " + api;
+         ret["code"] = 1;
+         ret["msg"] = msg;
+         spdlog::error(msg);
+         return ret;
+      }
+
+      Params params;
+      params.emplace("sn", sn);
+      Client cli(uri.Host.c_str(), stoi(uri.Port));
+
+      auto res = cli.Get("/config", Headers(), params);
+      spdlog::debug("{} {} registry res from cloud : {}", __FILE__, __LINE__, res->body);
+      ret = json::parse(res->body);
+   }catch(exception &e) {
+      ret["code"] = -1;
+      string msg = string(__FILE__) + ":" + to_string(__LINE__) + string(": registry exception - ") + e.what();
+      ret["msg"] = msg;
+      spdlog::error(msg);
+   }
+
+   // /Client cli;
+   return ret;
+}
+
 
 
 } // namespace cloudutils
