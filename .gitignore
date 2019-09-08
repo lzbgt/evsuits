@@ -10,3 +10,5 @@ __pycache__/
 # Random junk
 *.sw?
 *.db
+**/lib
+**/bin
