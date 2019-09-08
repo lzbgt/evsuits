@@ -338,7 +338,15 @@ public:
                             }
                         } // for keys of mgr
                         ret["data"] = data;
+                    }else{
+                        ret["code"] = 1;
+                        string msg = "no such sn: " + sn;
+                        ret["msg"] = msg;
+                        spdlog::warn("evcloudsvc no config for sn: {}", sn);   
                     }
+                }else{
+                    ret["code"] = 2;
+                    ret["msg"] = "invalid request. no param for sn/module";
                 }
             }
             catch(exception &e) {
