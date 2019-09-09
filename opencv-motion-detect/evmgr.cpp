@@ -57,7 +57,6 @@ private:
 
         spdlog::info("evmgr info: sn = {}, boot on {}", config["sn"].get<string>(), chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count());
         devSn = config["sn"];
-        spdlog::info("evmgr local config:\n{}", config.dump(4));
         int opt_notify = ZMQ_NOTIFY_DISCONNECT|ZMQ_NOTIFY_CONNECT;
         string addr;
         
