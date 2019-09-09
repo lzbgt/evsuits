@@ -40,7 +40,7 @@ using namespace zmqhelper;
 #define NUM_PKT_IGNORE 18*5
 #define FRAME_SIZE 500
 
-#define DEBUG
+#undef DEBUG
 
 #ifdef DEBUG
 // TODO: remove me
