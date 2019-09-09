@@ -220,8 +220,6 @@ class EvDaemon{
                 spdlog::warn("evdaemon {} peer disconnected: {}", devSn, selfId);
             }
 
-            //update config
-            ret = LVDB::setLocalConfig(config);
             if(ret < 0) {
                 spdlog::error("evdaemon {} failed to update localconfig", devSn);
             }

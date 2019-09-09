@@ -51,48 +51,46 @@ namespace LVDB {
 
     json * findConfigModule(json &config, string sn, string moduleName, int iid) {
         json *ret = NULL;
-        json &data = config["data"];
-        for(auto &[k,v]: data.items()){
-            json &mgr = data[k];
-            if(mgr.count("ipcs") == 0) {
-                break;
-            }else{
-                json &ipcs = mgr["ipcs"];
-                for(auto &ipc:ipcs) {
-                    if(ipc.count("modules") == 0) {
+        json &mgr = config;
+        if(mgr.count("ipcs") == 0) {
+            return ret;
+        }else{
+            json &ipcs = mgr["ipcs"];
+            for(auto &ipc:ipcs) {
+                if(ipc.count("modules") == 0) {
+                    break;
+                }else{
+                    json &modules = ipc["modules"];
+                    string modname = moduleName.substr(0,4);
+                    string sub;
+                    if(modname == "evml") {
+                        sub = moduleName.substr(4, moduleName.size());
+                    }else{
+                        modname = moduleName;
+                    }
+
+                    if(modules.count(modname) == 0){
                         break;
                     }else{
-                        json &modules = ipc["modules"];
-                        string modname = moduleName.substr(0,4);
-                        string sub;
-                        if(modname == "evml") {
-                            sub = moduleName.substr(4, moduleName.size());
-                        }else{
-                            modname = moduleName;
-                        }
-
-                        if(modules.count(modname) == 0){
-                            break;
-                        }else{
-                            json &module = modules[modname];
-                            for(auto &inst: module) {
-                                if(inst.count("sn") != 0 && inst["sn"] == sn && inst.count("iid") != 0 && inst["iid"] == iid) {
-                                    if(!sub.empty()) {
-                                        if(inst.count("type") != 0 && inst["type"] == sub) {
-                                            return &inst;
-                                        }
-                                        // continue
-                                    }else{
+                        json &module = modules[modname];
+                        for(auto &inst: module) {
+                            if(inst.count("sn") != 0 && inst["sn"] == sn && inst.count("iid") != 0 && inst["iid"] == iid) {
+                                if(!sub.empty()) {
+                                    if(inst.count("type") != 0 && inst["type"] == sub) {
                                         return &inst;
                                     }
+                                    // continue
+                                }else{
+                                    return &inst;
                                 }
                             }
                         }
                     }
                 }
             }
-            
         }
+            
+        
         return ret;
     }
 
@@ -391,22 +389,7 @@ togo_end:
                 spdlog::error("failed to save new generated sn");
                 exit(1);
             }else{
-                // // replace sn
-                // size_t idx = 0;
-                // for(auto &j:_sn_tmpl) {
-                //     idx = 0;
-                //     while(true) {
-                //         idx = _config_default_tmpl.find(j, idx);
-                //         if(idx == string::npos) break;
-                //         _config_default_tmpl.replace(idx, j.size(), sn);
-                //         idx+=sn.size();
-                //     }
-                // }
-
-                // // replace camera addr, user, password, cloud-addr
-                // spdlog::debug("new config: {}", _config_default_tmpl);
-                // json j = json::parse(_config_default_tmpl);
-                // return setLocalConfig(j);
+                //
             }
         }
 

@@ -126,9 +126,6 @@ private:
                 exit(1);
             }
 
-            //update status and ping
-            evpusher["status"] = 1;
-            ret = LVDB::setLocalConfig(config);
             if(ret < 0) {
                 spdlog::error("evpusher {} failed to set config: {}", selfId, config.dump());
             }

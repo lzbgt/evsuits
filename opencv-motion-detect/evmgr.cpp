@@ -145,8 +145,6 @@ private:
                 spdlog::warn("evmgr {} peer disconnected: {}", devSn, selfId);
             }
 
-            //update config
-            ret = LVDB::setLocalConfig(config);
             if(ret < 0) {
                 spdlog::error("evmgr {} failed to update localconfig", devSn);
             }

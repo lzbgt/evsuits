@@ -101,14 +101,14 @@ private:
             pullerGid = evpuller["sn"].get<string>() + ":evpuller:" + to_string(evpuller["iid"]);
             mgrSn = evmgr["sn"];
             if(evslicer.count("path") == 0) {
-                spdlog::warn("evslicer {} no params for path, using default: {}", selfId, URLOUT_DEFAULT);
+                spdlog::info("evslicer {} no params for path, using default: {}", selfId, URLOUT_DEFAULT);
                 urlOut = URLOUT_DEFAULT;
             }
             else {
                 urlOut = evslicer["path"];
             }
             if(evslicer.count("days") == 0) {
-                spdlog::warn("evslicer {} no params for days, using default: {}", selfId, NUM_DAYS_DEFAULT);
+                spdlog::info("evslicer {} no params for days, using default: {}", selfId, NUM_DAYS_DEFAULT);
                 days = NUM_DAYS_DEFAULT;
             }
             else {
@@ -116,7 +116,7 @@ private:
             }
 
             if(evslicer.count("minutes") == 0) {
-                spdlog::warn("evslicer {} no params for minutes, using default: {}", selfId, MINUTES_PER_SLICE_DEFAULT);
+                spdlog::info("evslicer {} no params for minutes, using default: {}", selfId, MINUTES_PER_SLICE_DEFAULT);
                 minutes = MINUTES_PER_SLICE_DEFAULT;
             }
             else {
