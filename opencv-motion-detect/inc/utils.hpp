@@ -177,22 +177,29 @@ namespace cfgutils {
                
                for(auto &ipc: ipcs) {
                   json &modules = ipc["modules"];
-                  for(auto &[mn, ml]: modules.items()) {
-                     for(auto &m: ml) {
-                        if(mn == "evml" && !subMn.empty()){
-                           if(subMn == m["type"] && m[iid] == iid && m["sn"] == sn && m["enabled"] != 0) {
+                  // not evml
+                  if(subMn.empty()) {
+                     if(modules.count(modName) != 0) {
+                        json &ml = modules[modName];
+                        for(auto &m : ml) {
+                           if(m["sn"] == sn && m["iid"] == iid && m["enabled"] != 0) {
                               ret = &v;
                               break;
                            }
-                        }else if(subMn.empty()){
-                           if(mn == modName && m["sn"] == sn && m["iid"] == iid && m["enabled"] != 0) {
+                        }
+                     }  
+                  }else{
+                     if(modules.count("evml") != 0) {
+                        json &ml = modules["evml"];
+                        for(auto &m: ml) {
+                           if(subMn == m["type"] && m[iid] == iid && m["sn"] == sn && m["enabled"] != 0) {
                               ret = &v;
                               break;
                            }
                         }
                      }
-                     if(ret != NULL) break;
                   }
+                  
                   if(ret != NULL) break;
                }
             }

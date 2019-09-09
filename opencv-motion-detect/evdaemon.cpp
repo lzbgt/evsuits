@@ -204,13 +204,14 @@ class EvDaemon{
                 return 2;
             }
             json *cfg = cfgutils::findModuleConfig(peerId, jret["data"]);
+            json diff = json::diff(this->config, jret["data"]);
+            // TODO:
+            spdlog::info("evdaemon {} config diff: {}", devSn, diff.dump(4));
+            
             if(cfg == NULL) {
                 spdlog::error("evdaemon failed to find module {} in config {}", peerId, jret["data"].dump());
                 return 1;
             }
-            json diff = json::diff(this->config, jret["data"]);
-            // TODO:
-            spdlog::info("evdaemon {} config diff: {}", devSn, diff.dump(4));
 
             peerData["config"][peerId] = *cfg;
             peerData["status"][peerId] = 0;
