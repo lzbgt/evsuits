@@ -306,10 +306,10 @@ protected:
                 break;
             }
 
-            if(1 == getppid()) {
-                spdlog::error("evpuller {} exit since evdaemon is dead", selfId);
-                exit(1);
-            }
+            // if(1 == getppid()) {
+            //     spdlog::error("evpuller {} exit since evdaemon is dead", selfId);
+            //     exit(1);
+            // }
 
             AVStream *in_stream;
             AVPacket packet;

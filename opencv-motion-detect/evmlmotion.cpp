@@ -585,10 +585,10 @@ protected:
                 bStopSig = true;
                 break;
             }
-            if(1 == getppid()) {
-                spdlog::error("evmlmotion {} exit since evdaemon is dead", selfId);
-                exit(1);
-            }
+            // if(1 == getppid()) {
+            //     spdlog::error("evmlmotion {} exit since evdaemon is dead", selfId);
+            //     exit(1);
+            // }
 
             // business logic
             int ret =zmq_msg_init(&msg);
