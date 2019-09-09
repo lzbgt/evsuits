@@ -51,18 +51,16 @@ private:
     //
     void init()
     {
-        int ret;
+        int ret = 0;
         json jret;
         bool inited = false;
-
-        spdlog::info("evmgr info: sn = {}, boot on {}", config["sn"].get<string>(), chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count());
-        devSn = config["sn"];
+        spdlog::info("evmgr boot {}", devSn);
         int opt_notify = ZMQ_NOTIFY_DISCONNECT|ZMQ_NOTIFY_CONNECT;
         string addr;
         
         try {
             //
-            spdlog::info("evmgr {} starting with configuration:\n{}", devSn, config.dump(4));
+            spdlog::info("evmgr {} starting with configuration:{}", devSn, config.dump());
 
             if(config["proto"] != "zmq") {
                 spdlog::warn("evmgr {} unsupported protocol: {}, try fallback to zmq instead now...", devSn, config["proto"].get<string>());
@@ -278,10 +276,10 @@ public:
     EvMgr& operator=(EvMgr &&) = delete;
     EvMgr()
     {
-
+        string drport;
         const char *strEnv = getenv("DR_PORT");
         if(strEnv != NULL) {
-            config["dr-port"] = atoi(strEnv);
+            drport = strEnv;
         }else{
             spdlog::error("evmgr failed to start. no DR_PORT set");
             exit(1);
@@ -295,7 +293,7 @@ public:
                 spdlog::error("evmgr received invalid gid: {}", ident);
                 exit(1);
             }
-            config["sn"] = v[0];
+
             devSn = v[0];
         }else{
             spdlog::error("evmgr failed to start. no SN set");
@@ -303,8 +301,8 @@ public:
         }
 
         //
-        string addr = string("tcp://127.0.0.1:") + to_string(config["dr-port"]);
-        ident = config["sn"].get<string>() + ":evmgr:0";
+        string addr = string("tcp://127.0.0.1:") + drport;;
+        ident = devSn + ":evmgr:0";
         int ret = zmqhelper::setupDealer(&pCtxDealer, &pDealer, addr, ident);
         if(ret != 0) {
             spdlog::error("evmgr {} failed to setup dealer {}", devSn, addr);
