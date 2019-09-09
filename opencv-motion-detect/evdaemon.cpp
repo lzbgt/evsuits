@@ -108,7 +108,9 @@ class EvDaemon{
                             if(m["sn"] != this->devSn) {
                                 continue;
                             }
-                            if(m["enabled"].get<int>() != 0) {
+                            if(m.count("enabled") == 0 || m["enabled"] == 0) {
+                                spdlog::warn("evdaemon {} {} was disabled, ignore", this->devSn, mn);
+                            }else{
                                 string peerName;
                                 ret = cfgutils::getPeerId(mn, m, peerId, peerName);
                                 if(ret != 0) {
@@ -143,28 +145,30 @@ class EvDaemon{
         return 0;
     }
 
+    void cleanupSubSystems(){
+        spdlog::info("evdaemon {} peerData {}", this->devSn, this->peerData.dump());
+        json &pd = this->peerData;
+        for(auto &[k,v]: pd["pids"].items()){
+            //kill(v, SIGTERM);
+            if(this->peerData["status"].count(k) != 0){
+                this->peerData["status"].erase(k);
+            }
+
+            if(this->peerData["config"].count(k) != 0){
+                this->peerData["config"].erase(k);
+            }
+            
+            this->peerData["pids"].erase(k);
+        }
+    }
+
     void setupSubSystems() {
-        thMon = thread([&, this](){
+        thMon = thread([this](){
             while(true) {
                 if(bReload) {
                     int ret = reloadCfg();
                     if(ret != 0) {
-                        // cleanup
-                        spdlog::info("evdaemon {} peerData {}", this->devSn, this->peerData.dump());
-                        json &pd = this->peerData;
-                        for(auto &[k,v]: pd["pids"].items()){
-                            //kill(v, SIGTERM);
-                            if(this->peerData["status"].count(k) != 0){
-                                this->peerData["status"].erase(k);
-                            }
-
-                            if(this->peerData["config"].count(k) != 0){
-                                this->peerData["config"].erase(k);
-                            }
-                            
-                            this->peerData["pids"].erase(k);
-
-                        }
+                        cleanupSubSystems();
                     }else{
                         bReload = false;
                     }
