@@ -124,10 +124,10 @@ namespace cfgutils {
             peerId = modElem["sn"].get<string>() + ":evmgr:0";
             peerName = modName;
          }else if(modName == "evml") {
-            peerId = modElem["sn"].get<string>() + ":evml" + modElem["type"].get<string>() + ":" + modElem["iid"].get<string>();
+            peerId = modElem["sn"].get<string>() + ":evml" + modElem["type"].get<string>() + ":" + to_string(modElem["iid"]);
             peerName = modName + modElem["type"].get<string>();
          }else{
-            peerId = modElem["sn"].get<string>() + ":" + modName + ":" + modElem["iid"].get<string>();
+            peerId = modElem["sn"].get<string>() + ":" + modName + ":" + to_string(modElem["iid"]);
             peerName = modName;
          }
       }catch(exception &e) {

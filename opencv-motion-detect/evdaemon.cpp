@@ -75,6 +75,7 @@ class EvDaemon{
 
             json &data = jret["data"];
             string peerId;
+            pid_t pid;
             for(auto &[k,v]:data.items()) {
                 if(k == this->devSn) {
                     // startup evmgr
@@ -82,11 +83,10 @@ class EvDaemon{
                     // offline
                     this->peerData["status"][peerId] = 0;
                     this->peerData["config"][peerId] = v;
-                    pid_t pid;
                     ret = zmqhelper::forkSubsystem(devSn, peerId, portRouter, pid);
                     if(ret != 0) {
                         spdlog::error("evdaemon {} failed to fork subsystem: {}", devSn, peerId);
-                        // TODO:
+                        // TODO: clean up and reload config
                         exit(1);
                     }
                     this->peerData["pids"][peerId] = pid;
@@ -107,17 +107,26 @@ class EvDaemon{
                                 string peerName;
                                 ret = cfgutils::getPeerId(mn, m, peerId, peerName);
                                 if(ret != 0) {
-                                    // TODO: cleanup and reload
-                                }else{
-                                    
+                                    // TODO: cleanup and reload  
                                 }
+
+                                this->peerData["status"][peerId] = 0;
+                                this->peerData["config"][peerId] = v;
+                                ret = zmqhelper::forkSubsystem(devSn, peerId, portRouter, pid);
+                                if(ret != 0) {
+                                    spdlog::error("evdaemon {} failed to fork subsystem: {}", devSn, peerId);
+                                    // TODO: cleanup and reload 
+                                    exit(1);
+                                }
+                                this->peerData["pids"][peerId] = pid;
+                                spdlog::info("evdaemon {} created subsystem {}", devSn, peerId); 
                             }
                         }
                     }
                 }
             }
         }catch(exception &e) {
-            spdlog::error("evdaemon {} exception {} to reload and apply configuration:\n{}", this->devSn, e.what(), jret.dump(4));
+            spdlog::error("evdaemon {} exception {} to reload and apply configuration:\n{}", this->devSn, e.what(), jret.dump());
             return -1;
         }
 
