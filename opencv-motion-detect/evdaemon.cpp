@@ -81,16 +81,20 @@ class EvDaemon{
                     // startup evmgr
                     peerId = v["sn"].get<string>() + ":evmgr:0";
                     // offline
-                    this->peerData["status"][peerId] = 0;
                     this->peerData["config"][peerId] = v;
-                    ret = zmqhelper::forkSubsystem(devSn, peerId, portRouter, pid);
-                    if(ret != 0) {
-                        spdlog::error("evdaemon {} failed to fork subsystem: {}", devSn, peerId);
-                        // TODO: clean up and reload config
-                        exit(1);
-                    }
-                    this->peerData["pids"][peerId] = pid;
-                    spdlog::info("evdaemon {} created subsystem {}", devSn, peerId);                 
+                    if(this->peerData["status"].count(peerId) == 0||this->peerData["status"][peerId] == 0) {
+                        this->peerData["status"][peerId] = 0;
+                        ret = zmqhelper::forkSubsystem(devSn, peerId, portRouter, pid);
+                        if(ret != 0) {
+                            spdlog::error("evdaemon {} failed to fork subsystem: {}", devSn, peerId);
+                            // TODO: clean up and reload config
+                            exit(1);
+                        }
+                        this->peerData["pids"][peerId] = pid;
+                        spdlog::info("evdaemon {} created subsystem {}", devSn, peerId);  
+                    }else{
+                        // TODO:
+                    }         
                 }
 
                 // startup other submodules
@@ -110,16 +114,21 @@ class EvDaemon{
                                     // TODO: cleanup and reload  
                                 }
 
-                                this->peerData["status"][peerId] = 0;
                                 this->peerData["config"][peerId] = v;
-                                ret = zmqhelper::forkSubsystem(devSn, peerId, portRouter, pid);
-                                if(ret != 0) {
-                                    spdlog::error("evdaemon {} failed to fork subsystem: {}", devSn, peerId);
-                                    // TODO: cleanup and reload 
-                                    exit(1);
+
+                                if(this->peerData["status"].count(peerId) == 0||this->peerData["status"][peerId] == 0) {
+                                    this->peerData["status"][peerId] = 0;
+                                    ret = zmqhelper::forkSubsystem(devSn, peerId, portRouter, pid);
+                                    if(ret != 0) {
+                                        spdlog::error("evdaemon {} failed to fork subsystem: {}", devSn, peerId);
+                                        // TODO: cleanup and reload 
+                                        exit(1);
+                                    }
+                                    this->peerData["pids"][peerId] = pid;
+                                    spdlog::info("evdaemon {} created subsystem {}", devSn, peerId); 
+                                }else{
+                                    // TODO:
                                 }
-                                this->peerData["pids"][peerId] = pid;
-                                spdlog::info("evdaemon {} created subsystem {}", devSn, peerId); 
                             }
                         }
                     }
@@ -139,8 +148,10 @@ class EvDaemon{
                 int ret = reloadCfg();
                 if(ret != 0) {
                     spdlog::error("evdaemon {} failed to setup subsystems, please check log for more info", this->devSn);
+                    this_thread::sleep_for(chrono::seconds(5));
                 }
-                this_thread::sleep_for(chrono::seconds(5));
+
+                
                 break;
             }
         });
@@ -163,12 +174,12 @@ class EvDaemon{
                 return -1;
             }
 
-            if(peerData["status"].count(selfId) == 0) {
-                spdlog::warn("evdaemon {} unkown module with id: {}, peerStats {}", devSn, selfId, peerData["status"].dump(4));
-                return -1;
-            }
+            // if(peerData["status"].count(selfId) == 0) {
+            //     spdlog::warn("evdaemon {} unkown module with id: {}, peerStats {}", devSn, selfId, peerData["status"].dump(4));
+            //     return -1;
+            // }
 
-            if(peerData["status"][selfId] == 0) {
+            if(peerData["status"].count(selfId) == 0 || peerData["status"][selfId] == 0) {
                 peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                 spdlog::info("evdaemon {} peer connected: {}", devSn, selfId);
                 eventConn = true;
@@ -344,8 +355,12 @@ class EvDaemon{
             res.set_content(ret.dump(), "text/json");
         });
 
-        svr.Post("/reset", [](const Request& req, Response& res){
-            
+        svr.Get("/reset", [](const Request& req, Response& res){
+            json ret;
+            ret["code"] = 0;
+            ret["msg"] = "resetting ...";
+            res.set_content(ret.dump(), "text/json");
+            kill(getpid(), SIGTERM);
         });
 
         svr.listen("0.0.0.0", 8088);

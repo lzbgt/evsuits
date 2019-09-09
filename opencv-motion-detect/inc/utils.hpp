@@ -51,6 +51,12 @@ json registry(json &conf, string sn, string module) {
    return ret;
 }
 
+#define EVCLOUD_REQ_E_CONN -2
+#define EVCLOUD_REQ_E_DATA -3
+#define EVCLOUD_REQ_E_PARAM -4
+#define EVCLOUD_REQ_E_ABORT -5
+#define EVCLOUD_REQ_E_NONE 0
+
 /// req config
 json reqConfig(json &info){
    json ret;
@@ -61,7 +67,7 @@ json reqConfig(json &info){
       string sn = info.at("sn").get<string>();
       if(uri.Host.empty()||uri.Port.empty()||uri.Protocol.find("http") == string::npos) {
          string msg = string(__FILE__) +":" + to_string(__LINE__) + ": request cloud configuration error. invalid api-cloud in info: " + api;
-         ret["code"] = 1;
+         ret["code"] = EVCLOUD_REQ_E_PARAM;
          ret["msg"] = msg;
          spdlog::error(msg);
          return ret;
@@ -76,7 +82,7 @@ json reqConfig(json &info){
          const char *msg = NULL;
          if(res == nullptr) {
             msg = (string("error to connect to server: ") + api + "/config").c_str();
-            ret["code"] = -2;
+            ret["code"] = EVCLOUD_REQ_E_CONN;
          }else{
             msg = httplib::detail::status_message(res->status);
             ret["code"] = res->status;
@@ -88,7 +94,7 @@ json reqConfig(json &info){
          ret = json::parse(res->body);
       }
    }catch(exception &e) {
-      ret["code"] = -1;
+      ret["code"] = EVCLOUD_REQ_E_DATA;
       string msg = string(__FILE__) + ":" + to_string(__LINE__) + string(": registry exception - ") + e.what();
       ret["msg"] = msg;
       spdlog::error(msg);

@@ -259,6 +259,10 @@ protected:
                 bStopSig = true;
                 break;
             }
+            if(1 == getppid()) {
+                spdlog::error("evmgr {} exit since evdaemon is dead", devSn);
+                exit(1);
+            }
             auto body = z_recv_multiple(pRouter,false);
             if(body.size() == 0) {
                 spdlog::error("evmgr {} failed to receive multiple msg: {}", devSn, zmq_strerror(zmq_errno()));
