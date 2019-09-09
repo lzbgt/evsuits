@@ -97,8 +97,6 @@ private:
             json evmlmotion;
             json &evmgr = this->config;
             json ipc;
-
-            json data = config["data"];
             json ipcs = evmgr["ipcs"];
             for(auto &j: ipcs) {
                 json mls = j["modules"]["evml"];
