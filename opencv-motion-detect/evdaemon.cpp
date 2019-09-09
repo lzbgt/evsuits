@@ -68,6 +68,9 @@ class EvDaemon{
         json diff = json::diff(this->config, jret["data"]);
         // TODO
         spdlog::info("evdaemon {} config diff: {}", devSn, diff.dump(4));
+        if(diff.size() == 0) {
+            return 0;
+        }
         // apply config
         try{
             if(jret["code"] != 0) {
