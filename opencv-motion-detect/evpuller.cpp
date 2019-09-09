@@ -262,7 +262,7 @@ protected:
         int ret = 0;
         AVDictionary * optsIn;
         av_dict_set(&optsIn, "timeout", "7", 0);
-        if ((ret = avformat_open_input(&pAVFormatInput, urlIn.c_str(), NULL, &optsIn)) < 0) {
+        if ((ret = avformat_open_input(&pAVFormatInput, urlIn.c_str(), NULL, NULL)) < 0) {
             spdlog::error("Could not open input stream {}", urlIn);
         }
         if ((ret = avformat_find_stream_info(pAVFormatInput, NULL)) < 0) {
