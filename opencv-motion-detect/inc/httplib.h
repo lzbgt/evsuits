@@ -2889,7 +2889,7 @@ inline std::shared_ptr<Response> Client::Get(const char *path, const Headers &he
     query += "=";
     query += detail::encode_url(it->second);
   }
-  req.path = string(path) + "?" + query;
+  req.path = std::string(path) + "?" + query;
 
   auto res = std::make_shared<Response>();
   return send(req, *res) ? res : nullptr;
@@ -2971,7 +2971,7 @@ inline std::shared_ptr<Response> Client::Post(const char *path,
     query += detail::encode_url(it->second);
   }
 
-  req.path = string(path) + "?" + query;
+  req.path = std::string(path) + "?" + query;
 
   req.headers.emplace("Content-Type", content_type);
   req.body = body;

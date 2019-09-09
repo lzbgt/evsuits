@@ -14,8 +14,11 @@ update: 2019/08/23
 #include "zmq.h"
 #include <vector>
 #include <spdlog/spdlog.h>
+#include "json.hpp"
+#include "utils.hpp"
 
 using namespace std;
+using namespace nlohmann;
 
 namespace zmqhelper {
 #define EV_HEARTBEAT_SECONDS 30
@@ -139,6 +142,7 @@ int setupRouter(void **ctx, void **s, string addr){
 }
 
 /// setup dealer
+/// @return 0 success, otherwise failed
 int setupDealer(void **ctx, void **s, string addr, string ident) {
     int ret = 0;
     *ctx = zmq_ctx_new();
@@ -155,6 +159,34 @@ int setupDealer(void **ctx, void **s, string addr, string ident) {
     }
 
     return ret;  
+}
+
+/// recv config msg:
+/// @return 0 success, otherwise failed.
+int recvConfigMsg(void *s, json &config, string addr, string ident){
+    bool bConfigGot = false;
+    while(!bConfigGot){
+        auto v = zmqhelper::z_recv_multiple(s);
+        if(v.size() != 3) {
+            spdlog::error("{} invalid msg from daemon: {}", ident, addr);
+            return -1;
+        }
+
+        spdlog::info("evmgr {} msg received: {} {} {}", ident, body2str(v[0]), body2str(v[1]), body2str(v[2]));
+        try{
+            string sMeta = json::parse(body2str(v[1]))["type"];
+            if(sMeta != EV_MSG_META_CONFIG) {
+                throw StrException("meta type is:" + sMeta + ", but expecting " + EV_MSG_META_CONFIG);
+            }
+            config = json::parse(body2str(v[2]));
+            bConfigGot = true;
+        }catch(exception &e) {
+            spdlog::error("{} invalid config msg from daemon {}, {}", ident, addr, e.what());
+            return -1;
+        }
+    }
+
+    return 0;
 }
 
 

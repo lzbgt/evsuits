@@ -305,28 +305,14 @@ public:
         string addr = string("tcp://127.0.0.1:") + to_string(config["dr-port"]);
         ident = config["sn"].get<string>() + ":evmgr:0";
         int ret = zmqhelper::setupDealer(&pCtxDealer, &pDealer, addr, ident);
-        
-        bool bConfigGot = false;
-        while(!bConfigGot){
-            auto v = zmqhelper::z_recv_multiple(pDealer);
-            if(v.size() != 3) {
-                spdlog::error("evmgr {} invalid msg from daemon: {}", ident, addr);
-                //continue;
-                exit(1);
-            }
+        if(ret != 0) {
+            spdlog::error("evmgr {} failed to setup dealer {}", devSn, addr);
+            exit(1);
+        }
 
-            spdlog::info("evmgr {} msg received: {} {} {}", ident, body2str(v[0]), body2str(v[1]), body2str(v[2]));
-            try{
-                string sMeta = json::parse(body2str(v[1]))["type"];
-                if(sMeta != EV_MSG_META_CONFIG) {
-                    throw StrException("meta type is:" + sMeta + ", but expecting " + EV_MSG_META_CONFIG);
-                }
-                config = json::parse(body2str(v[2]));
-                bConfigGot = true;
-            }catch(exception &e) {
-                spdlog::error("evmgr {} invalid config msg from daemon {}, {}", ident, addr, e.what());
-                exit(1);
-            }
+        ret = zmqhelper::recvConfigMsg(pDealer, config, addr, ident);
+        if(ret != 0) {
+            spdlog::error("evmgr {} failed to receive configration message {}", devSn , addr);
         }
         
         init();
