@@ -65,6 +65,9 @@ class EvDaemon{
         this->daemonId = this->devSn + ":evdaemon:0";
         /// req config
         json jret = cloudutils::reqConfig(this->info);
+        json diff = json::diff(this->config, jret["data"]);
+        // TODO
+        spdlog::info("evdaemon {} config diff: {}", devSn, diff.dump(4));
         // apply config
         try{
             if(jret["code"] != 0) {
@@ -142,6 +145,8 @@ class EvDaemon{
             return -1;
         }
 
+        this->config = jret["data"];
+
         return 0;
     }
 
@@ -203,6 +208,10 @@ class EvDaemon{
                 spdlog::error("evdaemon failed to find module {} in config {}", peerId, jret["data"].dump());
                 return 1;
             }
+            json diff = json::diff(this->config, jret["data"]);
+            // TODO:
+            spdlog::info("evdaemon {} config diff: {}", devSn, diff.dump(4));
+
             peerData["config"][peerId] = *cfg;
             peerData["status"][peerId] = 0;
             pid_t pid;

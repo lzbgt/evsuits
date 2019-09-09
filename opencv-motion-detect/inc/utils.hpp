@@ -164,37 +164,42 @@ namespace cfgutils {
          subMn = "";
       }
 
-      for(auto &[k,v]: data.items()) {
-         // it's evmgr
-         if(modName == "evmgr") {
-            if(k == sn) {
-               ret = &v;
-               break;
-            }
-         }else{
-            json &ipcs = v["ipcs"];
-            
-            for(auto &ipc: ipcs) {
-               json &modules = ipc["modules"];
-               for(auto &[mn, ml]: modules.items()) {
-                  for(auto &m: ml) {
-                     if(subMn.empty()){
-                        if(mn == modName && m["sn"] == sn && m["iid"] == iid && m["enabled"] != 0) {
-                           ret = &v;
-                           break;
-                        }
-                     }else{
-                        if(subMn == m["type"] && m[iid] == iid && m["sn"] == sn && m["enabled"] != 0) {
-                           ret = &v;
-                           break;
+      try{
+         for(auto &[k,v]: data.items()) {
+            // it's evmgr
+            if(modName == "evmgr") {
+               if(k == sn) {
+                  ret = &v;
+                  break;
+               }
+            }else{
+               json &ipcs = v["ipcs"];
+               
+               for(auto &ipc: ipcs) {
+                  json &modules = ipc["modules"];
+                  for(auto &[mn, ml]: modules.items()) {
+                     for(auto &m: ml) {
+                        if(mn == "evml" && !subMn.empty()){
+                           if(subMn == m["type"] && m[iid] == iid && m["sn"] == sn && m["enabled"] != 0) {
+                              ret = &v;
+                              break;
+                           }
+                        }else if(subMn.empty()){
+                           if(mn == modName && m["sn"] == sn && m["iid"] == iid && m["enabled"] != 0) {
+                              ret = &v;
+                              break;
+                           }
                         }
                      }
+                     if(ret != NULL) break;
                   }
                   if(ret != NULL) break;
                }
-               if(ret != NULL) break;
             }
          }
+      }catch(exception &e) {
+         spdlog::error("find module {} in {} exception: {}", peerId, data.dump(), e.what());
+         return NULL;
       }
 
       return ret;
