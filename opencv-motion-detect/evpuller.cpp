@@ -419,7 +419,7 @@ public:
 int main(int argc, char **argv)
 {
     av_log_set_level(AV_LOG_ERROR);
-    spdlog::set_level(spdlog::level::info);
+    spdlog::set_level(spdlog::level::debug);
     //DB::exec(NULL, NULL, NULL,NULL);
     auto evp = EvPuller();
     evp.join();

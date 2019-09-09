@@ -273,7 +273,10 @@ int decode(char *bytes, int len, AVFormatContext *pCtx)
     memcpy(&ret, bytes + got, sizeof(ret));
     got += sizeof(ret);
     got += strlen(PS_MARK_E);
-    spdlog::debug("avformatctx decode: {:d} {:d} {:d}", ret, len, got);
+    if(len != ret) {
+        spdlog::error("avformatctx decode: {:d} {:d} {:d}", ret, len, got);
+    }
+    
     assert(ret == len);
     return ret;
 }

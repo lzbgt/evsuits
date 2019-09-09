@@ -506,7 +506,7 @@ public:
 int main(int argc, const char *argv[])
 {
     av_log_set_level(AV_LOG_ERROR);
-    spdlog::set_level(spdlog::level::info);
+    spdlog::set_level(spdlog::level::debug);
     EvSlicer es;
     es.join();
     return 0;
