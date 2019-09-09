@@ -165,7 +165,8 @@ class EvDaemon{
     void setupSubSystems() {
         thMon = thread([this](){
             while(true) {
-                if(bReload) {
+                if(this->bReload) {
+                    cleanupSubSystems();
                     int ret = reloadCfg();
                     if(ret != 0) {
                         cleanupSubSystems();
@@ -179,6 +180,46 @@ class EvDaemon{
         });
 
         thMon.detach();
+    }
+
+    int startSubModule(string peerId){
+        int ret = 0;
+        if(peerData["status"].count(peerId) == 0 || peerData["status"][peerId] == 0) {
+            //
+        }else if(peerData["pids"].count(peerId) != 0){
+            kill(peerData["pids"][peerId], SIGTERM);
+            peerData["pids"].erase(peerId);
+            peerData["status"][peerId] = 0;
+        }
+        json jret = cloudutils::reqConfig(this->info);
+        // apply config
+        try{
+            if(jret["code"] != 0) {
+                spdlog::error("evdaemon {} request cloud configration error: {}", this->devSn, jret["msg"].get<string>());
+                return 2;
+            }
+            json *cfg = cfgutils::findModuleConfig(peerId, jret["data"]);
+            if(cfg == NULL) {
+                spdlog::error("evdaemon failed to find module {} in config {}", peerId, jret["data"].dump());
+                return 1;
+            }
+            peerData["config"][peerId] = *cfg;
+            peerData["status"][peerId] = 0;
+            pid_t pid;
+            ret = zmqhelper::forkSubsystem(devSn, peerId, portRouter, pid);
+            if(ret != 0) {
+                spdlog::error("evdaemon {} failed to fork subsystem: {}", devSn, peerId);
+                // TODO: clean up and reload config
+                return -3;
+            }
+            this->peerData["pids"][peerId] = pid;
+        }catch(exception &e) {
+            spdlog::error("evdaemon {} exception : {}", devSn, e.what());
+            return -1;
+        }
+
+        return 0;
+        
     }
 
 
@@ -217,7 +258,11 @@ class EvDaemon{
             }
             else {
                 peerData["status"][selfId] = 0;
+                peerData["pids"].erase(selfId);
+                peerData["config"].erase(selfId);
                 spdlog::warn("evdaemon {} peer disconnected: {}", devSn, selfId);
+                // restart this module
+                startSubModule(selfId);
             }
 
             if(ret < 0) {
@@ -375,6 +420,14 @@ class EvDaemon{
                 ret["data"] = req.body;
             }
             res.set_content(ret.dump(), "text/json");
+        });
+
+        svr.Get("/sync-cloud", [this](const Request& req, Response& res){
+            json ret;
+            ret["code"] = 0;
+            ret["msg"] = "syncing ...";
+            res.set_content(ret.dump(), "text/json");
+            this->bReload = true;
         });
 
         svr.Get("/reset", [](const Request& req, Response& res){

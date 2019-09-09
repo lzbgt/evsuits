@@ -143,7 +143,63 @@ namespace cfgutils {
 
       return 0;
    }
-}
+
+
+   json *findModuleConfig(string peerId, json &data) {
+      json *ret = NULL;
+      auto pp = strutils::split(peerId, ':');
+      if(pp.size() != 3) {
+         spdlog::error("invalid peerId: {}", peerId);
+         return ret;
+      }
+
+      string sn = pp[0];
+      string modName = pp[1];
+      string iid = pp[2];
+      //
+      string subMn = modName.substr(0,4);
+      if(subMn == "evml") {
+         subMn = modName.substr(4, modName.size());
+      }else{
+         subMn = "";
+      }
+
+      for(auto &[k,v]: data.items()) {
+         // it's evmgr
+         if(modName == "evmgr") {
+            if(k == sn) {
+               ret = &v;
+               break;
+            }
+         }else{
+            json &ipcs = v["ipcs"];
+            
+            for(auto &ipc: ipcs) {
+               json &modules = ipc["modules"];
+               for(auto &[mn, ml]: modules.items()) {
+                  for(auto &m: ml) {
+                     if(subMn.empty()){
+                        if(mn == modName && m["sn"] == sn && m["iid"] == iid && m["enabled"] != 0) {
+                           ret = &v;
+                           break;
+                        }
+                     }else{
+                        if(subMn == m["type"] && m[iid] == iid && m["sn"] == sn && m["enabled"] != 0) {
+                           ret = &v;
+                           break;
+                        }
+                     }
+                  }
+                  if(ret != NULL) break;
+               }
+               if(ret != NULL) break;
+            }
+         }
+      }
+
+      return ret;
+   }
+} // cfgutils
 
 
 struct StrException : public std::exception

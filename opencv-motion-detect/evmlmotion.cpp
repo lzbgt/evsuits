@@ -93,7 +93,7 @@ private:
         // TODO: req config
         bool found = false;
         try {
-            spdlog::info("evmlmotion {} config: {}", devSn, config.dump(4));
+            spdlog::info("evmlmotion {} config: {}", devSn, config.dump());
             json evmlmotion;
             json &evmgr = this->config;
             json ipc;
@@ -584,6 +584,10 @@ protected:
             if(checkStop() == true) {
                 bStopSig = true;
                 break;
+            }
+            if(1 == getppid()) {
+                spdlog::error("evmlmotion {} exit since evdaemon is dead", selfId);
+                exit(1);
             }
 
             // business logic

@@ -305,6 +305,12 @@ protected:
                 bStopSig = true;
                 break;
             }
+
+            if(1 == getppid()) {
+                spdlog::error("evpuller {} exit since evdaemon is dead", selfId);
+                exit(1);
+            }
+
             AVStream *in_stream;
             AVPacket packet;
             zmq_msg_t msg;

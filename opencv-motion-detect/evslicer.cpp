@@ -361,6 +361,12 @@ protected:
                     bStopSig = true;
                     break;
                 }
+
+                if(1 == getppid()) {
+                    spdlog::error("evmgr {} exit since evdaemon is dead", selfId);
+                    exit(1);
+                }
+
                 // business logic
                 int ret =zmq_msg_init(&msg);
                 ret = zmq_recvmsg(pSub, &msg, 0);

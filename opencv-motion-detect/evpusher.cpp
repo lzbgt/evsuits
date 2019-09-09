@@ -320,6 +320,12 @@ protected:
                 bStopSig = true;
                 break;
             }
+
+            if(1 == getppid()) {
+                spdlog::error("evpusher {} exit since evdaemon is dead", selfId);
+                exit(1);
+            }
+
             ret =zmq_msg_init(&msg);
             if(ret != 0) {
                 spdlog::error("failed to init zmq msg");
