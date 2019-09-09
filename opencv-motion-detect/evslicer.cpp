@@ -43,7 +43,7 @@ private:
 // 2 days, 10 minutes per record
 #define NUM_SLICES_DEFAULT (24 * NUM_DAYS_DEFAULT * 60 / MINUTES_PER_SLICE_DEFAULT)
     void *pSubCtx = NULL, *pDealerCtx = NULL; // for packets relay
-    void *pSub = NULL, *pDealer = NULL;
+    void *pSub = NULL, *pDealer = NULL, *pDaemonCtx = NULL, *pDaemon = NULL;
     string urlOut, urlPub, urlRouter, devSn, mgrSn, selfId, pullerGid;
     int iid, days, minutes, numSlices, lastSliceId;
     bool enablePush = false;
@@ -60,158 +60,126 @@ private:
     int init()
     {
         int ret = 0;
-        bool inited = false;
-        // TODO: load config from local db
-        json info;
-        ret = LVDB::getSn(info);
-        if(ret < 0) {
-            spdlog::error("failed to get sn");
-            exit(1);
-        }
+        spdlog::info("evslicer boot {}", selfId);
 
-        tsLastBoot = info["lastboot"];
-        tsUpdateTime=info["updatetime"];
+    
+        // TODO: req config
+        bool found = false;
+        try {
+            spdlog::info("config: {:s}", config.dump());
+            json evslicer;
+            json &evmgr = this->config;
+            json ipc;
 
-        spdlog::info("evslicer info: sn = {}, lastboot = {}, updatetime = {}", info["sn"].get<string>(), ctime(&tsLastBoot), ctime(&tsUpdateTime));
-        devSn = info["sn"];
-
-        // TODO: read local slices list and last index
-        while(!inited) {
-            // TODO: req config
-            bool found = false;
-            try {
-                ret = LVDB::getLocalConfig(config);
-                if(ret < 0) {
-                    spdlog::error("failed to get local configuration");
-                    exit(1);
-                }
-                spdlog::info("config: {:s}", config.dump());
-                json evslicer;
-                json evmgr;
-                json ipc;
-
-                json data = config["data"];
-                for (auto& [key, value] : data.items()) {
-                    //std::cout << key << " : " << dynamic_cast<json&>(value).dump() << "\n";
-                    evmgr = value;
-                    json ipcs = evmgr["ipcs"];
-                    for(auto &j: ipcs) {
-                        json pullers = j["modules"]["evslicer"];
-                        for(auto &p:pullers) {
-                            if(p["sn"] == devSn && p["status"] ==0) {
-                                evslicer = p;
-                                iid = p["iid"];
-                                break;
-                            }
-                        }
-                        if(evslicer.size() != 0) {
-                            ipc = j;
-                            break;
-                        }
-                    }
-
-                    if(ipc.size()!=0 && evslicer.size()!=0) {
-                        found = true;
+            json ipcs = evmgr["ipcs"];
+            for(auto &j: ipcs) {
+                json pullers = j["modules"]["evslicer"];
+                for(auto &p:pullers) {
+                    if(p["sn"] == devSn && p["enabled"] != 0 && p["iid"] == iid) {
+                        evslicer = p;
                         break;
                     }
                 }
-
-                if(!found) {
-                    spdlog::error("evslicer {}: no valid config found. retrying load config...", devSn);
-                    goto togo_sc;
+                if(evslicer.size() != 0) {
+                    ipc = j;
+                    break;
                 }
-
-                selfId = devSn + ":evslicer:" + to_string(iid);
-
-                json evpuller = ipc["modules"]["evpuller"][0];
-                pullerGid = evpuller["sn"].get<string>() + ":evpuller:" + to_string(evpuller["iid"]);
-                mgrSn = evmgr["sn"];
-                if(evslicer.count("path") == 0) {
-                    spdlog::warn("evslicer {} no params for path, using default: {}", selfId, URLOUT_DEFAULT);
-                    urlOut = URLOUT_DEFAULT;
-                }
-                else {
-                    urlOut = evslicer["path"];
-                }
-                if(evslicer.count("days") == 0) {
-                    spdlog::warn("evslicer {} no params for days, using default: {}", selfId, NUM_DAYS_DEFAULT);
-                    days = NUM_DAYS_DEFAULT;
-                }
-                else {
-                    days = evslicer["days"].get<int>();
-                }
-
-                if(evslicer.count("minutes") == 0) {
-                    spdlog::warn("evslicer {} no params for minutes, using default: {}", selfId, MINUTES_PER_SLICE_DEFAULT);
-                    minutes = MINUTES_PER_SLICE_DEFAULT;
-                }
-                else {
-                    minutes = evslicer["minutes"].get<int>();
-                }
-
-                numSlices = 24 * days * 60 /minutes;
-                // alloc memory
-                sliceIdxToName = new vector<int>(numSlices);
-                // TODO: load db
-                // DB::exec(NULL, "select id, ts, last from slices;", DB::get_slices, sliceIdxToName);
-                spdlog::info("mkdir -p {}", urlOut);
-                ret = system((string("mkdir -p ") + urlOut).c_str());
-                // if(ret == -1) {
-                //     spdlog::error("failed to create {} dir", urlOut);
-                //     exit(1);
-                // }
-
-                urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(evpuller["port-pub"]);
-                urlRouter = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(evmgr["port-router"]);
-                spdlog::info("evslicer {} will connect to {} for sub, {} for router", selfId, urlPub, urlRouter);
-                
-                // setup sub
-                pSubCtx = zmq_ctx_new();
-                pSub = zmq_socket(pSubCtx, ZMQ_SUB);
-                ret = zmq_setsockopt(pSub, ZMQ_SUBSCRIBE, "", 0);
-                if(ret != 0) {
-                    spdlog::error("evslicer {} failed set setsockopt: {}", selfId, urlPub);
-                    goto togo_sc;
-                }
-                ret = zmq_connect(pSub, urlPub.c_str());
-                if(ret != 0) {
-                    spdlog::error("evslicer {} failed connect pub: {}", selfId, urlPub);
-                    goto togo_sc;
-                }
-
-                // setup dealer
-                pDealerCtx = zmq_ctx_new();
-                pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
-                spdlog::info("evslicer {} try create req to {}", selfId, urlRouter);
-                ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());
-                ret += zmq_setsockopt (pDealer, ZMQ_ROUTING_ID, selfId.c_str(), selfId.size());
-                if(ret < 0) {
-                    spdlog::error("evpusher {} {} failed setsockopts router: {}", selfId, urlRouter);
-                    goto togo_sc;
-                }
-                if(ret < 0) {
-                    spdlog::error("evslicer {} failed setsockopts router: {}", selfId, urlRouter);
-                    goto togo_sc;
-                }
-                ret = zmq_connect(pDealer, urlRouter.c_str());
-                if(ret != 0) {
-                    spdlog::error("evslicer {} failed connect dealer: {}", selfId, urlRouter);
-                    goto togo_sc;
-                }
-                //ping
-                ret = ping();
             }
-            catch(exception &e) {
-                spdlog::error("evslicer {} exception in init {:s} retrying", selfId, e.what());
-                this_thread::sleep_for(chrono::seconds(3));
-                continue;
+
+            if(ipc.size()!=0 && evslicer.size()!=0) {
+                found = true;
             }
-            inited = true;
-            break;
-togo_sc:
-            this_thread::sleep_for(chrono::seconds(3));
-            continue;
+
+            if(!found) {
+                spdlog::error("evslicer {}: no valid config found. retrying load config...", devSn);
+                exit(1);
+            }
+
+            selfId = devSn + ":evslicer:" + to_string(iid);
+
+            json evpuller = ipc["modules"]["evpuller"][0];
+            pullerGid = evpuller["sn"].get<string>() + ":evpuller:" + to_string(evpuller["iid"]);
+            mgrSn = evmgr["sn"];
+            if(evslicer.count("path") == 0) {
+                spdlog::warn("evslicer {} no params for path, using default: {}", selfId, URLOUT_DEFAULT);
+                urlOut = URLOUT_DEFAULT;
+            }
+            else {
+                urlOut = evslicer["path"];
+            }
+            if(evslicer.count("days") == 0) {
+                spdlog::warn("evslicer {} no params for days, using default: {}", selfId, NUM_DAYS_DEFAULT);
+                days = NUM_DAYS_DEFAULT;
+            }
+            else {
+                days = evslicer["days"].get<int>();
+            }
+
+            if(evslicer.count("minutes") == 0) {
+                spdlog::warn("evslicer {} no params for minutes, using default: {}", selfId, MINUTES_PER_SLICE_DEFAULT);
+                minutes = MINUTES_PER_SLICE_DEFAULT;
+            }
+            else {
+                minutes = evslicer["minutes"].get<int>();
+            }
+
+            numSlices = 24 * days * 60 /minutes;
+            // alloc memory
+            sliceIdxToName = new vector<int>(numSlices);
+            // TODO: load db
+            // DB::exec(NULL, "select id, ts, last from slices;", DB::get_slices, sliceIdxToName);
+            spdlog::info("mkdir -p {}", urlOut);
+            ret = system((string("mkdir -p ") + urlOut).c_str());
+            // if(ret == -1) {
+            //     spdlog::error("failed to create {} dir", urlOut);
+            //     exit(1);
+            // }
+
+            urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(evpuller["port-pub"]);
+            urlRouter = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(evmgr["port-router"]);
+            spdlog::info("evslicer {} will connect to {} for sub, {} for router", selfId, urlPub, urlRouter);
+            
+            // setup sub
+            pSubCtx = zmq_ctx_new();
+            pSub = zmq_socket(pSubCtx, ZMQ_SUB);
+            ret = zmq_setsockopt(pSub, ZMQ_SUBSCRIBE, "", 0);
+            if(ret != 0) {
+                spdlog::error("evslicer {} failed set setsockopt: {}", selfId, urlPub);
+                exit(1);
+            }
+            ret = zmq_connect(pSub, urlPub.c_str());
+            if(ret != 0) {
+                spdlog::error("evslicer {} failed connect pub: {}", selfId, urlPub);
+                exit(1);
+            }
+
+            // setup dealer
+            pDealerCtx = zmq_ctx_new();
+            pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
+            spdlog::info("evslicer {} try create req to {}", selfId, urlRouter);
+            ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());
+            ret += zmq_setsockopt (pDealer, ZMQ_ROUTING_ID, selfId.c_str(), selfId.size());
+            if(ret < 0) {
+                spdlog::error("evpusher {} {} failed setsockopts router: {}", selfId, urlRouter);
+                exit(1);
+            }
+            if(ret < 0) {
+                spdlog::error("evslicer {} failed setsockopts router: {}", selfId, urlRouter);
+                exit(1);
+            }
+            ret = zmq_connect(pDealer, urlRouter.c_str());
+            if(ret != 0) {
+                spdlog::error("evslicer {} failed connect dealer: {}", selfId, urlRouter);
+                exit(1);
+            }
+            //ping
+            ret = ping();
         }
+        catch(exception &e) {
+            spdlog::error("evslicer {} exception in init {:s} retrying", selfId, e.what());
+            exit(1);
+        }
+ 
 
         return ret;
     }
@@ -466,6 +434,43 @@ protected:
 public:
     EvSlicer()
     {
+        string drport;
+        const char *strEnv = getenv("DR_PORT");
+        if(strEnv != NULL) {
+            drport = strEnv;
+        }else{
+            spdlog::error("evslicer failed to start. no DR_PORT set");
+            exit(1);
+        }
+
+        strEnv = getenv("GID");
+        if(strEnv != NULL) {
+            selfId = strEnv;
+            auto v = strutils::split(selfId, ':');
+            if(v.size() != 3||v[1] != "evslicer") {
+                spdlog::error("evslicer received invalid gid: {}", selfId);
+                exit(1);
+            }
+            devSn = v[0];
+            iid = stoi(v[2]);
+        }else{
+            spdlog::error("evslicer failed to start. no SN set");
+            exit(1);
+        }
+
+        //
+        string addr = string("tcp://127.0.0.1:") + drport;
+        int ret = zmqhelper::setupDealer(&pDaemonCtx, &pDaemon, addr, selfId);
+        if(ret != 0) {
+            spdlog::error("evslicer {} failed to setup dealer {}", devSn, addr);
+            exit(1);
+        }
+
+        ret = zmqhelper::recvConfigMsg(pDaemon, config, addr, selfId);
+        if(ret != 0) {
+            spdlog::error("evslicer {} failed to receive configration message {}", devSn , addr);
+        }
+
         init();
         getInputFormat();
         setupStream();

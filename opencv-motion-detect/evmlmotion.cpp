@@ -69,7 +69,7 @@ enum EventState {
 class EvMLMotion: public TinyThread {
 private:
     void *pSubCtx = NULL, *pDealerCtx = NULL; // for packets relay
-    void *pSub = NULL, *pDealer = NULL;
+    void *pSub = NULL, *pDealer = NULL, *pDaemonCtx = NULL, *pDaemon = NULL;
     string urlOut, urlPub, urlRouter, devSn, mgrSn, selfId, pullerGid, slicerGid;
     int iid;
     AVFormatContext *pAVFormatInput = NULL;
@@ -89,180 +89,152 @@ private:
     int init()
     {
         int ret = 0;
-        bool inited = false;
-        // TODO: load config from local db
-        json info;
-        ret = LVDB::getSn(info);
-        if(ret < 0) {
-            spdlog::error("failed to get sn");
-            exit(1);
-        }
 
-        tsLastBoot = info["lastboot"];
-        tsUpdateTime=info["updatetime"];
+        spdlog::info("evmlmotion boot {}", selfId);
 
-        spdlog::info("evmlmotion info: sn = {}, lastboot = {}, updatetime = {}", info["sn"].get<string>(), ctime(&tsLastBoot), ctime(&tsUpdateTime));
-        devSn = info["sn"];
+        // TODO: req config
+        bool found = false;
+        try {
+            ret = LVDB::getLocalConfig(config);
+            if(ret < 0) {
+                spdlog::error("failed to get local configuration");
+                exit(1);
+            }
+            
+            spdlog::info("evmlmotion {} config: {}", devSn, config.dump(4));
+            json evmlmotion;
+            json &evmgr = this->config;
+            json ipc;
 
-        while(!inited) {
-            // TODO: req config
-            bool found = false;
-            try {
-                ret = LVDB::getLocalConfig(config);
-                if(ret < 0) {
-                    spdlog::error("failed to get local configuration");
-                    exit(1);
-                }
-                spdlog::info("evmlmotion {} config: {}", devSn, config.dump(4));
-                json evmlmotion;
-                json evmgr;
-                json ipc;
-
-                json data = config["data"];
-                for (auto& [key, value] : data.items()) {
-                    //std::cout << key << " : " << dynamic_cast<json&>(value).dump() << "\n";
-                    evmgr = value;
-                    json ipcs = evmgr["ipcs"];
-                    for(auto &j: ipcs) {
-                        json mls = j["modules"]["evml"];
-                        for(auto &p:mls) {
-                            if(p["sn"] == devSn && p["status"] == 0 && p["type"] == "motion") {
-                                evmlmotion = p;
-                                iid = p["iid"];
-                                break;
-                            }
-                        }
-                        if(evmlmotion.size() != 0) {
-                            ipc = j;
-                            break;
-                        }
-                    }
-
-                    if(ipc.size()!=0 && evmlmotion.size()!=0) {
-                        found = true;
-                        // get evslicer id
-
+            json data = config["data"];
+            json ipcs = evmgr["ipcs"];
+            for(auto &j: ipcs) {
+                json mls = j["modules"]["evml"];
+                for(auto &p:mls) {
+                    if(p["sn"] == devSn && p["type"] == "motion" && p["iid"] == iid && p["enabled"] != 0) {
+                        evmlmotion = p;
+                        iid = p["iid"];
                         break;
                     }
                 }
-
-                if(!found) {
-                    spdlog::error("evmlmotion {}: no valid config found. retrying load config...", devSn);
-                    this_thread::sleep_for(chrono::seconds(3));
-                    continue;
+                if(evmlmotion.size() != 0) {
+                    ipc = j;
+                    break;
                 }
-
-
-                selfId = devSn + ":evmlmotion:" + to_string(iid);
-                // TODO: currently just take the first puller, but should test connectivity
-                json evpuller = ipc["modules"]["evpuller"][0];
-                pullerGid = evpuller["sn"].get<string>() + ":evpuller:" + to_string(evpuller["iid"]);
-                mgrSn = evmgr["sn"];
-
-                // TODO: connect to the first slicer
-                json evslicer = ipc["modules"]["evslicer"][0];
-                slicerGid = evslicer["sn"].get<string>()+":evslicer:" + to_string(evslicer["iid"]);
-
-                urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(evpuller["port-pub"]);
-                urlRouter = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(evmgr["port-router"]);
-                spdlog::info("evmlmotion {} will connect to {} for sub, {} for router", selfId, urlPub, urlRouter);
-                
-                // TODO: multiple protocols support
-                if(evmlmotion.count("path") == 0) {
-                    spdlog::warn("evmlmotion {} no params for path, using default: {}", selfId, URLOUT_DEFAULT);
-                    urlOut = URLOUT_DEFAULT;
-                }
-                else {
-                    urlOut = evmlmotion["path"];
-                }
-
-                ret = system(("mkdir -p " +urlOut).c_str());
-                // if(ret == -1) {
-                //     spdlog::error("failed mkdir {}", urlOut);
-                //     return -1;
-                // }
-
-                // detection params
-                if(evmlmotion.count("thresh") == 0||evmlmotion["thresh"] < 10 ||evmlmotion["thresh"] >= 255) {
-                    spdlog::warn("evmlmotion {} invalid thresh value. should be in (10,255), default to 80", selfId);
-                    detPara.thre = 80;
-                }else{
-                    detPara.thre = evmlmotion["thresh"];
-                }
-
-                if(evmlmotion.count("area") == 0||evmlmotion["area"] < 10 ||evmlmotion["area"] >= int(FRAME_SIZE*FRAME_SIZE)*9/10) {
-                    spdlog::warn("evmlmotion {} invalid area value. should be in (10, 500*500*/10), default to 500", selfId);
-                    detPara.area = FRAME_SIZE;
-                }else{
-                    detPara.area = evmlmotion["area"];
-                }
-
-                if(evmlmotion.count("pre") == 0||evmlmotion["pre"] < 1 ||evmlmotion["pre"] >= 120) {
-                    spdlog::warn("evmlmotion {} invalid pre value. should be in (1, 120), default to 3", selfId);
-                    detPara.pre = 3;
-                }else{
-                    detPara.pre = evmlmotion["pre"];
-                }
-
-                if(evmlmotion.count("post") == 0||evmlmotion["post"] < 6 ||evmlmotion["post"] >= 120) {
-                    spdlog::warn("evmlmotion {} invalid post value. should be in (6, 120), default to 30", selfId);
-                    detPara.post = 30;
-                }else{
-                    detPara.post = evmlmotion["post"];
-                }
-
-                if(evmlmotion.count("entropy") == 0||evmlmotion["entropy"] < 0 || evmlmotion["entropy"] >= 10) {
-                    spdlog::warn("evmlmotion {} invalid entropy value. should be in (0, 10), default to 0.3", selfId);
-                    detPara.entropy = 0.3;
-                }else{
-                    detPara.entropy = evmlmotion["entropy"];
-                }
-
-                // setup sub
-                pSubCtx = zmq_ctx_new();
-                pSub = zmq_socket(pSubCtx, ZMQ_SUB);
-                ret = zmq_setsockopt(pSub, ZMQ_SUBSCRIBE, "", 0);
-                if(ret != 0) {
-                    spdlog::error("evmlmotion {} failed set setsockopt: {}", selfId, urlPub);
-                    return -1;
-                }
-                ret = zmq_connect(pSub, urlPub.c_str());
-                if(ret != 0) {
-                    spdlog::error("evmlmotion {} failed connect pub: {}", selfId, urlPub);
-                    return -2;
-                }
-
-                // setup dealer
-                pDealerCtx = zmq_ctx_new();
-                pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
-                spdlog::info("evmlmotion {} connect to router {}", selfId, urlRouter);
-                ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());
-                ret += zmq_setsockopt (pDealer, ZMQ_ROUTING_ID, selfId.c_str(), selfId.size());
-                if(ret < 0) {
-                    spdlog::error("evpusher {} {} failed setsockopts router: {}", selfId, urlRouter);
-                    return -3;
-                }
-                if(ret < 0) {
-                    spdlog::error("evmlmotion {} failed setsockopts router: {}", selfId, urlRouter);
-                    return -3;
-                }
-                ret = zmq_connect(pDealer, urlRouter.c_str());
-                if(ret != 0) {
-                    spdlog::error("evmlmotion {} failed connect dealer: {}", selfId, urlRouter);
-                    return -4;
-                }
-                //ping
-                ret = ping();
-            }
-            catch(exception &e) {
-                spdlog::error("evmlmotion {} exception in EvPuller.init {:s} retrying", selfId, e.what());
-                this_thread::sleep_for(chrono::seconds(3));
-                continue;
             }
 
-            inited = true;
+            if(ipc.size()!=0 && evmlmotion.size()!=0) {
+                found = true;
+            }
+            
+            if(!found) {
+                spdlog::error("evmlmotion {}: no valid config found. retrying load config...", devSn);
+                exit(1);
+            }
+            // TODO: currently just take the first puller, but should test connectivity
+            json evpuller = ipc["modules"]["evpuller"][0];
+            pullerGid = evpuller["sn"].get<string>() + ":evpuller:" + to_string(evpuller["iid"]);
+            mgrSn = evmgr["sn"];
+
+            // TODO: connect to the first slicer
+            json evslicer = ipc["modules"]["evslicer"][0];
+            slicerGid = evslicer["sn"].get<string>()+":evslicer:" + to_string(evslicer["iid"]);
+
+            urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(evpuller["port-pub"]);
+            urlRouter = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(evmgr["port-router"]);
+            spdlog::info("evmlmotion {} will connect to {} for sub, {} for router", selfId, urlPub, urlRouter);
+            
+            // TODO: multiple protocols support
+            if(evmlmotion.count("path") == 0) {
+                spdlog::warn("evmlmotion {} no params for path, using default: {}", selfId, URLOUT_DEFAULT);
+                urlOut = URLOUT_DEFAULT;
+            }
+            else {
+                urlOut = evmlmotion["path"];
+            }
+
+            ret = system(("mkdir -p " +urlOut).c_str());
+            // if(ret == -1) {
+            //     spdlog::error("failed mkdir {}", urlOut);
+            //     return -1;
+            // }
+
+            // detection params
+            if(evmlmotion.count("thresh") == 0||evmlmotion["thresh"] < 10 ||evmlmotion["thresh"] >= 255) {
+                spdlog::warn("evmlmotion {} invalid thresh value. should be in (10,255), default to 80", selfId);
+                detPara.thre = 80;
+            }else{
+                detPara.thre = evmlmotion["thresh"];
+            }
+
+            if(evmlmotion.count("area") == 0||evmlmotion["area"] < 10 ||evmlmotion["area"] >= int(FRAME_SIZE*FRAME_SIZE)*9/10) {
+                spdlog::warn("evmlmotion {} invalid area value. should be in (10, 500*500*/10), default to 500", selfId);
+                detPara.area = FRAME_SIZE;
+            }else{
+                detPara.area = evmlmotion["area"];
+            }
+
+            if(evmlmotion.count("pre") == 0||evmlmotion["pre"] < 1 ||evmlmotion["pre"] >= 120) {
+                spdlog::warn("evmlmotion {} invalid pre value. should be in (1, 120), default to 3", selfId);
+                detPara.pre = 3;
+            }else{
+                detPara.pre = evmlmotion["pre"];
+            }
+
+            if(evmlmotion.count("post") == 0||evmlmotion["post"] < 6 ||evmlmotion["post"] >= 120) {
+                spdlog::warn("evmlmotion {} invalid post value. should be in (6, 120), default to 30", selfId);
+                detPara.post = 30;
+            }else{
+                detPara.post = evmlmotion["post"];
+            }
+
+            if(evmlmotion.count("entropy") == 0||evmlmotion["entropy"] < 0 || evmlmotion["entropy"] >= 10) {
+                spdlog::warn("evmlmotion {} invalid entropy value. should be in (0, 10), default to 0.3", selfId);
+                detPara.entropy = 0.3;
+            }else{
+                detPara.entropy = evmlmotion["entropy"];
+            }
+
+            // setup sub
+            pSubCtx = zmq_ctx_new();
+            pSub = zmq_socket(pSubCtx, ZMQ_SUB);
+            ret = zmq_setsockopt(pSub, ZMQ_SUBSCRIBE, "", 0);
+            if(ret != 0) {
+                spdlog::error("evmlmotion {} failed set setsockopt: {}", selfId, urlPub);
+                exit(1);
+            }
+            ret = zmq_connect(pSub, urlPub.c_str());
+            if(ret != 0) {
+                spdlog::error("evmlmotion {} failed connect pub: {}", selfId, urlPub);
+                exit(1);
+            }
+
+            // setup dealer
+            pDealerCtx = zmq_ctx_new();
+            pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
+            spdlog::info("evmlmotion {} connect to router {}", selfId, urlRouter);
+            ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());
+            ret += zmq_setsockopt (pDealer, ZMQ_ROUTING_ID, selfId.c_str(), selfId.size());
+            if(ret < 0) {
+                spdlog::error("evpusher {} {} failed setsockopts router: {}", selfId, urlRouter);
+                exit(1);
+            }
+            if(ret < 0) {
+                spdlog::error("evmlmotion {} failed setsockopts router: {}", selfId, urlRouter);
+                exit(1);
+            }
+            ret = zmq_connect(pDealer, urlRouter.c_str());
+            if(ret != 0) {
+                spdlog::error("evmlmotion {} failed connect dealer: {}", selfId, urlRouter);
+                exit(1);
+            }
+            //ping
+            ret = ping();
         }
-
+        catch(exception &e) {
+            spdlog::error("evmlmotion {} exception in EvPuller.init {:s} retrying", selfId, e.what());
+            exit(1);
+        }
         return 0;
     }
 
@@ -668,6 +640,43 @@ public:
     EvMLMotion(queue<string> *queue)
     {
         evtQueue = queue;
+        string drport;
+        const char *strEnv = getenv("DR_PORT");
+        if(strEnv != NULL) {
+            drport = strEnv;
+        }else{
+            spdlog::error("evmlmotion failed to start. no DR_PORT set");
+            exit(1);
+        }
+
+        strEnv = getenv("GID");
+        if(strEnv != NULL) {
+            selfId = strEnv;
+            auto v = strutils::split(selfId, ':');
+            if(v.size() != 3||v[1] != "evmlmotion") {
+                spdlog::error("evmlmotion received invalid gid: {}", selfId);
+                exit(1);
+            }
+            devSn = v[0];
+            iid = stoi(v[2]);
+        }else{
+            spdlog::error("evmlmotion failed to start. no SN set");
+            exit(1);
+        }
+
+        //
+        string addr = string("tcp://127.0.0.1:") + drport;
+        int ret = zmqhelper::setupDealer(&pDaemonCtx, &pDaemon, addr, selfId);
+        if(ret != 0) {
+            spdlog::error("evmlmotion {} failed to setup dealer {}", devSn, addr);
+            exit(1);
+        }
+
+        ret = zmqhelper::recvConfigMsg(pDaemon, config, addr, selfId);
+        if(ret != 0) {
+            spdlog::error("evmlmotion {} failed to receive configration message {}", devSn , addr);
+        }
+
         init();
         getInputFormat();
         setupStream();

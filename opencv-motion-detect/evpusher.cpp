@@ -38,7 +38,7 @@ using namespace zmqhelper;
 class EvPusher: public TinyThread {
 private:
     void *pSubCtx = NULL, *pDealerCtx = NULL; // for packets relay
-    void *pSub = NULL, *pDealer = NULL;
+    void *pSub = NULL, *pDealer = NULL, *pDaemonCtx = NULL, *pDaemon = NULL;
     string urlOut, urlPub, urlDealer, devSn, pullerGid, mgrSn, selfId;
     int iid;
     bool enablePush = false;
@@ -51,129 +51,94 @@ private:
 
     int init()
     {
-        bool inited = false;
-        // TODO: load config from local db
-        json info;
-        int ret = LVDB::getSn(info);
-        if(ret < 0) {
-            spdlog::error("failed to get sn");
-            exit(1);
-        }
-
-        tsLastBoot = info["lastboot"];
-        tsUpdateTime=info["updatetime"];
-
-        spdlog::info("evpusher info: sn = {}, lastboot = {}, updatetime = {}", info["sn"].get<string>(), ctime(&tsLastBoot), ctime(&tsUpdateTime));
-        devSn = info["sn"];
-
-        while(!inited) {
-            // TODO: req config
-            bool found = false;
-            try {
-                ret = LVDB::getLocalConfig(config);
-                if(ret < 0) {
-                    spdlog::error("failed to get local configuration");
-                    exit(1);
-                }
-                spdlog::info("config: {:s}", config.dump());
-                json evpusher;
-                json evmgr;
-                json ipc;
-
-                json data = config["data"];
-                for (auto& [key, value] : data.items()) {
-                    //std::cout << key << " : " << dynamic_cast<json&>(value).dump() << "\n";
-                    evmgr = value;
-                    json ipcs = evmgr["ipcs"];
-                    for(auto &j: ipcs) {
-                        json pullers = j["modules"]["evpusher"];
-                        for(auto &p:pullers) {
-                            if(p["sn"] == devSn && p["status"] == 0 && p["enabled"] == 1/* && p["iid"] */ ) {
-                                evpusher = p;
-                                iid = p["iid"];
-                                selfId = devSn + ":evpusher:" + to_string(iid);
-                                break;
-                            }
-                        }
-                        if(evpusher.size() != 0) {
-                            ipc = j;
-                            break;
-                        }
-                    }
-                    spdlog::info("evpusher {} {}, evpusher: {}",devSn, iid, evpusher.dump());
-                    spdlog::info("evpusher {} {}, ipc: {}",devSn, iid, ipc.dump());
-
-                    if(ipc.size()!=0 && evpusher.size()!=0) {
-                        found = true;
+        int ret = 0;
+        spdlog::info("evpusher startup {}", selfId);
+        bool found = false;
+        try {
+            spdlog::info("config: {:s}", config.dump());
+            json evpusher;
+            json &evmgr = this->config;
+            json ipc;
+            json ipcs = evmgr["ipcs"];
+            for(auto &j: ipcs) {
+                json pullers = j["modules"]["evpusher"];
+                for(auto &p:pullers) {
+                    if(p["sn"] == devSn && p["enabled"] != 0 && p["iid"] == iid ) {
+                        evpusher = p;
                         break;
                     }
                 }
 
-                if(!found) {
-                    spdlog::error("evpusher {} {}: no valid config found. retrying load config: {}", devSn, iid, config.dump());
-                    this_thread::sleep_for(chrono::seconds(3));
-                    continue;
+                if(evpusher.size() != 0) {
+                    ipc = j;
+                    break;
                 }
-
-                // TODO: currently just take the first puller, but should test connectivity
-                json evpuller = ipc["modules"]["evpuller"][0];
-                pullerGid = evpuller["sn"].get<string>() + ":evpuller:" + to_string(evpuller["iid"]);
-                mgrSn = evmgr["sn"];
-
-                urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(evpuller["port-pub"]);
-                urlDealer = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(evmgr["port-router"]);
-                spdlog::info("evpusher {} connect to {} for sub, {} for router", selfId, urlPub, urlDealer);
-                // TODO: multiple protocols support
-                urlOut = evpusher["urlDest"].get<string>();
-                        // setup sub
-                pSubCtx = zmq_ctx_new();
-                pSub = zmq_socket(pSubCtx, ZMQ_SUB);
-                ret = zmq_setsockopt(pSub, ZMQ_SUBSCRIBE, "", 0);
-                if(ret != 0) {
-                    spdlog::error("evpusher {} {} failed set setsockopt: {}", devSn, iid, urlPub);
-                    
-                }
-                ret = zmq_connect(pSub, urlPub.c_str());
-                if(ret != 0) {
-                    spdlog::error("evpusher {} {} failed connect pub: {}", devSn, iid, urlPub);
-                    goto togo_sc;
-                }
-
-                // setup dealer
-                pDealerCtx = zmq_ctx_new();
-                pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
-                ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());
-                ret += zmq_setsockopt (pDealer, ZMQ_ROUTING_ID, selfId.c_str(), selfId.size());
-                if(ret < 0) {
-                    spdlog::error("evpusher {} failed setsockopts router {}: {}", selfId, urlDealer, zmq_strerror(zmq_errno()));
-                    goto togo_sc;
-                }
-                ret = zmq_connect(pDealer, urlDealer.c_str());
-                if(ret != 0) {
-                    spdlog::error("evpusher {} {} failed connect dealer: {}", devSn, iid, urlDealer);
-                    goto togo_sc;
-                }
-
-                //update status and ping
-                evpusher["status"] = 1;
-                ret = LVDB::setLocalConfig(config);
-                if(ret < 0) {
-                    spdlog::error("evpusher {} failed to set config: {}", selfId, config.dump());
-                }
-                spdlog::info("new config: {}", config.dump());
-                ping();
-                break;
-togo_sc:
-                this_thread::sleep_for(chrono::seconds(2));
-                continue;
-            }
-            catch(exception &e) {
-                spdlog::error("evpusher {} {} exception in EvPuller.init {:s} retrying", devSn, iid, e.what());
-                this_thread::sleep_for(chrono::seconds(3));
-                continue;
             }
 
-            inited = true;
+            spdlog::info("evpusher {} {}, evpusher: {}",devSn, iid, evpusher.dump());
+            spdlog::info("evpusher {} {}, ipc: {}",devSn, iid, ipc.dump());
+
+            if(ipc.size()!=0 && evpusher.size()!=0) {
+                found = true;
+            }
+
+            if(!found) {
+                spdlog::error("evpusher {} : no valid config found: {}", selfId, config.dump());
+                exit(1);
+            }
+
+            // TODO: currently just take the first puller, but should test connectivity
+            json evpuller = ipc["modules"]["evpuller"][0];
+            pullerGid = evpuller["sn"].get<string>() + ":evpuller:" + to_string(evpuller["iid"]);
+            mgrSn = evmgr["sn"];
+
+            urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(evpuller["port-pub"]);
+            urlDealer = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(evmgr["port-router"]);
+            spdlog::info("evpusher {} connect to {} for sub, {} for router", selfId, urlPub, urlDealer);
+            // TODO: multiple protocols support
+            urlOut = evpusher["urlDest"].get<string>();
+                    // setup sub
+            pSubCtx = zmq_ctx_new();
+            pSub = zmq_socket(pSubCtx, ZMQ_SUB);
+            ret = zmq_setsockopt(pSub, ZMQ_SUBSCRIBE, "", 0);
+            if(ret != 0) {
+                spdlog::error("evpusher {} {} failed set setsockopt: {}", devSn, iid, urlPub);
+                
+            }
+            ret = zmq_connect(pSub, urlPub.c_str());
+            if(ret != 0) {
+                spdlog::error("evpusher {} {} failed connect pub: {}", devSn, iid, urlPub);
+                exit(1);
+            }
+
+            // setup dealer
+            pDealerCtx = zmq_ctx_new();
+            pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
+            ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());
+            ret += zmq_setsockopt (pDealer, ZMQ_ROUTING_ID, selfId.c_str(), selfId.size());
+            if(ret < 0) {
+                spdlog::error("evpusher {} failed setsockopts router {}: {}", selfId, urlDealer, zmq_strerror(zmq_errno()));
+                exit(1);
+            }
+            ret = zmq_connect(pDealer, urlDealer.c_str());
+            if(ret != 0) {
+                spdlog::error("evpusher {} {} failed connect dealer: {}", devSn, iid, urlDealer);
+                exit(1);
+            }
+
+            //update status and ping
+            evpusher["status"] = 1;
+            ret = LVDB::setLocalConfig(config);
+            if(ret < 0) {
+                spdlog::error("evpusher {} failed to set config: {}", selfId, config.dump());
+            }
+            spdlog::info("new config: {}", config.dump());
+            ping();
+        }
+        catch(exception &e) {
+            spdlog::error("evpusher {} {} exception in EvPuller.init {:s} retrying", devSn, iid, e.what());
+            this_thread::sleep_for(chrono::seconds(3));
+            exit(1);
         }
 
         return 0;
@@ -435,6 +400,43 @@ protected:
 public:
     EvPusher()
     {
+        string drport;
+        const char *strEnv = getenv("DR_PORT");
+        if(strEnv != NULL) {
+            drport = strEnv;
+        }else{
+            spdlog::error("evpusher failed to start. no DR_PORT set");
+            exit(1);
+        }
+
+        strEnv = getenv("GID");
+        if(strEnv != NULL) {
+            selfId = strEnv;
+            auto v = strutils::split(selfId, ':');
+            if(v.size() != 3||v[1] != "evpusher") {
+                spdlog::error("evpusher received invalid gid: {}", selfId);
+                exit(1);
+            }
+            devSn = v[0];
+            iid = stoi(v[2]);
+        }else{
+            spdlog::error("evpusher failed to start. no SN set");
+            exit(1);
+        }
+
+        //
+        string addr = string("tcp://127.0.0.1:") + drport;
+        int ret = zmqhelper::setupDealer(&pDaemonCtx, &pDaemon, addr, selfId);
+        if(ret != 0) {
+            spdlog::error("evpusher {} failed to setup dealer {}", devSn, addr);
+            exit(1);
+        }
+
+        ret = zmqhelper::recvConfigMsg(pDaemon, config, addr, selfId);
+        if(ret != 0) {
+            spdlog::error("evpusher {} failed to receive configration message {}", devSn , addr);
+        }
+
         init();
         getInputFormat();
         setupStream();
