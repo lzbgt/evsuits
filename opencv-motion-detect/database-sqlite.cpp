@@ -203,10 +203,10 @@ int saveLocalConfigration(json &config, string fileName)
     int ret = 0;
     string mv = string("mv -f ") + fileName + " " + fileName+".bak";
     system(mv.c_str());
-    if(ret == -1) {
-        spdlog::error("saveLocalConfigration failed to mv file: {}", mv);
-        return -1;
-    }
+    // if(ret == -1) {
+    //     spdlog::error("saveLocalConfigration failed to mv file: {}", mv);
+    //     return -1;
+    // }
 
     // write prettified JSON file
     try{

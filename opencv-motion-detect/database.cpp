@@ -175,10 +175,10 @@ namespace LVDB {
             string mkdir_ = "mkdir -p " + fileName;
             //spdlog::info("creating directory: {}", mkdir_);
             ret = system(mkdir_.c_str());
-            if(-1 == ret) {
-                spdlog::error("failed to create directory for {}", fileName);
-                exit(1);
-            }
+            // if(-1 == ret) {
+            //     spdlog::error("failed to create directory for {}", fileName);
+            //     exit(1);
+            // }
             bmk = true;
         }
         

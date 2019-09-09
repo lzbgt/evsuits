@@ -156,10 +156,10 @@ private:
                 // DB::exec(NULL, "select id, ts, last from slices;", DB::get_slices, sliceIdxToName);
                 spdlog::info("mkdir -p {}", urlOut);
                 ret = system((string("mkdir -p ") + urlOut).c_str());
-                if(ret == -1) {
-                    spdlog::error("failed to create {} dir", urlOut);
-                    exit(1);
-                }
+                // if(ret == -1) {
+                //     spdlog::error("failed to create {} dir", urlOut);
+                //     exit(1);
+                // }
 
                 urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(evpuller["port-pub"]);
                 urlRouter = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(evmgr["port-router"]);

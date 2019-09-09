@@ -5,7 +5,8 @@
         "chrono": "cpp",
         "optional": "cpp",
         "string": "cpp",
-        "set": "cpp"
+        "set": "cpp",
+        "thread": "cpp"
     },
     "C_Cpp.errorSquiggles": "Disabled"
 }

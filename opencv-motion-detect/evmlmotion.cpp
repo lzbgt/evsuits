@@ -177,10 +177,10 @@ private:
                 }
 
                 ret = system(("mkdir -p " +urlOut).c_str());
-                if(ret == -1) {
-                    spdlog::error("failed mkdir {}", urlOut);
-                    return -1;
-                }
+                // if(ret == -1) {
+                //     spdlog::error("failed mkdir {}", urlOut);
+                //     return -1;
+                // }
 
                 // detection params
                 if(evmlmotion.count("thresh") == 0||evmlmotion["thresh"] < 10 ||evmlmotion["thresh"] >= 255) {

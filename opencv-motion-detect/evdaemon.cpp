@@ -36,6 +36,7 @@ class EvDaemon{
     thread::id thIdMain;
     thread thRouter;
     json peerData;
+    bool bReload = true;
     // peerData["status"];
     // peerData["pids"];
     // peerData["config"];
@@ -88,7 +89,7 @@ class EvDaemon{
                         if(ret != 0) {
                             spdlog::error("evdaemon {} failed to fork subsystem: {}", devSn, peerId);
                             // TODO: clean up and reload config
-                            exit(1);
+                            return -3;
                         }
                         this->peerData["pids"][peerId] = pid;
                         spdlog::info("evdaemon {} created subsystem {}", devSn, peerId);  
@@ -122,7 +123,7 @@ class EvDaemon{
                                     if(ret != 0) {
                                         spdlog::error("evdaemon {} failed to fork subsystem: {}", devSn, peerId);
                                         // TODO: cleanup and reload 
-                                        exit(1);
+                                        return -2;
                                     }
                                     this->peerData["pids"][peerId] = pid;
                                     spdlog::info("evdaemon {} created subsystem {}", devSn, peerId); 
@@ -143,18 +144,37 @@ class EvDaemon{
     }
 
     void setupSubSystems() {
-        thMon = thread([this](){
+        thMon = thread([&, this](){
             while(true) {
-                int ret = reloadCfg();
-                if(ret != 0) {
-                    spdlog::error("evdaemon {} failed to setup subsystems, please check log for more info", this->devSn);
-                    this_thread::sleep_for(chrono::seconds(5));
+                if(bReload) {
+                    int ret = reloadCfg();
+                    if(ret != 0) {
+                        // cleanup
+                        spdlog::info("evdaemon {} peerData {}", this->devSn, this->peerData.dump());
+                        json &pd = this->peerData;
+                        for(auto &[k,v]: pd["pids"].items()){
+                            //kill(v, SIGTERM);
+                            if(this->peerData["status"].count(k) != 0){
+                                this->peerData["status"].erase(k);
+                            }
+
+                            if(this->peerData["config"].count(k) != 0){
+                                this->peerData["config"].erase(k);
+                            }
+                            
+                            this->peerData["pids"].erase(k);
+
+                        }
+                    }else{
+                        bReload = false;
+                    }
                 }
 
-                
-                break;
+                this_thread::sleep_for(chrono::seconds(30));
             }
         });
+
+        thMon.detach();
     }
 
 
@@ -419,6 +439,7 @@ void cleanup(int signal) {
 
 int main(){
     signal(SIGCHLD, cleanup);
+    //sigignore(SIGCHLD);
     json info;
     LVDB::getSn(info);
     spdlog::info("evdaemon: \n{}",info.dump(4));

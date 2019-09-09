@@ -1,6 +1,6 @@
 {
    "data":{
-      "W5TA2ZE6":{
+      "5A5S3CTJ":{
          "addr":"127.0.0.1",
          "api-cloud":"http://127.0.0.1:8089",
          "ipcs":[
@@ -14,7 +14,7 @@
                         "iid":1,
                         "post":30,
                         "pre":3,
-                        "sn":"W5TA2ZE6",
+                        "sn":"5A5S3CTJ",
                         "status":0,
                         "thresh":80,
                         "type":"motion"
@@ -24,9 +24,8 @@
                      {
                         "addr":"127.0.0.1",
                         "iid":1,
-                        "enabled": 1,
                         "port-pub":5556,
-                        "sn":"W5TA2ZE6",
+                        "sn":"5A5S3CTJ",
                         "status":0
                      }
                   ],
@@ -35,7 +34,7 @@
                         "enabled":1,
                         "iid":1,
                         "password":"",
-                        "sn":"W5TA2ZE6",
+                        "sn":"5A5S3CTJ",
                         "status":0,
                         "token":"",
                         "urlDest":"rtsp://40.73.41.176:554/test1",
@@ -47,7 +46,7 @@
                         "enabled":1,
                         "iid":1,
                         "path":"slices",
-                        "sn":"W5TA2ZE6",
+                        "sn":"5A5S3CTJ",
                         "status":0
                      }
                   ]
@@ -63,7 +62,7 @@
          "port-cloud":5556,
          "port-router":5550,
          "proto":"zmq",
-         "sn":"W5TA2ZE6",
+         "sn":"5A5S3CTJ",
          "status":1
       }
    },
