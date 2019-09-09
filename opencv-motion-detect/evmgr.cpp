@@ -311,7 +311,8 @@ public:
             auto v = zmqhelper::z_recv_multiple(pDealer);
             if(v.size() != 3) {
                 spdlog::error("evmgr {} invalid msg from daemon: {}", ident, addr);
-                continue;
+                //continue;
+                exit(1);
             }
 
             spdlog::info("evmgr {} msg received: {} {} {}", ident, body2str(v[0]), body2str(v[1]), body2str(v[2]));
@@ -324,6 +325,7 @@ public:
                 bConfigGot = true;
             }catch(exception &e) {
                 spdlog::error("evmgr {} invalid config msg from daemon {}, {}", ident, addr, e.what());
+                exit(1);
             }
         }
         
