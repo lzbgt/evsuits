@@ -89,18 +89,10 @@ private:
     int init()
     {
         int ret = 0;
-
         spdlog::info("evmlmotion boot {}", selfId);
-
         // TODO: req config
         bool found = false;
         try {
-            ret = LVDB::getLocalConfig(config);
-            if(ret < 0) {
-                spdlog::error("failed to get local configuration");
-                exit(1);
-            }
-
             spdlog::info("evmlmotion {} config: {}", devSn, config.dump(4));
             json evmlmotion;
             json &evmgr = this->config;
