@@ -122,7 +122,7 @@ private:
             selfId = body2str(body[0]);
             bool eventConn = false;
             // XTF2BJR9:evslicer:1
-            auto sp = cloudutils::split(selfId, ':');
+            auto sp = strutils::split(selfId, ':');
             if(sp.size() != 3) {
                 spdlog::warn("evmg {} inproper peer id: {}", devSn, selfId);
                 return -1;
@@ -289,7 +289,7 @@ public:
         strEnv = getenv("GID");
         if(strEnv != NULL) {
             ident = strEnv;
-            auto v = cloudutils::split(ident, ':');
+            auto v = strutils::split(ident, ':');
             if(v.size() != 3||v[1] != "evmgr" || v[2] != "0") {
                 spdlog::error("evmgr received invalid gid: {}", ident);
                 exit(1);

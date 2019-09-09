@@ -17,19 +17,6 @@ using namespace httplib;
 // cloudutils
 namespace cloudutils
 {
-
-vector<string> split(const std::string& s, char delimiter)
-{
-   std::vector<std::string> tokens;
-   std::string token;
-   std::istringstream tokenStream(s);
-   while (getline(tokenStream, token, delimiter))
-   {
-      tokens.push_back(token);
-   }
-   return tokens;
-}
-
 /// [deprecated] ref: ../config.json
 json registry(json &conf, string sn, string module) {
    json ret;
@@ -111,9 +98,46 @@ json reqConfig(json &info){
    return ret;
 }
 
-
-
 } // namespace cloudutils
+
+
+///
+namespace strutils{
+vector<string> split(const std::string& s, char delimiter)
+{
+   std::vector<std::string> tokens;
+   std::string token;
+   std::istringstream tokenStream(s);
+   while (getline(tokenStream, token, delimiter))
+   {
+      tokens.push_back(token);
+   }
+   return tokens;
+}
+
+}//namespace strutils
+
+namespace cfgutils {
+   int getPeerId(string modName, json& modElem, string &peerId, string &peerName) {
+      try {
+         if(modName == "evmgr") {
+            peerId = modElem["sn"].get<string>() + ":evmgr:0";
+            peerName = modName;
+         }else if(modName == "evml") {
+            peerId = modElem["sn"].get<string>() + ":evml" + modElem["type"].get<string>() + ":" + modElem["iid"].get<string>();
+            peerName = modName + modElem["type"].get<string>();
+         }else{
+            peerId = modElem["sn"].get<string>() + ":" + modName + ":" + modElem["iid"].get<string>();
+            peerName = modName;
+         }
+      }catch(exception &e) {
+         spdlog::error("failed to get gid for {} in {}: {}", modName, modElem.dump(), e.what());
+         return -1;
+      }
+
+      return 0;
+   }
+}
 
 
 struct StrException : public std::exception

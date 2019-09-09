@@ -83,23 +83,14 @@ class EvDaemon{
                     this->peerData["status"][peerId] = 0;
                     this->peerData["config"][peerId] = v;
                     pid_t pid;
-                    if( (pid = fork()) == -1 ) {
-                        spdlog::error("evdamon {} failed to fork subsytem - evmgr", this->devSn);
-                    }else if(pid == 0) {
-                        ret += setenv("GID", peerId.c_str(), 1);
-                        ret += setenv("DR_PORT", to_string(portRouter).c_str(), 1);
-                        if(ret < 0) {
-                            spdlog::error("evdaemon {} failed to set env", this->devSn);
-                            return -3;
-                        }
-
-                        execl("./evmgr", NULL, NULL, NULL);
-                        spdlog::error("evdaemon {} failed to startup evmgr", this->devSn);
-                    }else{
-                        // parent
-                        this->peerData["pids"][peerId] = pid;
-                        spdlog::info("evdaemon {} created evmgr", this->devSn);
-                    }                    
+                    ret = zmqhelper::forkSubsystem(devSn, peerId, portRouter, pid);
+                    if(ret != 0) {
+                        spdlog::error("evdaemon {} failed to fork subsystem: {}", devSn, peerId);
+                        // TODO:
+                        exit(1);
+                    }
+                    this->peerData["pids"][peerId] = pid;
+                    spdlog::info("evdaemon {} created subsystem {}", devSn, peerId);                 
                 }
 
                 // startup other submodules
@@ -113,7 +104,13 @@ class EvDaemon{
                                 continue;
                             }
                             if(m["enabled"].get<int>() != 0) {
-
+                                string peerName;
+                                ret = cfgutils::getPeerId(mn, m, peerId, peerName);
+                                if(ret != 0) {
+                                    // TODO: cleanup and reload
+                                }else{
+                                    
+                                }
                             }
                         }
                     }
@@ -151,7 +148,7 @@ class EvDaemon{
             selfId = body2str(body[0]);
             bool eventConn = false;
             // XTF2BJR9:evslicer:1
-            auto sp = cloudutils::split(selfId, ':');
+            auto sp = strutils::split(selfId, ':');
             if(sp.size() != 3) {
                 spdlog::warn("evdaemon {} inproper peer id: {}", devSn, selfId);
                 return -1;

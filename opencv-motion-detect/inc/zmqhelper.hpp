@@ -16,6 +16,7 @@ update: 2019/08/23
 #include <spdlog/spdlog.h>
 #include "json.hpp"
 #include "utils.hpp"
+// #include <unistd.h>
 
 using namespace std;
 using namespace nlohmann;
@@ -189,6 +190,30 @@ int recvConfigMsg(void *s, json &config, string addr, string ident){
     return 0;
 }
 
+
+int forkSubsystem(string devSn, string peerId, int drPort, pid_t &pid){
+    int ret = 0;
+    auto v = strutils::split(peerId, ':');
+    string modName = v[1];
+    string sn = v[0];
+    if( (pid = fork()) == -1 ) {
+        spdlog::error("evdamon {} failed to fork subsytem - evmgr", devSn);
+        return -1;
+    }else if(pid == 0) {
+        ret += setenv("GID", peerId.c_str(), 1);
+        ret += setenv("DR_PORT", to_string(drPort).c_str(), 1);
+        if(ret < 0) {
+            spdlog::error("evdaemon {} failed to set env", devSn);
+            return -2;
+        }
+        execl((string("./") + modName).c_str(), NULL, NULL, NULL);
+        spdlog::error("evdaemon {} failed to startup evmgr", devSn);
+    }else{
+        // parent
+    }
+
+    return 0;
+}
 
 
 }
