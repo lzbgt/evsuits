@@ -162,7 +162,7 @@ int decode(char *bytes, int len, AVPacket *pkt)
     memcpy(&wholeSize, bytes + got, sizeof(wholeSize));
     got += sizeof(wholeSize);
     got += 8;
-    spdlog::debug("wholeSize: {:d}, {:d}", wholeSize, got);
+    //spdlog::debug("wholeSize: {:d}, {:d}", wholeSize, got);
 
     return ret;
 }

@@ -73,7 +73,7 @@ private:
     AVFormatContext *pAVFormatInput = NULL;
     AVCodecContext *pCodecCtx = NULL;
     AVDictionary *pOptsRemux = NULL;
-    DetectParam detPara = {25,200,-1,10,3,30, 0.3};
+    DetectParam detPara = {25,200,-1,10,3,30, 2};
     EventState evtState = EventState::NONE;
     chrono::system_clock::time_point evtStartTm, evtStartTmLast;
     queue<string> *evtQueue;
@@ -150,36 +150,31 @@ private:
 
             // detection params
             if(evmlmotion.count("thresh") == 0||evmlmotion["thresh"] < 10 ||evmlmotion["thresh"] >= 255) {
-                spdlog::info("evmlmotion {} invalid thresh value. should be in (10,255), default to 80", selfId);
-                detPara.thre = 80;
+                spdlog::info("evmlmotion {} invalid thresh value. should be in (10,255), default to {}", selfId, detPara.thre);
             }else{
                 detPara.thre = evmlmotion["thresh"];
             }
 
             if(evmlmotion.count("area") == 0||evmlmotion["area"] < 10 ||evmlmotion["area"] >= int(FRAME_SIZE*FRAME_SIZE)*9/10) {
-                spdlog::info("evmlmotion {} invalid area value. should be in (10, 500*500*/10), default to 500", selfId);
-                detPara.area = FRAME_SIZE;
+                spdlog::info("evmlmotion {} invalid area value. should be in (10, 500*500*/10), default to {}", selfId, detPara.area);
             }else{
                 detPara.area = evmlmotion["area"];
             }
 
             if(evmlmotion.count("pre") == 0||evmlmotion["pre"] < 1 ||evmlmotion["pre"] >= 120) {
-                spdlog::info("evmlmotion {} invalid pre value. should be in (1, 120), default to 3", selfId);
-                detPara.pre = 3;
+                spdlog::info("evmlmotion {} invalid pre value. should be in (1, 120), default to {}", selfId, detPara.pre);
             }else{
                 detPara.pre = evmlmotion["pre"];
             }
 
             if(evmlmotion.count("post") == 0||evmlmotion["post"] < 6 ||evmlmotion["post"] >= 120) {
-                spdlog::info("evmlmotion {} invalid post value. should be in (6, 120), default to 30", selfId);
-                detPara.post = 30;
+                spdlog::info("evmlmotion {} invalid post value. should be in (6, 120), default to {}", selfId, detPara.post);
             }else{
                 detPara.post = evmlmotion["post"];
             }
 
             if(evmlmotion.count("entropy") == 0||evmlmotion["entropy"] < 0 || evmlmotion["entropy"] >= 10) {
-                spdlog::info("evmlmotion {} invalid entropy value. should be in (0, 10), default to 0.3", selfId);
-                detPara.entropy = 0.3;
+                spdlog::info("evmlmotion {} invalid entropy value. should be in (0, 10), default to {}", selfId, detPara.entropy);
             }else{
                 detPara.entropy = evmlmotion["entropy"];
             }
@@ -418,6 +413,7 @@ private:
         }
 #ifdef DEBUG
         matShow3 = gray.clone();
+        matShow2 = origin;
 #endif
         evtStartTm = chrono::system_clock::now();
         // TODO: AVG
@@ -440,6 +436,7 @@ private:
 
         cv::findContours(thresh, cnts, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
         bool hasEvent = false;
+        int evtCnt = 0;
         for(int i =0; i < cnts.size(); i++) {
             // TODO:
             if(cv::contourArea(cnts[i]) < detPara.area) {
@@ -447,36 +444,38 @@ private:
             }
             else {
                 hasEvent = true;
+                evtCnt++;
 #ifdef DEBUG
                 cv::putText(origin, "motion detected", cv::Point(10, 20), cv::FONT_HERSHEY_SIMPLEX, 0.75, cv::Scalar(0,0,255),2);
 #endif
                 break;
             }
         } //end for
-#ifdef DEBUG
-        matShow2 = origin;
-#endif
+
         // business logic for event
         auto dura = chrono::duration_cast<chrono::seconds>(evtStartTm - evtStartTmLast).count();
         switch(evtState) {
         case NONE: {
             if(hasEvent) {
                 evtState = PRE;
-                spdlog::info("state: NONE->PRE");
+                spdlog::debug("state: NONE->PRE ({}, {})", dura, evtCnt);
                 evtStartTmLast = evtStartTm;
+                evtCnt = 0;
             }
             break;
         }
         case PRE: {
             if(hasEvent) {
                 if(dura > detPara.pre) {
-                    spdlog::info("state: PRE->PRE");
+                    spdlog::debug("state: PRE->PRE ({}, {})", dura, evtCnt);
                     evtState = PRE;
+                    evtCnt = 0;
                 }
                 else {
                     evtState = IN;
                     json p;
-                    spdlog::info("state: PRE->IN");
+                    spdlog::debug("state: PRE->IN ({}, {})", dura, evtCnt);
+                    evtCnt = 0;
                     p["type"] = EV_MSG_TYPE_AI_MOTION;
                     p["gid"] = selfId;
                     p["event"] = EV_MSG_EVENT_MOTION_START;
@@ -491,7 +490,8 @@ private:
             else {
                 if(dura > detPara.pre) {
                     evtState= NONE;
-                    spdlog::info("state: PRE->NONE");
+                    spdlog::debug("state: PRE->NONE ({}, {})", dura, evtCnt);
+                    evtCnt = 0;
                 }
             }
             break;
@@ -500,20 +500,23 @@ private:
             if(!hasEvent) {
                 if(dura > (int)(detPara.post/2)) {
                     evtState = POST;
-                    spdlog::info("state: IN->POST");
+                    spdlog::debug("state: IN->POST ({}, {})", dura, evtCnt);
+                    evtCnt = 0;
                 }
             }
             else {
                 evtStartTmLast = evtStartTm;
-                spdlog::info("state: IN->IN");
+                spdlog::debug("state: IN->IN ({}, {})", dura, evtCnt);
+                evtCnt = 0;
             }
             break;
         }
         case POST: {
             if(!hasEvent) {
                 if(dura > detPara.post) {
-                    spdlog::info("state: POST->NONE");
+                    spdlog::debug("state: POST->NONE ({}, {})", dura, evtCnt);
                     evtState = NONE;
+                    evtCnt = 0;
                     json p;
                     p["type"] = EV_MSG_TYPE_AI_MOTION;
                     p["gid"] = selfId;
@@ -526,8 +529,9 @@ private:
                 }
             }
             else {
-                spdlog::info("state: POST->IN");
+                spdlog::debug("state: POST->IN ({}, {})", dura, evtCnt);
                 evtState=IN;
+                evtCnt = 0;
                 evtStartTmLast = evtStartTm;
             }
             break;
@@ -693,7 +697,7 @@ public:
 
 int main(int argc, const char *argv[])
 {
-    spdlog::set_level(spdlog::level::info);
+    spdlog::set_level(spdlog::level::debug);
     av_log_set_level(AV_LOG_ERROR);
     queue<string> evtQueue;
     EvMLMotion es(&evtQueue);
