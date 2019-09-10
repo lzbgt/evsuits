@@ -83,7 +83,7 @@ class EvDaemon{
         if(diff.size() == 0) {
             return 0;
         }
-        
+
         // apply config
         try{
             if(jret["code"] != 0) {
@@ -138,7 +138,7 @@ class EvDaemon{
                                 }
 
                                 this->peerData["config"][peerId] = v;
-
+                                
                                 if(this->peerData["status"].count(peerId) == 0||this->peerData["status"][peerId] == 0) {
                                     this->peerData["status"][peerId] = 0;
                                     if(bootType == 1 || (bootType == 3 && subModGid == peerId)){
