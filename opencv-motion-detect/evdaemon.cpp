@@ -167,9 +167,9 @@ class EvDaemon{
                 this->peerData["status"].erase(k);
             }
 
-            if(this->peerData["config"].count(k) != 0){
-                this->peerData["config"].erase(k);
-            }
+            // if(this->peerData["config"].count(k) != 0){
+            //     this->peerData["config"].erase(k);
+            // }
             if(this->peerData["pids"].count(k) != 0) {
                 this->peerData["pids"].erase(k);
             }
@@ -280,9 +280,9 @@ class EvDaemon{
                 if(peerData["pids"].count(selfId) != 0) {
                     peerData["pids"].erase(selfId);
                 }
-                if(peerData["config"].count(selfId) != 0) {
-                    peerData["config"].erase(selfId);
-                }
+                // if(peerData["config"].count(selfId) != 0) {
+                //     peerData["config"].erase(selfId);
+                // }
                 
                 spdlog::warn("evdaemon {} peer disconnected: {}", devSn, selfId);
                 // restart this module

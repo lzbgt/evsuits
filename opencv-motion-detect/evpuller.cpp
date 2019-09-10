@@ -246,14 +246,14 @@ protected:
     void run()
     {
         int ret = 0;
-        // AVDictionary * optsIn;
-        // av_dict_set(&optsIn, "timeout", "7", 0);
+        AVDictionary * optsIn;
+        av_dict_set(&optsIn, "rtsp_transport", "tcp", 0);
         spdlog::info("evpuller {} openning stream: {}", selfId, urlIn);
-        if ((ret = avformat_open_input(&pAVFormatInput, urlIn.c_str(), NULL, NULL)) < 0) {
+        if ((ret = avformat_open_input(&pAVFormatInput, urlIn.c_str(), NULL, &optsIn)) < 0) {
             spdlog::error("Could not open input stream {}", urlIn);
         }
 
-        spdlog::info("evpuller {} finding sgtream info: {}", selfId, urlIn);
+        spdlog::info("evpuller {} finding stream info: {}", selfId, urlIn);
         if ((ret = avformat_find_stream_info(pAVFormatInput, NULL)) < 0) {
             spdlog::error("Failed to retrieve input stream information");
         }
