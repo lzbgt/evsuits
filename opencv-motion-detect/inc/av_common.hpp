@@ -191,7 +191,7 @@ int encode(AVFormatContext *ctx, char **bytes)
     wholeSize += strlen(PS_MARK_S);
     // num streams
     wholeSize += sizeof(ctx->nb_streams);
-    spdlog::info("encode sizeof streams: {:d}, {:d}", sizeof(ctx->nb_streams), ctx->nb_streams);
+    spdlog::info("encode num of streams: {:d}", ctx->nb_streams);
     for (int i = 0; i < ctx->nb_streams; i++)
     {
         wholeSize += sizeof(AVStream);

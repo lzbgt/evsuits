@@ -246,16 +246,19 @@ protected:
     void run()
     {
         int ret = 0;
-        AVDictionary * optsIn;
-        av_dict_set(&optsIn, "timeout", "7", 0);
+        // AVDictionary * optsIn;
+        // av_dict_set(&optsIn, "timeout", "7", 0);
+        spdlog::info("evpuller {} openning stream: {}", selfId, urlIn);
         if ((ret = avformat_open_input(&pAVFormatInput, urlIn.c_str(), NULL, NULL)) < 0) {
             spdlog::error("Could not open input stream {}", urlIn);
         }
+
+        spdlog::info("evpuller {} finding sgtream info: {}", selfId, urlIn);
         if ((ret = avformat_find_stream_info(pAVFormatInput, NULL)) < 0) {
             spdlog::error("Failed to retrieve input stream information");
         }
 
-        pAVFormatInput->flags = AVFMT_FLAG_NOBUFFER | AVFMT_FLAG_FLUSH_PACKETS;
+        //pAVFormatInput->flags = AVFMT_FLAG_NOBUFFER | AVFMT_FLAG_FLUSH_PACKETS;
 
         numStreams = pAVFormatInput->nb_streams;
         int *streamList = (int *)av_mallocz_array(numStreams, sizeof(*streamList));

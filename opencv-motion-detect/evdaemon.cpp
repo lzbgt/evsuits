@@ -242,7 +242,6 @@ class EvDaemon{
         
     }
 
-
     int handleMsg(vector<vector<uint8_t> > &body)
     {
         int ret = 0;
@@ -287,7 +286,9 @@ class EvDaemon{
                 
                 spdlog::warn("evdaemon {} peer disconnected: {}", devSn, selfId);
                 // restart this module
-                startSubModule(selfId);
+                if(bBootstrap) {
+                    startSubModule(selfId);
+                }                
             }
 
             if(ret < 0) {
