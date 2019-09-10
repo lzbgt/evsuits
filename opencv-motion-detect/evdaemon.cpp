@@ -258,11 +258,6 @@ class EvDaemon{
                 return -1;
             }
 
-            // if(peerData["status"].count(selfId) == 0) {
-            //     spdlog::warn("evdaemon {} unkown module with id: {}, peerStats {}", devSn, selfId, peerData["status"].dump(4));
-            //     return -1;
-            // }
-
             if(peerData["status"].count(selfId) == 0 || peerData["status"][selfId] == 0) {
                 peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                 spdlog::info("evdaemon {} peer connected: {}", devSn, selfId);
