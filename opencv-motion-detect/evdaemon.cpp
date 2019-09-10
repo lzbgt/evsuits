@@ -2,7 +2,7 @@
 module: evdaemon
 description: to monitor and configure all other components. runs only one instance per host.
 author: Bruce.Lu <lzbgt@icloud.com>
-created: 2019/08/23
+created: 2019/09/04
 update: 2019/09/10
 */
 
