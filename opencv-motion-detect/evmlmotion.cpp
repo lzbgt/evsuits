@@ -115,7 +115,7 @@ private:
             if(ipc.size()!=0 && evmlmotion.size()!=0) {
                 found = true;
             }
-            
+
             if(!found) {
                 spdlog::error("evmlmotion {}: no valid config found. retrying load config...", devSn);
                 exit(1);
@@ -132,7 +132,7 @@ private:
             urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(evpuller["port-pub"]);
             urlRouter = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(evmgr["port-router"]);
             spdlog::info("evmlmotion {} will connect to {} for sub, {} for router", selfId, urlPub, urlRouter);
-            
+
             // TODO: multiple protocols support
             if(evmlmotion.count("path") == 0) {
                 spdlog::info("evmlmotion {} no params for path, using default: {}", selfId, URLOUT_DEFAULT);
@@ -151,31 +151,36 @@ private:
             // detection params
             if(evmlmotion.count("thresh") == 0||evmlmotion["thresh"] < 10 ||evmlmotion["thresh"] >= 255) {
                 spdlog::info("evmlmotion {} invalid thresh value. should be in (10,255), default to {}", selfId, detPara.thre);
-            }else{
+            }
+            else {
                 detPara.thre = evmlmotion["thresh"];
             }
 
             if(evmlmotion.count("area") == 0||evmlmotion["area"] < 10 ||evmlmotion["area"] >= int(FRAME_SIZE*FRAME_SIZE)*9/10) {
                 spdlog::info("evmlmotion {} invalid area value. should be in (10, 500*500*/10), default to {}", selfId, detPara.area);
-            }else{
+            }
+            else {
                 detPara.area = evmlmotion["area"];
             }
 
             if(evmlmotion.count("pre") == 0||evmlmotion["pre"] < 1 ||evmlmotion["pre"] >= 120) {
                 spdlog::info("evmlmotion {} invalid pre value. should be in (1, 120), default to {}", selfId, detPara.pre);
-            }else{
+            }
+            else {
                 detPara.pre = evmlmotion["pre"];
             }
 
             if(evmlmotion.count("post") == 0||evmlmotion["post"] < 6 ||evmlmotion["post"] >= 120) {
                 spdlog::info("evmlmotion {} invalid post value. should be in (6, 120), default to {}", selfId, detPara.post);
-            }else{
+            }
+            else {
                 detPara.post = evmlmotion["post"];
             }
 
             if(evmlmotion.count("entropy") == 0||evmlmotion["entropy"] < 0 || evmlmotion["entropy"] >= 10) {
                 spdlog::info("evmlmotion {} invalid entropy value. should be in (0, 10), default to {}", selfId, detPara.entropy);
-            }else{
+            }
+            else {
                 detPara.entropy = evmlmotion["entropy"];
             }
 
@@ -426,7 +431,7 @@ private:
         avg = gray.clone();
 
 
-        if(!detect || fent < detPara.entropy){
+        if(!detect || fent < detPara.entropy) {
             return;
         }
 
@@ -569,10 +574,11 @@ protected:
                     v[2] = str2body(evt);
                     this->evtQueue->pop();
                     ret = z_send_multiple(this->pDealer, v);
-                    
+
                     if(ret < 0) {
                         spdlog::error("evmlmotion {} failed to send event {} to {}: {}", this->selfId, evt, this->slicerGid, zmq_strerror(zmq_errno()));
-                    }else {
+                    }
+                    else {
                         spdlog::info("evmlmotion {} send event: {}", this->selfId, evt);
                     }
                 }
@@ -659,7 +665,8 @@ public:
             }
             devSn = v[0];
             iid = stoi(v[2]);
-        }else{
+        }
+        else {
             spdlog::error("evmlmotion failed to start. no SN set");
             exit(1);
         }
@@ -674,7 +681,7 @@ public:
 
         ret = zmqhelper::recvConfigMsg(pDaemon, config, addr, selfId);
         if(ret != 0) {
-            spdlog::error("evmlmotion {} failed to receive configration message {}", devSn , addr);
+            spdlog::error("evmlmotion {} failed to receive configration message {}", devSn, addr);
         }
 
         init();
