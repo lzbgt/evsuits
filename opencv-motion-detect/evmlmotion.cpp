@@ -73,7 +73,7 @@ private:
     AVFormatContext *pAVFormatInput = NULL;
     AVCodecContext *pCodecCtx = NULL;
     AVDictionary *pOptsRemux = NULL;
-    DetectParam detPara = {25,2000,-1,10,3,30, 2};
+    DetectParam detPara = {25,500,-1,10,3,30, 2};
     EventState evtState = EventState::NONE;
     chrono::system_clock::time_point evtStartTm, evtStartTmLast;
     queue<string> *evtQueue;
@@ -424,7 +424,7 @@ private:
         // cv::accumulateWeighted(gray, avg, 0.5);
         cv::absdiff(gray, avg, thresh);
         avg = gray.clone();
-        
+
 
         if(!detect || fent < detPara.entropy){
             return;
