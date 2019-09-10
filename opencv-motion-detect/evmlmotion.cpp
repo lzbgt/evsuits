@@ -457,7 +457,7 @@ private:
             }
         } //end for
 
-        spdlog::info("evmlmotion {} contours {} area {}, thresh {} hasEvent {}", selfId, cnts.size(), cnts.size() == 0? 0:cv::contourArea(cnts[i]), detPara.area, hasEvent);
+        spdlog::debug("evmlmotion {} contours {} area {}, thresh {} hasEvent {}", selfId, cnts.size(), cnts.size() == 0? 0:cv::contourArea(cnts[i]), detPara.area, hasEvent);
 
         // business logic for event
         auto dura = chrono::duration_cast<chrono::seconds>(evtStartTm - evtStartTmLast).count();
