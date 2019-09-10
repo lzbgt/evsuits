@@ -84,6 +84,7 @@ private:
     json config;
     thread thPing;
     thread thEvent;
+    string drport = "5549";
     //
 
     int init()
@@ -634,16 +635,12 @@ public:
     EvMLMotion(queue<string> *queue)
     {
         evtQueue = queue;
-        string drport;
         const char *strEnv = getenv("DR_PORT");
         if(strEnv != NULL) {
             drport = strEnv;
-        }else{
-            spdlog::error("evmlmotion failed to start. no DR_PORT set");
-            exit(1);
         }
 
-        strEnv = getenv("GID");
+        strEnv = getenv("PEERID");
         if(strEnv != NULL) {
             selfId = strEnv;
             auto v = strutils::split(selfId, ':');

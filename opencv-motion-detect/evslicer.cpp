@@ -56,6 +56,7 @@ private:
     time_t tsLastBoot, tsUpdateTime;
     json config;
     thread thPing;
+    string drport = "5549";
 
     int init()
     {
@@ -440,16 +441,12 @@ protected:
 public:
     EvSlicer()
     {
-        string drport;
         const char *strEnv = getenv("DR_PORT");
         if(strEnv != NULL) {
             drport = strEnv;
-        }else{
-            spdlog::error("evslicer failed to start. no DR_PORT set");
-            exit(1);
         }
 
-        strEnv = getenv("GID");
+        strEnv = getenv("PEERID");
         if(strEnv != NULL) {
             selfId = strEnv;
             auto v = strutils::split(selfId, ':');

@@ -200,7 +200,7 @@ int forkSubsystem(string devSn, string peerId, int drPort, pid_t &pid){
         spdlog::error("evdamon {} failed to fork subsytem - evmgr", devSn);
         return -1;
     }else if(pid == 0) {
-        ret += setenv("GID", peerId.c_str(), 1);
+        ret += setenv("PEERID", peerId.c_str(), 1);
         ret += setenv("DR_PORT", to_string(drPort).c_str(), 1);
         if(ret < 0) {
             spdlog::error("evdaemon {} failed to set env", devSn);

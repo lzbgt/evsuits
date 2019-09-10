@@ -47,6 +47,7 @@ private:
     queue<string> eventQue;
     mutex eventQLock;
     time_t tsLastBoot,  tsUpdateTime;
+    string drport = "5549";
 
     //
     void init()
@@ -276,16 +277,12 @@ public:
     EvMgr& operator=(EvMgr &&) = delete;
     EvMgr()
     {
-        string drport;
         const char *strEnv = getenv("DR_PORT");
         if(strEnv != NULL) {
             drport = strEnv;
-        }else{
-            spdlog::error("evmgr failed to start. no DR_PORT set");
-            exit(1);
         }
 
-        strEnv = getenv("GID");
+        strEnv = getenv("PEERID");
         if(strEnv != NULL) {
             ident = strEnv;
             auto v = strutils::split(ident, ':');

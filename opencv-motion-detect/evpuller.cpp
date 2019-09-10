@@ -43,23 +43,6 @@ private:
     const char * bytes;
     int len;
     void *pDealer=NULL;
-    thread thPing;
-
-    int ping()
-    {
-        int ret = 0;
-        vector<vector<uint8_t> >body;
-        // since identity is auto set
-        body.push_back(str2body(mgrSn + ":0:0"));
-        body.push_back(str2body(EV_MSG_META_PING));
-        body.push_back(str2body(MSG_HELLO));
-
-        ret = z_send_multiple(pDealer, body);
-        if(ret < 0) {
-            spdlog::error("evpuller {} failed to send multiple: {}", selfId, zmq_strerror(zmq_errno()));
-        }
-        return ret;
-    }
 
     int handleMsg(vector<vector<uint8_t> > v)
     {
@@ -99,18 +82,6 @@ protected:
     {
         int ret = 0;
         bool bStopSig = false;
-        // declare ready to router
-        ping();
-
-        // TODO: don't need this anymore, since I've used the draft feature of ZOUTER_NOTIFICATION instead
-        // thPing = thread([&,this]() {
-        //     while(true) {
-        //         this_thread::sleep_for(chrono::seconds(EV_HEARTBEAT_SECONDS-2));
-        //         ping();
-        //     }
-        // });
-
-        // thPing.detach();
 
         // init response msg
         while (true) {
@@ -155,6 +126,19 @@ private:
     int *streamList = NULL, numStreams = 0, iid;
     time_t tsLastBoot, tsUpdateTime;
     json config;
+    string drport = "5549";
+
+    int ping()
+    {
+        int ret = 0;
+        vector<vector<uint8_t> >body = {str2body(mgrSn + ":0:0"), str2body(EV_MSG_META_PING), str2body(MSG_HELLO)};
+
+        ret = z_send_multiple(pDealer, body);
+        if(ret < 0) {
+            spdlog::error("evpuller {} failed to send multiple: {}", selfId, zmq_strerror(zmq_errno()));
+        }
+        return ret;
+    }
 
     int init()
     {
@@ -242,6 +226,8 @@ private:
                 spdlog::error("evpuller {} failed to connect to router {}", selfId, urlDealer);
                 exit(1);
             }
+
+            ping();
         }
         catch(exception &e) {
             this_thread::sleep_for(chrono::seconds(3));
@@ -356,16 +342,12 @@ protected:
 public:
     EvPuller()
     {
-        string drport;
         const char *strEnv = getenv("DR_PORT");
         if(strEnv != NULL) {
             drport = strEnv;
-        }else{
-            spdlog::error("evpusher failed to start. no DR_PORT set");
-            exit(1);
         }
 
-        strEnv = getenv("GID");
+        strEnv = getenv("PEERID");
         if(strEnv != NULL) {
             selfId = strEnv;
             auto v = strutils::split(selfId, ':');
