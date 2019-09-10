@@ -16,7 +16,7 @@ HEADERS=-Iinc -Ivendor/include
 SQLITE_SRC=
 SQLITE=
 
-all: evmgr evpuller evpusher evslicer evmlmotion evdaemon evcloudsvc
+all: evmgr evpuller evpusher evslicer evmlmotion evmlmotion_d evdaemon evcloudsvc
 
 # sqlite C object
 sqlite3.o: vendor/sqlite/sqlite3.c
@@ -36,6 +36,8 @@ evslicer: evslicer.cpp inc/common.hpp inc/av_common.hpp inc/utils.hpp inc/tinyth
 
 evmlmotion: evmlmotion.cpp inc/common.hpp inc/av_common.hpp inc/utils.hpp inc/avcvhelpers.hpp inc/database.h inc/zmqhelper.hpp  inc/tinythread.hpp database.cpp $(SQLITE_SRC)
 	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evmlmotion evmlmotion.cpp database.cpp $(SQLITE) $(LIBFFMPEG) $(HEADERS) $(LIBOPENCV) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
+evmlmotion_d: evmlmotion.cpp inc/common.hpp inc/av_common.hpp inc/utils.hpp inc/avcvhelpers.hpp inc/database.h inc/zmqhelper.hpp  inc/tinythread.hpp database.cpp $(SQLITE_SRC)
+	$(CPP) $(CPPFLAGS) -DDEBUG $(LD_FLAGS) -o evmlmotion_d evmlmotion.cpp database.cpp $(SQLITE) $(LIBFFMPEG) $(HEADERS) $(LIBOPENCV) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
 
 evdaemon: evdaemon.cpp inc/common.hpp inc/utils.hpp inc/database.h inc/zmqhelper.hpp  inc/tinythread.hpp database.cpp
 	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evdaemon evdaemon.cpp database.cpp $(SQLITE) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)

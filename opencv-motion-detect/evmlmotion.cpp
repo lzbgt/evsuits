@@ -40,8 +40,6 @@ using namespace zmqhelper;
 #define NUM_PKT_IGNORE 18*5
 #define FRAME_SIZE 500
 
-#undef DEBUG
-
 #ifdef DEBUG
 // TODO: remove me
 cv::Mat matShow1, matShow2, matShow3;
