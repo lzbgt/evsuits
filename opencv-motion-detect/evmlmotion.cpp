@@ -73,7 +73,7 @@ private:
     AVFormatContext *pAVFormatInput = NULL;
     AVCodecContext *pCodecCtx = NULL;
     AVDictionary *pOptsRemux = NULL;
-    DetectParam detPara = {25,900,-1,10,3,30, 2};
+    DetectParam detPara = {25,2000,-1,10,3,30, 2};
     EventState evtState = EventState::NONE;
     chrono::system_clock::time_point evtStartTm, evtStartTmLast;
     queue<string> *evtQueue;
@@ -437,8 +437,8 @@ private:
         cv::findContours(thresh, cnts, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
         bool hasEvent = false;
         int evtCnt = 0;
-        for(int i =0; i < cnts.size(); i++) {
-            // TODO:
+        int i = 0;
+        for(; i < cnts.size(); i++) {
             if(cv::contourArea(cnts[i]) < detPara.area) {
                 // nothing
             }
@@ -451,6 +451,8 @@ private:
                 break;
             }
         } //end for
+
+        spdlog::info("evmlmotion {} contours {} size {} hasEvent {}", selfId, cnts.size(), cv::contourArea(cnts[i]), hasEvent);
 
         // business logic for event
         auto dura = chrono::duration_cast<chrono::seconds>(evtStartTm - evtStartTmLast).count();
