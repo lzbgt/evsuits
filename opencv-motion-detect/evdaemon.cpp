@@ -55,7 +55,16 @@ class EvDaemon{
     /// tracking sub-systems: evmgr, evpuller, evpusher, evml*, evslicer etc.
     json mapSubSystems;
 
-    int reloadCfg() {
+    int reloadCfg(string subModGid) {
+        int bootType = 0;
+        if(subModGid == "ALL") {
+            bootType = 1;
+        }else if(subModGid.empty()){
+            bootType = 2;
+        }else{
+            bootType = 3;
+        }
+
         int ret = LVDB::getSn(this->info);
         if(ret < 0) {
             spdlog::error("evdaemon {} failed to get info", this->devSn);
@@ -92,7 +101,7 @@ class EvDaemon{
                     this->peerData["config"][peerId] = v;
                     if(this->peerData["status"].count(peerId) == 0||this->peerData["status"][peerId] == 0) {
                         this->peerData["status"][peerId] = 0;
-                        if(bBootstrap) {
+                        if(bootType == 1 || (bootType == 3 && subModGid == peerId)) {
                             ret = zmqhelper::forkSubsystem(devSn, peerId, portRouter, pid);
                             if(ret != 0) {
                                 spdlog::error("evdaemon {} failed to fork subsystem: {}", devSn, peerId);
@@ -108,7 +117,6 @@ class EvDaemon{
                 }
 
                 // startup other submodules
-
                 json &ipcs = v["ipcs"];
                 for(auto &ipc : ipcs) {
                     json &modules = ipc["modules"];
@@ -130,7 +138,7 @@ class EvDaemon{
 
                                 if(this->peerData["status"].count(peerId) == 0||this->peerData["status"][peerId] == 0) {
                                     this->peerData["status"][peerId] = 0;
-                                    if(bBootstrap) {
+                                    if(bootType == 1 || (bootType == 3 && subModGid == peerId)){
                                         ret = zmqhelper::forkSubsystem(devSn, peerId, portRouter, pid);
                                         if(ret != 0) {
                                             spdlog::error("evdaemon {} failed to fork subsystem: {}", devSn, peerId);
@@ -182,7 +190,13 @@ class EvDaemon{
             while(true) {
                 if(this->bReload) {
                     cleanupSubSystems();
-                    int ret = reloadCfg();
+                    int ret;
+                    if(bBootstrap){
+                        ret = reloadCfg("ALL");
+                    }else{
+                        ret = reloadCfg("");
+                    }
+
                     if(ret != 0) {
                         cleanupSubSystems();
                     }else{
@@ -197,7 +211,7 @@ class EvDaemon{
         thMon.detach();
     }
 
-    int startSubModule(string peerId){
+    int startSubModule(string peerId) {
         int ret = 0;
         if(peerData["status"].count(peerId) == 0 || peerData["status"][peerId] == 0) {
             //
@@ -238,8 +252,7 @@ class EvDaemon{
             return -1;
         }
 
-        return 0;
-        
+        return 0;   
     }
 
     int handleMsg(vector<vector<uint8_t> > &body)
@@ -275,15 +288,19 @@ class EvDaemon{
                 if(peerData["pids"].count(selfId) != 0) {
                     peerData["pids"].erase(selfId);
                 }
-                // if(peerData["config"].count(selfId) != 0) {
-                //     peerData["config"].erase(selfId);
-                // }
-                
+
                 spdlog::warn("evdaemon {} peer disconnected: {}", devSn, selfId);
-                // restart this module
-                if(bBootstrap) {
-                    startSubModule(selfId);
-                }                
+
+                if(bBootstrap){
+                    ret = reloadCfg(selfId);
+                }else{
+                    ret = reloadCfg("");
+                }
+                
+                if(ret != 0) {
+                    cleanupSubSystems();
+                }
+                       
             }
 
             if(ret < 0) {

@@ -179,6 +179,8 @@ private:
                 detPara.entropy = evmlmotion["entropy"];
             }
 
+            spdlog::info("evmlmotion {} detection params: entropy {}, area {}, thresh {}", selfId, detPara.entropy, detPara.area, detPara.thre);
+
             // setup sub
             pSubCtx = zmq_ctx_new();
             pSub = zmq_socket(pSubCtx, ZMQ_SUB);
@@ -411,22 +413,23 @@ private:
             first = false;
             return;
         }
+
 #ifdef DEBUG
         matShow3 = gray.clone();
         matShow2 = origin;
 #endif
+
         evtStartTm = chrono::system_clock::now();
         // TODO: AVG
         // cv::accumulateWeighted(gray, avg, 0.5);
         cv::absdiff(gray, avg, thresh);
-#ifdef DEBUG
         avg = gray.clone();
-#endif
+        
+
         if(!detect || fent < detPara.entropy){
             return;
         }
 
-        // TODO:
         cv::threshold(thresh, gray, detPara.thre, 255, cv::THRESH_BINARY);
         cv::dilate(gray, thresh, cv::Mat(), cv::Point(-1,-1), 2);
 
@@ -445,14 +448,16 @@ private:
             else {
                 hasEvent = true;
                 evtCnt++;
+
 #ifdef DEBUG
                 cv::putText(origin, "motion detected", cv::Point(10, 20), cv::FONT_HERSHEY_SIMPLEX, 0.75, cv::Scalar(0,0,255),2);
 #endif
+
                 break;
             }
         } //end for
 
-        spdlog::info("evmlmotion {} contours {} size {} hasEvent {}", selfId, cnts.size(), cv::contourArea(cnts[i]), hasEvent);
+        spdlog::info("evmlmotion {} contours {} area {}, thresh {} hasEvent {}", selfId, cnts.size(), cnts.size() == 0? 0:cv::contourArea(cnts[i]), detPara.area, hasEvent);
 
         // business logic for event
         auto dura = chrono::duration_cast<chrono::seconds>(evtStartTm - evtStartTmLast).count();
