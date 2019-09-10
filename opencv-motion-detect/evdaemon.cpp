@@ -134,11 +134,11 @@ class EvDaemon{
                                 string peerName;
                                 ret = cfgutils::getPeerId(mn, m, peerId, peerName);
                                 if(ret != 0) {
-                                    // TODO: cleanup and reload  
+                                    // TODO
                                 }
 
                                 this->peerData["config"][peerId] = v;
-                                
+
                                 if(this->peerData["status"].count(peerId) == 0||this->peerData["status"][peerId] == 0) {
                                     this->peerData["status"][peerId] = 0;
                                     if(bootType == 1 || (bootType == 3 && subModGid == peerId)){
