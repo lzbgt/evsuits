@@ -141,23 +141,21 @@ private:
                         }
                     }
                     // update evmgr config
-                    json evmgrData;
-                    evmgrData["data"] = data;
-
                     this->configMap[k] = k;
 
                     //save
-                    iret = LVDB::setLocalConfig(evmgrData, k);
+                    iret = LVDB::setLocalConfig(v, k);
                     if(iret < 0) {
-                        string msg = "failed to save config " + k + " -> " + evmgrData.dump(4);
+                        string msg = "failed to save config " + k + " -> " + v.dump(4);
                         spdlog::error(msg);
                         ret["code"] = iret;
                         ret["msg"] = msg;
                     }
+                    
                     // update in memory peerData
                     if(this->peerData["config"].count(k) != 0) {
                         json diff = json::diff(this->peerData["config"][k], v);
-                        spdlog::info("evcloudsvc peer {} config diff:\n{}", k, diff.dump(4));
+                        spdlog::info("evcloudsvc peer {} config diff:\n{}\n\norigin:\n{}\n\n\nnew:\n{}", k, diff.dump(4), this->peerData["config"][k].dump(4), v.dump(4));
                     }else{
                         this->peerData["config"][k] = v;
                     }
@@ -354,70 +352,6 @@ public:
                 spdlog::info("evcloudsvc laod config for device: {}", k);
             }
         }
-
-        // svr.Post("/register", [this](const Request& req, Response& res){
-        //     json ret;
-        //     try{
-        //         string sn = req.get_param_value("sn");
-        //         string module = req.get_param_value("module");
-        //         bool force = (req.get_param_value("force") == "true") ? true: false;
-
-        //         if(sn.empty()||module.empty()){
-        //             throw StrException("no para sn/module");
-        //         }
-
-        //         auto cfg = json::parse(req.body);
-        //         string key, modname;
-        //         if(module == "evmgr") {
-        //             key = sn;
-        //             // trigger exception
-        //             (void)cfg.at("data").at(key);
-        //         }else {
-        //             if(modname == "evml") {
-        //                 string
-        //                 modname = "evml:" + module.substr(4, module.size());
-
-        //             }else{
-        //                 modname = module;
-        //             }
-        //             modname = sn + ":" + modname;
-        //             if(this->configMap.count(modname) == 0){
-        //                 spdlog::info("evcloudsvc no such edge module registred: {}, create new entry", key);
-        //                 ret = this->config(cfg);
-        //                 if(ret["code"] == 0) {
-        //                 }else{
-        //                     spdlog::error("failed to config: {}", ret.dump(4));
-        //                 }
-        //             }else{
-        //                 key = configMap[modname];
-        //             }
-        //         }
-        //         if(!key.empty()){
-        //             // TODO: calc md5
-        //             spdlog::info("evcloudsvc key: {}", key);
-        //             int r;
-        //             ret["code"] = 0;
-        //             ret["msg"] = "diff";
-        //             json data;
-        //             r = LVDB::getLocalConfig(data, key);
-        //             if(r < 0||force) {
-        //                 spdlog::error("failed to get localconfig or force to updaste. create new");
-        //                 ret = this->config(cfg);
-        //             }else{
-        //                 json diff = json::diff(cfg, data);
-        //                 spdlog::info("evcloudsvc diff: {}", diff.dump(4));
-        //                 ret["data"] = diff;
-        //             }
-        //         }
-        //     }catch(exception &e) {
-        //         ret.clear();
-        //         ret["code"] = -1;
-        //         ret["msg"] = e.what();
-        //     }
-
-        //     res.set_content(ret.dump(), "text/json");
-
-        // });
 
         svr.Get("/config", [this](const Request& req, Response& res) {
             json ret;

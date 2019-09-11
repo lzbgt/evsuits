@@ -38,7 +38,7 @@ class EvDaemon{
     thread::id thIdMain;
     thread thRouter;
     thread thCloud;
-    bool bReload = true;
+    bool bReload = false;
     bool bBootstrap = true;
     // peerData["status"];
     // peerData["pids"];
@@ -196,7 +196,7 @@ class EvDaemon{
         thMon = thread([this](){
             while(true) {
                 if(this->bReload) {
-                    cleanupSubSystems();
+                    //cleanupSubSystems();
                     int ret;
                     if(bBootstrap){
                         ret = reloadCfg("ALL");
@@ -211,7 +211,7 @@ class EvDaemon{
                     }
                 }
 
-                this_thread::sleep_for(chrono::seconds(30));
+                this_thread::sleep_for(chrono::seconds(5));
             }
         });
 
@@ -433,8 +433,15 @@ class EvDaemon{
                 if(peerId == "evcloudsvc") {
                     // its configuration message
                     if(meta == EV_MSG_META_CONFIG) {
-                        json diff = json::diff(config, data);
-                        spdlog::info("evdaemon {} received cloud config diff:\n{}\nfull\n{}", devSn, diff.dump(4), data.dump(4));
+                        if(data.size() == 0) {
+                            spdlog::error("evdaemon {} received invalid empty config");
+                        }else{
+                            
+                            json diff = json::diff(config, data);
+                            // TODO: calc diff
+                            spdlog::info("evdaemon {} received cloud config diff:\n{}\nfull\n{}", devSn, diff.dump(4), data.dump(4));
+                            bReload = true;
+                        }
                     }
                 }else{
                     // from peer
@@ -452,7 +459,7 @@ class EvDaemon{
     public:
     void run(){
 
-        //setupSubSystems();
+        setupSubSystems();
 
         // get config
         svr.Get("/info", [this](const Request& req, Response& res){
