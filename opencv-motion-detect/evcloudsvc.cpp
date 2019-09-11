@@ -188,11 +188,13 @@ private:
                     // update in memory peerData
                     if(this->peerData["config"].count(k) != 0) {
                         json diff = json::diff(this->peerData["config"][k], v);
-                        spdlog::info("evcloudsvc peer {} config diff:\n{}\n\norigin:\n{}", k, diff.dump(), this->peerData["config"][k].dump());
                         if(diff.size()!=0) {
                             // send config
                             deltaCfg[k] = 1;
                             this->peerData["config"][k] = v;
+                            spdlog::info("evcloudsvc peer {} config diff:\n{}\norigin:\n{}", k, diff.dump(), this->peerData["config"][k].dump());
+                        }else{
+                            spdlog::info("evcloudsvc peer {} config no diff. ignored:\n{}", k, this->peerData["config"][k].dump());
                         }
                     }else{
                         this->peerData["config"][k] = v;
