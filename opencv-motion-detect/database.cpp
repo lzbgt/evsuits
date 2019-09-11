@@ -404,10 +404,7 @@ togo_end:
 
     // config
     int _validateConfig(const json &config) {
-        if(config.count("data") == 0|| config["data"].size() == 0) {
-            spdlog::error("invliad config: {}", config.dump(4));
-            return -1;
-        }
+        //TODO:
         return 0;
     }
 
@@ -421,19 +418,11 @@ togo_end:
     };
 
     int setLocalConfig(json &config, string key, string fileName){
-        if(config.count("data") == 0) {
-            spdlog::error("setLocalConfig no data field");
-            return -1;
-        }
-
-        json j;
-        j["lastupdated"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
-        j["data"] = config["data"];
 
         if(key.empty()) {
-            return setValue(j, LVDB_KEY_CONFIG, fileName, _validateConfig);
+            return setValue(config, LVDB_KEY_CONFIG, fileName, _validateConfig);
         }else{
-            return setValue(j, key, fileName, _validateConfig);
+            return setValue(config, key, fileName, _validateConfig);
         } 
     };
 
