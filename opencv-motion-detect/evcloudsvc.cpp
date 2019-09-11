@@ -44,6 +44,29 @@ private:
     mutex eventQLock;
     thread thMsgProcessor;
 
+    int sendConfig(json &config_, string sn) {
+        int ret = 0;
+        string cfg = config_.dump();
+        json j;
+        j["type"] = EV_MSG_META_CONFIG;
+        string meta = j.dump();
+        vector<vector<uint8_t> > v = {str2body(sn), str2body(devSn), str2body(meta), str2body(cfg)};
+
+        if(peerData["status"].count(sn) == 0||peerData["status"][sn] == 0) {
+            spdlog::warn("evcloudsvc {} cached config to {}", devSn, sn);
+            lock_guard<mutex> lock(cacheLock);
+            cachedMsg[sn].push(v);
+            if(cachedMsg[sn].size() > EV_NUM_CACHE_PERPEER) {
+                cachedMsg[sn].pop();
+            }
+        }else{
+            ret = z_send_multiple(pRouter, v);
+            spdlog::info("evcloudsvc config sent to {}: {}", sn, cfg);
+        }
+        
+        return ret;
+    }
+
     json config(json &newConfig)
     {
         json ret;
@@ -151,11 +174,15 @@ private:
                         ret["code"] = iret;
                         ret["msg"] = msg;
                     }
-                    
+
                     // update in memory peerData
                     if(this->peerData["config"].count(k) != 0) {
                         json diff = json::diff(this->peerData["config"][k], v);
-                        spdlog::info("evcloudsvc peer {} config diff:\n{}\n\norigin:\n{}\n\n\nnew:\n{}", k, diff.dump(4), this->peerData["config"][k].dump(4), v.dump(4));
+                        spdlog::info("evcloudsvc peer {} config diff:\n{}\n\norigin:\n{}", k, diff.dump(), this->peerData["config"][k].dump());
+                        if(diff.size()!=0) {
+                            // send config
+                            sendConfig(v, k);
+                        }
                     }else{
                         this->peerData["config"][k] = v;
                     }
@@ -204,14 +231,9 @@ private:
                 peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                 spdlog::info("evcloudsvc {} peer connected: {}", devSn, selfId);
                 eventConn = true;
-                spdlog::debug("evcloudsvc {} update status of {} to 1 and send config", devSn, selfId);
-                string cfg = peerData["config"][selfId].dump();
-                json j;
-                j["type"] = EV_MSG_META_CONFIG;
-                string meta = j.dump();
-                vector<vector<uint8_t> > v = {str2body(selfId), str2body(devSn), str2body(meta), str2body(cfg)};
-                z_send_multiple(pRouter, v);
-                spdlog::info("evcloudsvc config sent to {}: {}", selfId, cfg);
+                spdlog::debug("evcloudsvc update status of {} to 1 and send config", selfId);
+                //
+                sendConfig(peerData["config"][selfId], selfId);
             }
             else {
                 peerData["status"][selfId] = 0;
