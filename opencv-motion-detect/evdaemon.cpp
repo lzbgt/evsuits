@@ -452,19 +452,6 @@ class EvDaemon{
     public:
     void run(){
 
-        // setup cloud msg processor
-        thCloud = thread([this](){
-            while(true){
-                auto v = zmqhelper::z_recv_multiple(this->pDealer);
-                if(v.size() == 0) {
-                    spdlog::error("evdaemon {} failed to receive msg {}", this->devSn, zmq_strerror(zmq_errno()));
-                }else{
-                    handleCloudMsg(v);
-                }
-            }
-        });
-        thCloud.detach();
-
         //setupSubSystems();
 
         // get config
@@ -579,22 +566,6 @@ class EvDaemon{
             spdlog::error("evdaemon {} setup router: {}", this->devSn, addr);
             exit(1);
         }
-
-        // dealer port
-        strEnv = getenv("CLOUD_ADDR");
-        if(strEnv != NULL) {
-            cloudAddr = strEnv;
-        }
-
-        // setup dealer
-        ret = zmqhelper::setupDealer(&pDealerCtx, &pDealer, cloudAddr, devSn);
-        if(ret != 0) {
-            spdlog::error("evdaemon {} failed to setup dealer", devSn);
-            exit(1);
-        }
-
-        this->thIdMain = this_thread::get_id();
-
         // setup edge msg processor
         thRouter = thread([this](){
             while(true){
@@ -608,7 +579,39 @@ class EvDaemon{
         });
         thRouter.detach();
 
-        
+        spdlog::info("evdaemon {} edge message processor had setup {}", devSn, addr);
+
+
+        // dealer port
+        strEnv = getenv("CLOUD_ADDR");
+        if(strEnv != NULL) {
+            cloudAddr = strEnv;
+        }
+
+        // setup dealer
+        ret = zmqhelper::setupDealer(&pDealerCtx, &pDealer, cloudAddr, devSn);
+        if(ret != 0) {
+            spdlog::error("evdaemon {} failed to setup dealer", devSn);
+            exit(1);
+        }
+        spdlog::info("evdaemon {} connected to cloud {}", devSn, cloudAddr);
+        // setup cloud msg processor
+        thCloud = thread([this](){
+            while(true){
+                auto v = zmqhelper::z_recv_multiple(this->pDealer);
+                if(v.size() == 0) {
+                    spdlog::error("evdaemon {} failed to receive msg {}", this->devSn, zmq_strerror(zmq_errno()));
+                }else{
+                    handleCloudMsg(v);
+                }
+            }
+        });
+
+        thCloud.detach();
+        spdlog::info("evdaemon {} cloud message processor had setup {}", devSn, cloudAddr);
+
+        this->thIdMain = this_thread::get_id();
+
         /// peerId -> value
         peerData["status"] = json();
         peerData["pids"] = json();
