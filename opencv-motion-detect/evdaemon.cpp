@@ -418,13 +418,12 @@ class EvDaemon{
                         if(data.size() == 0) {
                             spdlog::error("evdaemon {} received invalid empty config");
                         }else{
-                            
                             json diff = json::diff(this->config, data);
                             if(diff.size() != 0) {
-                                this->bReload = true;
-                                spdlog::info("evdaemon {} received cloud config diff. origin:\n{}\n\new\n{}", devSn, this->config.dump(), data.dump());
-                                // TODO: detailed diff on submodules
                                 this->config = data;
+                                this->bReload = true;
+                                spdlog::info("evdaemon {} received cloud config diff. origin:\n{}\nnew\n{}", devSn, this->config.dump(), data.dump());
+                                // TODO: detailed diff on submodules
                             }else{
                                 spdlog::info("evdaemon {} received same configuration and ignored: {}", data.dump());
                             }
