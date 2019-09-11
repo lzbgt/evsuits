@@ -257,9 +257,7 @@ private:
                     //
                 }else{
                     sendConfig(data["data"], selfId);
-                    spdlog::info("evcloudsvc sent config to device {}:\n{}", selfId, data["data"].dump());
                 }
-                
             }
             else {
                 peerData["status"][selfId] = 0;
@@ -377,7 +375,7 @@ private:
                     s.insert(this->configMap["mod2mgr"][elem].get<string>());
                     spdlog::info("evcloudsvc {}->{}", elem, this->configMap["mod2mgr"][elem].get<string>());
                 }
-                
+
                 for(auto &key : s) {
                     if(this->peerData["config"].count(key) == 0) {
                         spdlog::error("evcloudsvc no peerData config for device {}", key);

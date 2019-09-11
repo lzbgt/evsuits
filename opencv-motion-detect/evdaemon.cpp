@@ -122,9 +122,9 @@ class EvDaemon{
                                 string peerName;
                                 ret = cfgutils::getPeerId(mn, m, peerId, peerName);
                                 if(ret != 0) {
-                                    // TODO
+                                    continue;
                                 }
-
+                                
                                 this->peerData["config"][peerId] = v;
 
                                 if(this->peerData["status"].count(peerId) == 0||this->peerData["status"][peerId] == 0) {
@@ -148,7 +148,7 @@ class EvDaemon{
                 }
             }
         }catch(exception &e) {
-            spdlog::error("evdaemon {} exception {} to reload and apply configuration:\n{}", this->devSn, e.what(), this->config.dump());
+            spdlog::error("evdaemon {} exception reload and apply configuration: {}:\n{}", this->devSn, e.what(), this->config.dump());
             return -1;
         }
 
