@@ -31,7 +31,7 @@ private:
     Server svr;
     void *pRouterCtx = NULL, *pRouter = NULL;
     string httpPort = "8089";
-    string msgPort = "5048";
+    string msgPort = "5548";
     string devSn = "evcloudsvc";
 
     json configMap;
@@ -110,8 +110,12 @@ private:
                                                 if(this->configMap["sn2mods"].count(sn) == 0) {
                                                     this->configMap["sn2mods"][sn] = json();
                                                 }
-                                                this->configMap["sn2mods"][sn].push_back(modKey);
-
+                                                if(this->configMap["sn2mods"][sn].contains(modKey)){
+                                                    //nop
+                                                }else{
+                                                    this->configMap["sn2mods"][sn].push_back(modKey);
+                                                }
+                                                
                                                 // modkey -> sn_of_evmgr
                                                 this->configMap["mod2mgr"][modKey] = k;
                                             }
@@ -209,6 +213,7 @@ private:
                 string meta = j.dump();
                 vector<vector<uint8_t> > v = {str2body(selfId), str2body(devSn), str2body(meta), str2body(cfg)};
                 z_send_multiple(pRouter, v);
+                spdlog::info("evcloudsvc config sent to {}: {}", selfId, cfg);
             }
             else {
                 peerData["status"][selfId] = 0;
@@ -336,6 +341,18 @@ public:
         }
         else {
             this->configMap = cnfm;
+        }
+
+        // populate peerData
+        for(auto &[k,v]: this->configMap["sn2mods"].items()){
+            // load config from database
+            json cfg;
+            if(LVDB::getLocalConfig(cfg, k) < 0) {
+                spdlog::error("evcloudsvc failed to load config for device: {}", k);
+            }else{
+                this->peerData["config"][k] = cfg;
+                spdlog::info("evcloudsvc populated config for device: {}", k);
+            }
         }
 
         // svr.Post("/register", [this](const Request& req, Response& res){

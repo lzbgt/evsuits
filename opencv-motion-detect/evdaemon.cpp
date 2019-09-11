@@ -434,7 +434,7 @@ class EvDaemon{
                     // its configuration message
                     if(meta == EV_MSG_META_CONFIG) {
                         json diff = json::diff(config, data);
-                        spdlog::info("evdaemon {} received cloud config {}", devSn, diff.dump());
+                        spdlog::info("evdaemon {} received cloud config diff:\n{}\nfull\n{}", devSn, diff.dump(4), data.dump(4));
                     }
                 }else{
                     // from peer
