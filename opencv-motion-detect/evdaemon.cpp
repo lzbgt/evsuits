@@ -52,6 +52,8 @@ class EvDaemon{
 
     // for zmq
     void *pRouterCtx = NULL, *pRouter = NULL;
+    void *pDealerCtx = NULL, *pDealer = NULL;
+    string cloudAddr = "tcp://127.0.0.1:5548";
 
     /// tracking sub-systems: evmgr, evpuller, evpusher, evml*, evslicer etc.
     json mapSubSystems;
@@ -484,6 +486,20 @@ class EvDaemon{
 
     EvDaemon(){
         int ret = 0;
+
+        // get sn of device
+        json info;
+        try{
+            LVDB::getSn(info);
+        }catch(exception &e) {
+            spdlog::error("evdaemon failed to get sn: {}", e.what());
+            exit(1);
+        }
+        
+        spdlog::info("evdaemon boot \n{}",info.dump(4));
+
+        devSn = info["sn"];
+        
         char* strEnv = getenv("BOOTSTRAP");
         if(strEnv != NULL && memcmp(strEnv, "false", 5) == 0) {
             bBootstrap = false;
@@ -503,10 +519,23 @@ class EvDaemon{
 
         string addr = string("tcp://*:") + to_string(portRouter);
 
-        // setup zmq
+        // setup router
         ret = zmqhelper::setupRouter(&pRouterCtx, &pRouter, addr);
         if(ret < 0) {
             spdlog::error("evdaemon {} setup router: {}", this->devSn, addr);
+            exit(1);
+        }
+
+        // dealer port
+        strEnv = getenv("CLOUD_ADDR");
+        if(strEnv != NULL) {
+            cloudAddr = strEnv;
+        }
+
+        // setup dealer
+        ret = zmqhelper::setupDealer(&pDealerCtx, &pDealer, cloudAddr, devSn);
+        if(ret != 0) {
+            spdlog::error("evdaemon {} failed to setup dealer", devSn);
             exit(1);
         }
 
@@ -524,7 +553,7 @@ class EvDaemon{
             }
         });
         thRouter.detach();
-        //
+        
         /// peerId -> value
         peerData["status"] = json();
         peerData["pids"] = json();
@@ -541,9 +570,6 @@ void cleanup(int signal) {
 int main(){
     signal(SIGCHLD, cleanup);
     //sigignore(SIGCHLD);
-    json info;
-    LVDB::getSn(info);
-    spdlog::info("evdaemon: \n{}",info.dump(4));
     EvDaemon srv;
     srv.run();
 }
