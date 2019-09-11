@@ -21,11 +21,14 @@ using namespace httplib;
 using namespace nlohmann;
 
 //
-
-class HttpSrv {
 #define KEY_CONFIG_MAP "configmap"
+class EvCloudSvc {
 private:
     Server svr;
+    void *pRouterCtx = NULL, *pRouter = NULL;
+    string httpPort = "8089";
+    string msgPort = "5048";
+
     // sn:module -> sn_of_evmgr
     json configMap;
 
@@ -399,18 +402,35 @@ public:
             res.set_content(j.dump(), "text/json");
         });
 
-        svr.listen("0.0.0.0", 8089);
+        svr.listen("0.0.0.0", stoi(httpPort));
     }
 
-    HttpSrv()
+    EvCloudSvc()
     {
+        int ret = 0;
+        char *strEnv = getenv("HTTP_PORT");
+        if(strEnv != NULL) {
+            httpPort = strEnv;
+        }
+
+        strEnv = getenv("MSG_PORT");
+        if(strEnv != NULL) {
+            msgPort = strEnv;
+        }
+
+        string addr = "tcp://*:" + msgPort;
+        ret = zmqhelper::setupRouter(&pRouterCtx, &pRouter, addr);
+        if(ret < 0) {
+            spdlog::error("evcloudsvc failed setup router: {}", addr);
+            exit(1);
+        }
 
     };
-    ~HttpSrv() {};
+    ~EvCloudSvc() {};
 };
 
 int main()
 {
-    HttpSrv srv;
+    EvCloudSvc srv;
     srv.run();
 }

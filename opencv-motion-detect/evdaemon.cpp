@@ -115,8 +115,8 @@ class EvDaemon{
                             spdlog::info("evdaemon {} created subsystem {}", devSn, peerId); 
                         }  
                     }else{
-                        // TODO:
-                    }         
+                        // TODO
+                    }
                 }
 
                 // startup other submodules
