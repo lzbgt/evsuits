@@ -78,26 +78,10 @@ class EvDaemon{
 
         this->devSn = this->info["sn"];
         this->daemonId = this->devSn + ":evdaemon:0";
-        /// req config
-        json jret = cloudutils::reqConfig(this->info);
-        json diff = json::diff(this->config, jret["data"]);
-        // TODO
-        spdlog::info("evdaemon {} config diff: {}", devSn, diff.dump(4));
-
-        if(diff.size() == 0) {
-            return 0;
-        }
-
+    
         // apply config
         try{
-            if(jret["code"] != 0) {
-                spdlog::error("evdaemon {} request cloud configration error: {}", this->devSn, jret["msg"].get<string>());
-                return 2;
-            }
-
-            spdlog::info("evdaemon {} got cloud config:\n{}", devSn, jret.dump(4));
-
-            json &data = jret["data"];
+            json &data = this->config;
             string peerId;
             pid_t pid;
             for(auto &[k,v]:data.items()) {
@@ -164,11 +148,9 @@ class EvDaemon{
                 }
             }
         }catch(exception &e) {
-            spdlog::error("evdaemon {} exception {} to reload and apply configuration:\n{}", this->devSn, e.what(), jret.dump());
+            spdlog::error("evdaemon {} exception {} to reload and apply configuration:\n{}", this->devSn, e.what(), this->config.dump());
             return -1;
         }
-
-        this->config = jret["data"];
 
         return 0;
     }
@@ -437,10 +419,15 @@ class EvDaemon{
                             spdlog::error("evdaemon {} received invalid empty config");
                         }else{
                             
-                            json diff = json::diff(config, data);
+                            json diff = json::diff(this->config, data);
                             // TODO: calc diff
-                            spdlog::info("evdaemon {} received cloud config diff:\n{}\n\norigin\n{}", devSn, diff.dump(), data.dump());
-                            bReload = true;
+                            if(diff.size() != 0) {
+                                bReload = true;
+                                spdlog::info("evdaemon {} received cloud config diff. origin:\n{}\n\norigin\n{}", devSn, this->config.dump(), data.dump());
+                            }else{
+                                spdlog::info("evdaemon {} received same configuration and ignored: {}", data.dump());
+                            }
+                            
                         }
                     }
                 }else{

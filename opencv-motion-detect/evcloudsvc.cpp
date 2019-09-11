@@ -133,7 +133,16 @@ private:
                                                 if(this->configMap["sn2mods"].count(sn) == 0) {
                                                     this->configMap["sn2mods"][sn] = json();
                                                 }
-                                                if(this->configMap["sn2mods"][sn].contains(modKey)){
+                                                // check exist
+                                                bool hasModKey =false;
+                                                for(auto &modKey_:this->configMap["sn2mods"][sn]){
+                                                    if(modKey_ == modKey) {
+                                                        hasModKey = true;
+                                                        break;
+                                                    }
+                                                }
+
+                                                if(hasModKey){
                                                     //nop
                                                 }else{
                                                     this->configMap["sn2mods"][sn].push_back(modKey);
@@ -196,12 +205,23 @@ private:
                     if(iret >= 0) {
                     }
                     else {
+                        spdlog::error("evcloudsvc failed to parse and save new config");
                         ret["code"] = iret;
                         ret["msg"] = "failed to save configmap";
                     }
                 }
                 else {
                     this->configMap = oldConfigMap;
+                }
+
+                // save full config
+                for(auto &[k,v]: data.items()){
+                    json j = getConfigForDevice(k);
+                    if(j["code"] != 0) {
+                        spdlog::error("evcloudsvc failed getConfigForDevice {}: {} ", k, j["msg"].dump());
+                    }else{
+                        this->peerData["fullcfg"][k] = j["data"];
+                    }
                 }
 
                 ret["data"] = newConfig["data"];
@@ -229,19 +249,21 @@ private:
 
             if(peerData["status"].count(selfId) == 0 || peerData["status"][selfId] == 0) {
                 peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
-                spdlog::info("evcloudsvc {} peer connected: {}", devSn, selfId);
+                spdlog::info("evcloudsvc peer connected: {}", selfId);
                 eventConn = true;
                 spdlog::debug("evcloudsvc update status of {} to 1 and send config", selfId);
-                //
-                sendConfig(peerData["config"][selfId], selfId);
+                json data = getConfigForDevice(selfId);
+                if(data["code"] != 0) {
+                    //
+                }else{
+                    sendConfig(data["data"], selfId);
+                    spdlog::info("evcloudsvc sent config to device {}:\n{}", selfId, data["data"].dump());
+                }
+                
             }
             else {
                 peerData["status"][selfId] = 0;
                 spdlog::warn("evcloudsvc {} peer disconnected: {}", devSn, selfId);
-            }
-
-            if(ret < 0) {
-                spdlog::error("evcloudsvc {} failed to update localconfig", devSn);
             }
 
             // event
@@ -340,6 +362,56 @@ private:
         return ret;
     }
 
+    json getConfigForDevice(string sn) {
+        json ret;
+        ret["code"] = 0;
+        ret["msg"] = "ok";
+        ret["data"] = json();
+        json &data = ret["data"];
+        spdlog::info("evcloudsvc get config for sn {}", sn);
+        try{
+            if(this->configMap["sn2mods"].count(sn) != 0) {
+                auto mods = this->configMap["sn2mods"][sn];
+                set<string> s;
+                for(const string & elem : mods) {
+                    s.insert(this->configMap["mod2mgr"][elem].get<string>());
+                    spdlog::info("evcloudsvc {}->{}", elem, this->configMap["mod2mgr"][elem].get<string>());
+                }
+                
+                for(auto &key : s) {
+                    if(this->peerData["config"].count(key) == 0) {
+                        spdlog::error("evcloudsvc no peerData config for device {}", key);
+                    }else{
+                        if(data.count(key) != 0) {
+                            json diff = json::diff(data[key], this->peerData["config"][key]);
+                            if(diff.size() != 0) {
+                                string msg = "evcloudsvc inconsistent configuration for k,v, newv: " + key + ",\n" + data[key].dump() + "new v:\n" + this->peerData["config"][key].dump();
+                                ret["code"] = 3;
+                                ret["msg"] = msg;
+                                break;
+                            }
+                        }else{
+                            data[key] = this->peerData["config"][key];
+                        }
+                    } 
+                } // for keys of mgr
+                ret["data"] = data;
+            }else{
+                ret["code"] = 1;
+                string msg = "no such sn: " + sn;
+                ret["msg"] = msg;
+                spdlog::warn("evcloudsvc no config for sn: {}", sn);   
+            }
+        }catch(exception &e) {
+            string msg = "evcloudsvc exception in file" + string(__FILE__) + ":" + to_string(__LINE__) + " for: " + e.what();
+            spdlog::error(msg);
+            ret["code"] = -1;
+            ret["msg"] = msg;
+        }
+        
+        return ret;
+    }
+
 protected:
 public:
     void run()
@@ -422,52 +494,7 @@ public:
 
                 }
                 else if(!sn.empty() && module.empty()) {
-                    spdlog::info("evcloudsvc get config for sn {}", sn);
-                    if(this->configMap["sn2mods"].count(sn) != 0) {
-                        auto mods = this->configMap["sn2mods"][sn];
-                        set<string> s;
-                        for(const string & elem : mods) {
-                            s.insert(this->configMap["mod2mgr"][elem].get<string>());
-                            spdlog::info("evcloudsvc {}->{}", elem, this->configMap["mod2mgr"][elem].get<string>());
-                        }
-
-                        json data;
-                        for(auto &key : s) {
-                            json cfg;
-                            int iret = LVDB::getLocalConfig(cfg, key);
-                            if(iret < 0) {
-                                ret["code"] = 1;
-                                ret["msg"] = "evcloud failed to get config with key: " + key ;
-                                spdlog::error(ret["msg"].get<string>());
-                            }
-                            else {
-                                for(auto &[k,v]: cfg["data"].items()) {
-                                    if(data.count(k) != 0) {
-                                        json diff = json::diff(data[k], v);
-                                        if(diff.size() != 0) {
-                                            string msg = "evcloudsvc inconsistent configuration for k,v, newv: " + k + ",\n" + data[k].dump(4) + "new v:\n" + v.dump(4);
-                                            ret["code"] = 3;
-                                            ret["msg"] = msg;
-                                            break;
-                                        }
-                                    }
-                                    else {
-                                        data[k] = v;
-                                    }
-                                } // for each mgr
-
-                                if(ret["code"] != 0) {
-                                    break;
-                                }
-                            }
-                        } // for keys of mgr
-                        ret["data"] = data;
-                    }else{
-                        ret["code"] = 1;
-                        string msg = "no such sn: " + sn;
-                        ret["msg"] = msg;
-                        spdlog::warn("evcloudsvc no config for sn: {}", sn);   
-                    }
+                    ret = getConfigForDevice(sn);
                 }else{
                     ret["code"] = 2;
                     ret["msg"] = "invalid request. no param for sn/module";
