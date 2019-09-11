@@ -30,6 +30,7 @@ class EvDaemon{
     private:
     Server svr;
     json config;
+    json deltaCfg;
     json info;
     int port = 8088;
     thread thMon;
@@ -203,50 +204,6 @@ class EvDaemon{
         thMon.detach();
     }
 
-    int startSubModule(string peerId) {
-        int ret = 0;
-        if(peerData["status"].count(peerId) == 0 || peerData["status"][peerId] == 0) {
-            //
-        }else if(peerData["pids"].count(peerId) != 0){
-            kill(peerData["pids"][peerId], SIGTERM);
-            peerData["pids"].erase(peerId);
-            peerData["status"][peerId] = 0;
-        }
-        json jret = cloudutils::reqConfig(this->info);
-        // apply config
-        try{
-            if(jret["code"] != 0) {
-                spdlog::error("evdaemon {} request cloud configration error: {}", this->devSn, jret["msg"].get<string>());
-                return 2;
-            }
-            json *cfg = cfgutils::findModuleConfig(peerId, jret["data"]);
-            json diff = json::diff(this->config, jret["data"]);
-            // TODO:
-            spdlog::info("evdaemon {} config diff: {}", devSn, diff.dump());
-            
-            if(cfg == NULL) {
-                spdlog::error("evdaemon failed to find module {} in config {}", peerId, jret["data"].dump());
-                return 1;
-            }
-
-            peerData["config"][peerId] = *cfg;
-            peerData["status"][peerId] = 0;
-            pid_t pid;
-            ret = zmqhelper::forkSubsystem(devSn, peerId, portRouter, pid);
-            if(ret != 0) {
-                spdlog::error("evdaemon {} failed to fork subsystem: {}", devSn, peerId);
-                // TODO: clean up and reload config
-                return -3;
-            }
-            this->peerData["pids"][peerId] = pid;
-        }catch(exception &e) {
-            spdlog::error("evdaemon {} exception : {}", devSn, e.what());
-            return -1;
-        }
-
-        return 0;   
-    }
-
     int handleEdgeMsg(vector<vector<uint8_t> > &body)
     {
         int ret = 0;
@@ -417,11 +374,11 @@ class EvDaemon{
                         if(data.size() == 0) {
                             spdlog::error("evdaemon {} received invalid empty config", devSn);
                         }else{
-                            json diff = json::diff(this->config, data);
-                            if(diff.size() != 0) {
+                            this->deltaCfg = json::diff(this->config, data);
+                            if(this->deltaCfg.size() != 0) {
                                 this->config = data;
                                 this->bReload = true;
-                                spdlog::info("evdaemon {} received cloud config diff. origin:\n{}\nnew\n{}", devSn, this->config.dump(), data.dump());
+                                spdlog::info("evdaemon {} received cloud config diff:\n{}\nnew\n{}", devSn, this->deltaCfg.dump(4), data.dump());
                                 // TODO: detailed diff on submodules
                             }else{
                                 spdlog::info("evdaemon {} received same configuration and ignored: {}", devSn, data.dump());
