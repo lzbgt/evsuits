@@ -572,6 +572,20 @@ public:
             spdlog::error("evcloudsvc failed setup router: {}", addr);
             exit(1);
         }
+        // setup edge msg processor
+        thMsgProcessor = thread([this](){
+            while(true){
+                auto v = zmqhelper::z_recv_multiple(this->pRouter);
+                if(v.size() == 0) {
+                    spdlog::error("evdaemon {} failed to receive msg {}", this->devSn, zmq_strerror(zmq_errno()));
+                }else{
+                    handleMsg(v);
+                }
+            }
+        });
+        thMsgProcessor.detach();
+
+        spdlog::info("evdaemon {} edge message processor had setup {}", devSn, addr);
 
     };
     ~EvCloudSvc() {};
