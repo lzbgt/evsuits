@@ -12,6 +12,7 @@ update: 2019/09/10
 
 #include <queue>
 #include <cstdlib>
+#include <algorithm>
 #include "inc/tinythread.hpp"
 #include "inc/httplib.h"
 #include "inc/zmqhelper.hpp"
@@ -36,12 +37,13 @@ class EvDaemon{
     int portRouter = 5549;
     thread::id thIdMain;
     thread thRouter;
-    json peerData;
+    thread thCloud;
     bool bReload = true;
     bool bBootstrap = true;
     // peerData["status"];
     // peerData["pids"];
     // peerData["config"];
+    json peerData;
     unordered_map<string, queue<vector<vector<uint8_t> >> > cachedMsg;
     mutex cacheLock;
     queue<string> eventQue;
@@ -260,7 +262,7 @@ class EvDaemon{
         return 0;   
     }
 
-    int handleMsg(vector<vector<uint8_t> > &body)
+    int handleEdgeMsg(vector<vector<uint8_t> > &body)
     {
         int ret = 0;
         zmq_msg_t msg;
@@ -343,7 +345,9 @@ class EvDaemon{
         this->peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
 
         // msg to peer
-        if(memcmp((void*)(body[1].data()), (devSn +":0:0").data(), body[1].size()) != 0) {
+        string myId = devSn + ":0:0";
+        int minLen = std::min(body[1].size(), myId.size());
+        if(memcmp((void*)(body[1].data()), myId.data(), minLen) != 0) {
             // message to other peer
             // check peer status
             vector<vector<uint8_t> >v = {body[1], body[0], body[2], body[3]};
@@ -408,10 +412,60 @@ class EvDaemon{
         return ret;
     }
 
+    int handleCloudMsg(vector<vector<uint8_t> > &v) {
+        int ret = 0;
+        zmq_msg_t msg;
+        // ID_SENDER, meta ,MSG
+        string peerId, meta;
+        if(v.size() != 3) {
+            string msg;
+            for(auto &s:v) {
+                msg += body2str(s) + ";";
+            }
+            spdlog::error("evdaemon {} received invalid msg from cloud {}", devSn, msg);
+        }else{
+            try{
+                string meta = json::parse(v[1])["type"];
+                string peerId = body2str(v[0]);
+                json data = json::parse(body2str(v[2]));
+
+                // from cloudsvc
+                if(peerId == "evcloudsvc") {
+                    // its configuration message
+                    if(meta == EV_MSG_META_CONFIG) {
+                        json diff = json::diff(config, data);
+                        spdlog::info("evdaemon {} received cloud config {}", devSn, diff.dump());
+                    }
+                }else{
+                    // from peer
+                    spdlog::info("evdaemon {} msg from peer {}: {}", devSn, peerId, data.dump());
+                }            
+
+            }catch(exception &e) {
+                spdlog::error("evdaemon {} file {}:{} exception {}", devSn, __FILE__, __LINE__, e.what());
+            }
+        }
+        return 0;
+    }
+
     protected:
     public:
     void run(){
-        setupSubSystems();
+
+        // setup cloud msg processor
+        thCloud = thread([this](){
+            while(true){
+                auto v = zmqhelper::z_recv_multiple(this->pDealer);
+                if(v.size() == 0) {
+                    spdlog::error("evdaemon {} failed to receive msg {}", this->devSn, zmq_strerror(zmq_errno()));
+                }else{
+                    handleCloudMsg(v);
+                }
+            }
+        });
+        thCloud.detach();
+
+        //setupSubSystems();
 
         // get config
         svr.Get("/info", [this](const Request& req, Response& res){
@@ -541,18 +595,19 @@ class EvDaemon{
 
         this->thIdMain = this_thread::get_id();
 
-        // setup msg processor
+        // setup edge msg processor
         thRouter = thread([this](){
             while(true){
                 auto v = zmqhelper::z_recv_multiple(this->pRouter);
                 if(v.size() == 0) {
                     spdlog::error("evdaemon {} failed to receive msg {}", this->devSn, zmq_strerror(zmq_errno()));
                 }else{
-                    handleMsg(v);
+                    handleEdgeMsg(v);
                 }
             }
         });
         thRouter.detach();
+
         
         /// peerId -> value
         peerData["status"] = json();

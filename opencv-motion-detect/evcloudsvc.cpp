@@ -8,6 +8,9 @@ update: 2019/09/10
 
 #include <chrono>
 #include <set>
+#include <queue>
+#include <mutex>
+#include <algorithm>
 #include "inc/tinythread.hpp"
 #include "inc/httplib.h"
 #include "inc/database.h"
@@ -19,6 +22,7 @@ update: 2019/09/10
 using namespace std;
 using namespace httplib;
 using namespace nlohmann;
+using namespace zmqhelper;
 
 //
 #define KEY_CONFIG_MAP "configmap"
@@ -28,9 +32,17 @@ private:
     void *pRouterCtx = NULL, *pRouter = NULL;
     string httpPort = "8089";
     string msgPort = "5048";
+    string devSn = "evcloudsvc";
 
-    // sn:module -> sn_of_evmgr
     json configMap;
+
+    // peer data
+    json peerData;
+    unordered_map<string, queue<vector<vector<uint8_t> >> > cachedMsg;
+    mutex cacheLock;
+    queue<string> eventQue;
+    mutex eventQLock;
+    thread thMsgProcessor;
 
     json config(json &newConfig)
     {
@@ -138,6 +150,15 @@ private:
                         ret["code"] = iret;
                         ret["msg"] = msg;
                     }
+                    // update in memory peerData
+                    if(this->peerData["config"].count(k) != 0) {
+                        json diff = json::diff(this->peerData["config"][k], v);
+                        spdlog::info("evcloudsvc peer {} config diff:\n{}", k, diff.dump(4));
+                    }else{
+                        this->peerData["config"][k] = v;
+                    }
+                    
+                    // TODO: trigger msg
                 } // for evmgr
 
                 // save configmap
@@ -160,9 +181,136 @@ private:
         catch(exception &e) {
             ret.clear();
             ret["code"] = -1;
-            ret["msg"] = e.what();
+            ret["msg"] = string("evcloudsvc exception: ") + e.what();
         }
 
+
+        return ret;
+    }
+
+    int handleMsg(vector<vector<uint8_t> > &body)
+    {
+        int ret = 0;
+        zmq_msg_t msg;
+        // ID_SENDER, ID_TARGET, meta ,MSG
+        string selfId, peerId, meta;
+        if(body.size() == 2 && body[1].size() == 0) {
+            selfId = body2str(body[0]);
+            bool eventConn = false;
+
+            if(peerData["status"].count(selfId) == 0 || peerData["status"][selfId] == 0) {
+                peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                spdlog::info("evcloudsvc {} peer connected: {}", devSn, selfId);
+                eventConn = true;
+                spdlog::debug("evcloudsvc {} update status of {} to 1 and send config", devSn, selfId);
+                string cfg = peerData["config"][selfId].dump();
+                json j;
+                j["type"] = EV_MSG_META_CONFIG;
+                string meta = j.dump();
+                vector<vector<uint8_t> > v = {str2body(selfId), str2body(devSn), str2body(meta), str2body(cfg)};
+                z_send_multiple(pRouter, v);
+            }
+            else {
+                peerData["status"][selfId] = 0;
+                spdlog::warn("evcloudsvc {} peer disconnected: {}", devSn, selfId);
+            }
+
+            if(ret < 0) {
+                spdlog::error("evcloudsvc {} failed to update localconfig", devSn);
+            }
+
+            // event
+            json jEvt;
+            jEvt["type"] = EV_MSG_TYPE_CONN_STAT;
+            jEvt["gid"] = selfId;
+            jEvt["ts"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+            if(eventConn) {
+                jEvt["event"] = EV_MSG_EVENT_CONN_CONN;
+            }
+            else {
+                jEvt["event"] = EV_MSG_EVENT_CONN_DISCONN;
+            }
+
+            eventQue.push(jEvt.dump());
+            if(eventQue.size() > MAX_EVENT_QUEUE_SIZE) {
+                eventQue.pop();
+            }
+
+            return 0;
+        }
+        else if(body.size() != 4) {
+            spdlog::warn("evcloudsvc {} dropped an invalid message, size: {}", devSn, body.size());
+            return 0;
+        }
+
+        // msg to peer
+        meta = body2str(body[2]);
+        selfId = body2str(body[0]);
+        peerId = body2str(body[1]);
+        // update status;
+        this->peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+        int minLen = std::min(body[1].size(), devSn.size());
+        if(memcmp((void*)(body[1].data()), devSn.data(), minLen) != 0) {
+            // message to other peer
+            // check peer status
+            vector<vector<uint8_t> >v = {body[1], body[0], body[2], body[3]};
+            if(peerData["status"].count(peerId)!= 0 && peerData["status"][peerId] != 0) {
+                spdlog::info("evcloudsvc {} route msg from {} to {}", devSn, selfId, peerId);
+                ret = z_send_multiple(pRouter, v);
+                if(ret < 0) {
+                    spdlog::error("evcloudsvc {} failed to send multiple: {}", devSn, zmq_strerror(zmq_errno()));
+                }
+            }
+            else {
+                // cache
+                spdlog::warn("evcloudsvc {} cached msg from {} to {}", devSn, selfId, peerId);
+                lock_guard<mutex> lock(cacheLock);
+                cachedMsg[peerId].push(v);
+                if(cachedMsg[peerId].size() > EV_NUM_CACHE_PERPEER) {
+                    cachedMsg[peerId].pop();
+                }
+            }
+
+            // check if event
+            try {
+                string metaType = json::parse(meta)["type"];
+                if(metaType == EV_MSG_META_EVENT) {
+                    eventQue.push(body2str(body[3]));
+                    if(eventQue.size() > MAX_EVENT_QUEUE_SIZE) {
+                        eventQue.pop();
+                    }
+                }
+            }
+
+            catch(exception &e) {
+                spdlog::error("evcloudsvc {} exception parse event msg from {} to {}: ", devSn, selfId, peerId, e.what());
+            }
+        }
+        else {
+            // message to evcloudsvc
+            // spdlog::info("evcloudsvc {} subsystem report msg received: {}; {}; {}", devSn, zmqhelper::body2str(body[0]), zmqhelper::body2str(body[1]), zmqhelper::body2str(body[2]));
+            if(meta == "pong"||meta == "ping") {
+                // update status
+                spdlog::info("evcloudsvc {}, ping msg from {}", devSn, selfId);
+                if(meta=="ping") {
+                    if(cachedMsg.find(selfId) != cachedMsg.end()) {
+                        while(!cachedMsg[selfId].empty()) {
+                            lock_guard<mutex> lock(cacheLock);
+                            auto v = cachedMsg[selfId].front();
+                            cachedMsg[selfId].pop();
+                            ret = z_send_multiple(pRouter, v);
+                            if(ret < 0) {
+                                spdlog::error("evcloudsvc {} failed to send multiple: {}", devSn, zmq_strerror(zmq_errno()));
+                            }
+                        }
+                    }
+                }
+            }
+            else {
+                // TODO:
+                spdlog::warn("evcloudsvc {} received unknown meta {} from {}", devSn, meta, selfId);
+            }
+        }
 
         return ret;
     }
@@ -311,7 +459,6 @@ public:
                         }
 
                         json data;
-
                         for(auto &key : s) {
                             json cfg;
                             int iret = LVDB::getLocalConfig(cfg, key);
@@ -408,6 +555,7 @@ public:
     EvCloudSvc()
     {
         int ret = 0;
+        spdlog::info("evcloudsvc boot");
         char *strEnv = getenv("HTTP_PORT");
         if(strEnv != NULL) {
             httpPort = strEnv;

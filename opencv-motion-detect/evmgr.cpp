@@ -77,7 +77,7 @@ private:
             addr = "tcp://*:" + to_string(config["port-router"]);
             // setup zmq
             // TODO: connect to cloud
-            
+
             // router service
             pRouterCtx = zmq_ctx_new();
             pRouter = zmq_socket(pRouterCtx, ZMQ_ROUTER);
@@ -180,7 +180,9 @@ private:
         this->peerStatus[selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
 
         // msg to peer
-        if(memcmp((void*)(body[1].data()), (devSn +":0:0").data(), body[1].size()) != 0) {
+        string myId = devSn + ":0:0";
+        int minLen = std::min(body[1].size(), myId.size());
+        if(memcmp((void*)(body[1].data()), myId.data(), minLen) != 0) {
             // message to other peer
             // check peer status
             vector<vector<uint8_t> >v = {body[1], body[0], body[2], body[3]};
