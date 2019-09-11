@@ -351,7 +351,7 @@ public:
                 spdlog::error("evcloudsvc failed to load config for device: {}", k);
             }else{
                 this->peerData["config"][k] = cfg;
-                spdlog::info("evcloudsvc populated config for device: {}", k);
+                spdlog::info("evcloudsvc laod config for device: {}", k);
             }
         }
 
