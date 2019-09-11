@@ -439,7 +439,7 @@ class EvDaemon{
                             
                             json diff = json::diff(config, data);
                             // TODO: calc diff
-                            spdlog::info("evdaemon {} received cloud config diff:\n{}\nfull\n{}", devSn, diff.dump(4), data.dump(4));
+                            spdlog::info("evdaemon {} received cloud config diff:\n{}\n\norigin\n{}", devSn, diff.dump(), data.dump());
                             bReload = true;
                         }
                     }

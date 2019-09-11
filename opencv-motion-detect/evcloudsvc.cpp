@@ -52,17 +52,17 @@ private:
         string meta = j.dump();
         vector<vector<uint8_t> > v = {str2body(sn), str2body(devSn), str2body(meta), str2body(cfg)};
 
-        if(peerData["status"].count(sn) == 0||peerData["status"][sn] == 0) {
-            spdlog::warn("evcloudsvc {} cached config to {}", devSn, sn);
-            lock_guard<mutex> lock(cacheLock);
-            cachedMsg[sn].push(v);
-            if(cachedMsg[sn].size() > EV_NUM_CACHE_PERPEER) {
-                cachedMsg[sn].pop();
-            }
-        }else{
+        // if(peerData["status"].count(sn) == 0||peerData["status"][sn] == 0) {
+        //     spdlog::warn("evcloudsvc {} cached config to {}", devSn, sn);
+        //     lock_guard<mutex> lock(cacheLock);
+        //     cachedMsg[sn].push(v);
+        //     if(cachedMsg[sn].size() > EV_NUM_CACHE_PERPEER) {
+        //         cachedMsg[sn].pop();
+        //     }
+        // }else{
             ret = z_send_multiple(pRouter, v);
             spdlog::info("evcloudsvc config sent to {}: {}", sn, cfg);
-        }
+        //}
         
         return ret;
     }
@@ -371,7 +371,7 @@ public:
                 spdlog::error("evcloudsvc failed to load config for device: {}", k);
             }else{
                 this->peerData["config"][k] = cfg;
-                spdlog::info("evcloudsvc laod config for device: {}", k);
+                spdlog::info("evcloudsvc loaded config for device: {}", k);
             }
         }
 
