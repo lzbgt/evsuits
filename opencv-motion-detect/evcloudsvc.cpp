@@ -219,7 +219,7 @@ private:
                 for(auto &[x,y]: deltaCfg.items()){
                     json j = getConfigForDevice(x);
                     if(j["code"] == 0) {
-                        sendConfig(j, x);
+                        sendConfig(j["data"], x);
                     }
                 }
 
