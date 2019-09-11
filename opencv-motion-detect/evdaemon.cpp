@@ -185,7 +185,7 @@ class EvDaemon{
                     }else{
                         ret = reloadCfg("");
                     }
-
+                    
                     if(ret != 0) {
                         cleanupSubSystems();
                     }else{
@@ -422,12 +422,11 @@ class EvDaemon{
                             json diff = json::diff(this->config, data);
                             // TODO: calc diff
                             if(diff.size() != 0) {
-                                bReload = true;
+                                this->bReload = true;
                                 spdlog::info("evdaemon {} received cloud config diff. origin:\n{}\n\norigin\n{}", devSn, this->config.dump(), data.dump());
                             }else{
                                 spdlog::info("evdaemon {} received same configuration and ignored: {}", data.dump());
                             }
-                            
                         }
                     }
                 }else{
