@@ -77,6 +77,7 @@ private:
         ret["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
         spdlog::info(newConfig.dump());
         try {
+            json deltaCfg = json();
             if(newConfig.count("data") == 0 || newConfig["data"].size() == 0) {
                 ret["code"] = 1;
                 ret["msg"] = "evcloudsvc invalid config body received: " + newConfig.dump(4);
@@ -190,7 +191,7 @@ private:
                         spdlog::info("evcloudsvc peer {} config diff:\n{}\n\norigin:\n{}", k, diff.dump(), this->peerData["config"][k].dump());
                         if(diff.size()!=0) {
                             // send config
-                            sendConfig(v, k);
+                            deltaCfg[k] = 1;   
                         }
                     }else{
                         this->peerData["config"][k] = v;
@@ -214,13 +215,11 @@ private:
                     this->configMap = oldConfigMap;
                 }
 
-                // save full config
-                for(auto &[k,v]: data.items()){
-                    json j = getConfigForDevice(k);
-                    if(j["code"] != 0) {
-                        spdlog::error("evcloudsvc failed getConfigForDevice {}: {} ", k, j["msg"].dump());
-                    }else{
-                        this->peerData["fullcfg"][k] = j["data"];
+                // update config
+                for(auto &[x,y]: deltaCfg.items()){
+                    json j = getConfigForDevice(x);
+                    if(j["code"] == 0) {
+                        sendConfig(j, x);
                     }
                 }
 

@@ -48,6 +48,7 @@ class EvDaemon{
     mutex cacheLock;
     queue<string> eventQue;
     mutex eventQLock;
+    mutex cfgLock;
 
     /// module gid to process id
     json mapModsToPids;
@@ -81,6 +82,7 @@ class EvDaemon{
     
         // apply config
         try{
+            lock_guard<mutex> lock(cacheLock);
             json &data = this->config;
             string peerId;
             pid_t pid;
@@ -108,6 +110,7 @@ class EvDaemon{
                 }
 
                 // startup other submodules
+                spdlog::info("dump: {}", v.dump(4));
                 json &ipcs = v["ipcs"];
                 for(auto &ipc : ipcs) {
                     json &modules = ipc["modules"];
@@ -124,7 +127,7 @@ class EvDaemon{
                                 if(ret != 0) {
                                     continue;
                                 }
-                                
+
                                 this->peerData["config"][peerId] = v;
 
                                 if(this->peerData["status"].count(peerId) == 0||this->peerData["status"][peerId] == 0) {
@@ -290,10 +293,6 @@ class EvDaemon{
                     cleanupSubSystems();
                 }
                        
-            }
-
-            if(ret < 0) {
-                spdlog::error("evdaemon {} failed to update localconfig", devSn);
             }
 
             // event
