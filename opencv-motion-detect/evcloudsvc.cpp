@@ -191,7 +191,8 @@ private:
                         spdlog::info("evcloudsvc peer {} config diff:\n{}\n\norigin:\n{}", k, diff.dump(), this->peerData["config"][k].dump());
                         if(diff.size()!=0) {
                             // send config
-                            deltaCfg[k] = 1;   
+                            deltaCfg[k] = 1;
+                            this->peerData["config"][k] = v;
                         }
                     }else{
                         this->peerData["config"][k] = v;
