@@ -138,7 +138,7 @@ namespace LVDB {
                                             ret = cb(modname, m, pUser);
                                             cnt++;
                                             if(ret <0) {
-                                                spdlog::error("failed to traverse and callback config on module: {}", m.dump(4));
+                                                spdlog::error("failed to traverse and callback config on module: {}", m.dump());
                                                 return ret;
                                             }
                                         }
@@ -151,7 +151,7 @@ namespace LVDB {
                                     ret = cb(mn,m, pUser);
                                     cnt++;
                                     if(ret <0) {
-                                        spdlog::error("failed to traverse and callback config on module: {}", m.dump(4));
+                                        spdlog::error("failed to traverse and callback config on module: {}", m.dump());
                                         return ret;
                                     }
                                 }
@@ -340,7 +340,7 @@ togo_end:
             }
         }
 
-        ret = setValue(value.dump(4), key,fileName, NULL);
+        ret = setValue(value.dump(), key,fileName, NULL);
 
         return ret;
     }
@@ -366,7 +366,7 @@ togo_end:
     // {"sn":string, "updatetime": string, "lastboot": string}
     int _validateSn(const json &info) {
         if(info.count("sn") == 0 || info["sn"].size() == 0) {
-                spdlog::error("invalid sn config:{}", info.dump(4));
+                spdlog::error("invalid sn config:{}", info.dump());
                 return -1;
         }
 

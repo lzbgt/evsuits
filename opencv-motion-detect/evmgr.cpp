@@ -70,7 +70,7 @@ private:
 
             //
             if(config["addr"].get<string>()  == "*" || config["addr"].get<string>() == "0.0.0.0") {
-                spdlog::error("invalid mgr address: {} in config:\n{}", config["addr"].get<string>(), config.dump(4));
+                spdlog::error("invalid mgr address: {} in config:\n{}", config["addr"].get<string>(), config.dump());
                 goto error_exit;
             }
 

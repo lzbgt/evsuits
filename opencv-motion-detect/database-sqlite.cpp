@@ -213,7 +213,7 @@ int saveLocalConfigration(json &config, string fileName)
         std::ofstream o(fileName);
         o << std::setw(4) << config << std::endl;
     }catch(exception &e) {
-        spdlog::error("saveLocalConfigration failed to write configuration to file {}: {}\n{}", fileName, e.what(), config.dump(4));
+        spdlog::error("saveLocalConfigration failed to write configuration to file {}: {}\n{}", fileName, e.what(), config.dump());
         return -2;
     }
     

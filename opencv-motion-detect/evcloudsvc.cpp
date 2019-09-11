@@ -80,7 +80,7 @@ private:
             json deltaCfg = json();
             if(newConfig.count("data") == 0 || newConfig["data"].size() == 0) {
                 ret["code"] = 1;
-                ret["msg"] = "evcloudsvc invalid config body received: " + newConfig.dump(4);
+                ret["msg"] = "evcloudsvc invalid config body received: " + newConfig.dump();
                 spdlog::error(ret["msg"].get<string>());
             }
             else {
@@ -153,7 +153,7 @@ private:
                                                 this->configMap["mod2mgr"][modKey] = k;
                                             }
                                             else {
-                                                string msg = "evcloudsvc invalid config: " + data.dump(4);;
+                                                string msg = "evcloudsvc invalid config: " + data.dump();;
                                                 ret["code"] = -1;
                                                 ret["msg"] = msg;
                                                 spdlog::error(msg);
@@ -179,7 +179,7 @@ private:
                     //save
                     iret = LVDB::setLocalConfig(v, k);
                     if(iret < 0) {
-                        string msg = "failed to save config " + k + " -> " + v.dump(4);
+                        string msg = "failed to save config " + k + " -> " + v.dump();
                         spdlog::error(msg);
                         ret["code"] = iret;
                         ret["msg"] = msg;

@@ -110,7 +110,7 @@ class EvDaemon{
                 }
 
                 // startup other submodules
-                spdlog::info("dump: {}", v.dump(4));
+                spdlog::info("dump: {}", v.dump());
                 json &ipcs = v["ipcs"];
                 for(auto &ipc : ipcs) {
                     json &modules = ipc["modules"];
@@ -222,7 +222,7 @@ class EvDaemon{
             json *cfg = cfgutils::findModuleConfig(peerId, jret["data"]);
             json diff = json::diff(this->config, jret["data"]);
             // TODO:
-            spdlog::info("evdaemon {} config diff: {}", devSn, diff.dump(4));
+            spdlog::info("evdaemon {} config diff: {}", devSn, diff.dump());
             
             if(cfg == NULL) {
                 spdlog::error("evdaemon failed to find module {} in config {}", peerId, jret["data"].dump());
@@ -415,7 +415,7 @@ class EvDaemon{
                     // its configuration message
                     if(meta == EV_MSG_META_CONFIG) {
                         if(data.size() == 0) {
-                            spdlog::error("evdaemon {} received invalid empty config");
+                            spdlog::error("evdaemon {} received invalid empty config", devSn);
                         }else{
                             json diff = json::diff(this->config, data);
                             if(diff.size() != 0) {
@@ -424,7 +424,7 @@ class EvDaemon{
                                 spdlog::info("evdaemon {} received cloud config diff. origin:\n{}\nnew\n{}", devSn, this->config.dump(), data.dump());
                                 // TODO: detailed diff on submodules
                             }else{
-                                spdlog::info("evdaemon {} received same configuration and ignored: {}", data.dump());
+                                spdlog::info("evdaemon {} received same configuration and ignored: {}", devSn, data.dump());
                             }
                         }
                     }
@@ -486,7 +486,7 @@ class EvDaemon{
                 newConfig["data"] = json::parse(req.body)["data"];
                 
                 LVDB::setLocalConfig(newConfig);
-                spdlog::info("evmgr new config: {}", newConfig.dump(4));
+                spdlog::info("evmgr new config: {}", newConfig.dump());
                 // TODO: restart other components
                 //
             }catch(exception &e) {
@@ -529,7 +529,7 @@ class EvDaemon{
             exit(1);
         }
         
-        spdlog::info("evdaemon boot \n{}",info.dump(4));
+        spdlog::info("evdaemon boot \n{}",info.dump());
 
         devSn = info["sn"];
         
