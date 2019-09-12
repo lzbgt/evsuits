@@ -44,6 +44,8 @@ class EvDaemon{
     thread thCloud;
     bool bReload = false;
     bool bBootstrap = true;
+    bool bColdStart = true;
+
     // peerData["status"];
     // peerData["pids"];
     // peerData["config"];
@@ -181,22 +183,59 @@ class EvDaemon{
         }
     }
 
-    void setupSubSystems() {
+    int startSubSystems() {
+        // TODO: check configuratin modified subsystem and force start
+        int ret = 0;
+        json keyPids = json();
+        json keyConfig = json();
+        for(auto &[k,v]: this->peerData["config"].items()) {
+            keyConfig.push_back(k);
+        }
+
+        for(auto &[k, v]: this->peerData["pids"].items()) {
+            keyPids.push_back(k);
+        }
+        
+        json diff = json::diff(keyPids, keyConfig);
+        spdlog::info("evdaemon {} key diff: {}", devSn, diff.dump());
+        
+        // int ret = 0;
+        // if(this->peerData["pids"].count(peerId) != 0 && force) {
+        //     kill(this->peerData["pids"][peerId], SIGTERM);
+        // }else if(this->peerData["pids"].count(peerId) == 0) {
+        //     pid_t pid;
+        //     ret = zmqhelper::forkSubsystem(devSn, peerId, portRouter, pid);
+        //     if(ret != 0) {
+        //         spdlog::error("evdaemon {} failed to fork subsystem: {}", devSn, peerId);
+        //     }
+        //     this->peerData["pids"][peerId] = pid;
+        //     spdlog::info("evdaemon {} created subsystem {}", devSn, peerId); 
+        // }else{
+
+        // }
+        return ret;
+    }
+
+    void subSystemsMgr() {
         thMon = thread([this](){
+            int ret = 0;
             while(true) {
                 if(this->bReload) {
                     //cleanupSubSystems();
-                    int ret;
-                    if(bBootstrap){
-                        ret = reloadCfg("ALL");
-                    }else{
-                        ret = reloadCfg("");
-                    }
-
+                    ret = reloadCfg("");
+                    
                     if(ret != 0) {
-                        cleanupSubSystems();
+                        //TODO
                     }else{
                         bReload = false;
+                    }
+                    
+                    if(this->bColdStart) {
+                        // TODO:
+                    }
+                    if(this->bBootstrap) {
+                        // todo
+                        startSubSystems();
                     }
                 }
 
@@ -390,7 +429,11 @@ class EvDaemon{
                                 }
                                 // TODO: detailed diff on submodules
                             }else{
-                                spdlog::info("evdaemon {} received same configuration and ignored: {}", devSn, data.dump());
+                                if(this->bColdStart) {
+                                    startSubSystems();
+                                }else{
+                                    spdlog::info("evdaemon {} received same configuration and ignored: {}", devSn, data.dump());
+                                }
                             }
                         }
                     }
@@ -410,7 +453,7 @@ class EvDaemon{
     public:
     void run(){
 
-        setupSubSystems();
+        subSystemsMgr();
 
         // get config
         svr.Get("/info", [this](const Request& req, Response& res){
