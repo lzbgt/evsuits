@@ -26,6 +26,9 @@ using namespace httplib;
 using namespace nlohmann;
 using namespace zmqhelper;
 
+
+#define EV_FILE_LVDB_DAEMON "/opt/lvl/daemon"
+
 class EvDaemon{
     private:
     Server svr;
@@ -336,6 +339,8 @@ class EvDaemon{
                             ret = z_send_multiple(pRouter, v);
                             if(ret < 0) {
                                 spdlog::error("evdaemon {} failed to send multiple: {}", devSn, zmq_strerror(zmq_errno()));
+                            }else{
+                                spdlog::info("evdaemon {} cached msg sent from {} to {} of type: {}, content: {}", body2str(v[1]), body2str(v[0]), body2str(v[2]), body2str(v[3]));
                             }
                         }
                     }
@@ -379,6 +384,10 @@ class EvDaemon{
                                 this->config = data;
                                 this->bReload = true;
                                 spdlog::info("evdaemon {} received cloud config diff:\n{}\nnew\n{}", devSn, this->deltaCfg.dump(4), data.dump());
+                                ret = LVDB::setLocalConfig(data, "", EV_FILE_LVDB_DAEMON);
+                                if(ret < 0) {
+                                    spdlog::error("evdameon {} failed to save new config to local db: {}", devSn, data.dump());
+                                }
                                 // TODO: detailed diff on submodules
                             }else{
                                 spdlog::info("evdaemon {} received same configuration and ignored: {}", devSn, data.dump());
@@ -476,7 +485,8 @@ class EvDaemon{
 
     EvDaemon(){
         int ret = 0;
-
+        string dir_ = string("mkdir -p") + EV_FILE_LVDB_DAEMON;
+        system(dir_.c_str());
         // get sn of device
         json info;
         try{
@@ -499,6 +509,14 @@ class EvDaemon{
         strEnv = getenv("DAEMON_PORT");
         if(strEnv != nullptr) {
             port = stoi(strEnv);
+        }
+
+        json cfg;
+        ret = LVDB::getLocalConfig(cfg, "", EV_FILE_LVDB_DAEMON);
+        if(ret < 0) {
+            spdlog::info("evdameon {} no local config", devSn, cfg.dump());
+        }else{
+            this->config = cfg;
         }
 
         // zmq router port
