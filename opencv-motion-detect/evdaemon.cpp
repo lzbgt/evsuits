@@ -27,7 +27,7 @@ using namespace nlohmann;
 using namespace zmqhelper;
 
 
-#define EV_FILE_LVDB_DAEMON "/opt/lvl/daemon"
+#define EV_FILE_LVDB_DAEMON "/opt/lvldb/daemon"
 
 class EvDaemon{
     private:
@@ -485,7 +485,7 @@ class EvDaemon{
 
     EvDaemon(){
         int ret = 0;
-        string dir_ = string("mkdir -p") + EV_FILE_LVDB_DAEMON;
+        string dir_ = string("mkdir -p ") + EV_FILE_LVDB_DAEMON;
         system(dir_.c_str());
         // get sn of device
         json info;
