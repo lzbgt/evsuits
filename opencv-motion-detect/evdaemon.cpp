@@ -83,7 +83,7 @@ class EvDaemon{
     
         // apply config
         try{
-            lock_guard<mutex> lock(cacheLock);
+            // lock_guard<mutex> lock(cacheLock);
             json &data = this->config;
             string peerId;
             pid_t pid;
