@@ -29,7 +29,7 @@ using namespace zmqhelper;
 class EvCloudSvc {
 private:
     Server svr;
-    void *pRouterCtx = NULL, *pRouter = NULL;
+    void *pRouterCtx = nullptr, *pRouter = nullptr;
     string httpPort = "8089";
     string msgPort = "5548";
     string devSn = "evcloudsvc";
@@ -557,12 +557,12 @@ public:
         int ret = 0;
         spdlog::info("evcloudsvc boot");
         char *strEnv = getenv("HTTP_PORT");
-        if(strEnv != NULL) {
+        if(strEnv != nullptr) {
             httpPort = strEnv;
         }
 
         strEnv = getenv("MSG_PORT");
-        if(strEnv != NULL) {
+        if(strEnv != nullptr) {
             msgPort = strEnv;
         }
 

@@ -43,17 +43,17 @@ private:
 #define MINUTES_PER_SLICE_DEFAULT 2
 // 2 days, 10 minutes per record
 #define NUM_SLICES_DEFAULT (24 * NUM_DAYS_DEFAULT * 60 / MINUTES_PER_SLICE_DEFAULT)
-    void *pSubCtx = NULL, *pDealerCtx = NULL; // for packets relay
-    void *pSub = NULL, *pDealer = NULL, *pDaemonCtx = NULL, *pDaemon = NULL;
+    void *pSubCtx = nullptr, *pDealerCtx = nullptr; // for packets relay
+    void *pSub = nullptr, *pDealer = nullptr, *pDaemonCtx = nullptr, *pDaemon = nullptr;
     string urlOut, urlPub, urlRouter, devSn, mgrSn, selfId, pullerGid;
     int iid, days, minutes, numSlices, lastSliceId;
     bool enablePush = false;
-    AVFormatContext *pAVFormatRemux = NULL;
-    AVFormatContext *pAVFormatInput = NULL;
-    AVDictionary *pOptsRemux = NULL;
+    AVFormatContext *pAVFormatRemux = nullptr;
+    AVFormatContext *pAVFormatInput = nullptr;
+    AVDictionary *pOptsRemux = nullptr;
     // load from db
-    vector<int> *sliceIdxToName = NULL;
-    int *streamList = NULL;
+    vector<int> *sliceIdxToName = nullptr;
+    int *streamList = nullptr;
     time_t tsLastBoot, tsUpdateTime;
     json config;
     thread thPing;
@@ -296,14 +296,14 @@ private:
 
             avformat_free_context(pAVFormatRemux);
         }
-        pAVFormatRemux = NULL;
+        pAVFormatRemux = nullptr;
         // free avformatcontex
-        if(pAVFormatInput != NULL) {
+        if(pAVFormatInput != nullptr) {
             AVFormatCtxSerializer::freeCtx(pAVFormatInput);
-            pAVFormatInput = NULL;
+            pAVFormatInput = nullptr;
         }
 
-        pAVFormatInput = NULL;
+        pAVFormatInput = nullptr;
     }
 
 protected:
@@ -313,7 +313,7 @@ protected:
         int ret = 0;
         int idx = 0;
         int pktCnt = 0;
-        AVStream * out_stream = NULL;
+        AVStream * out_stream = nullptr;
         zmq_msg_t msg;
         AVPacket packet;
         while (true) {
@@ -386,7 +386,7 @@ protected:
 
                 zmq_msg_close(&msg);
 
-                AVStream *in_stream =NULL, *out_stream = NULL;
+                AVStream *in_stream =NULL, *out_stream = nullptr;
                 in_stream  = pAVFormatInput->streams[packet.stream_index];
                 packet.stream_index = streamList[packet.stream_index];
                 out_stream = pAVFormatRemux->streams[packet.stream_index];
@@ -431,8 +431,8 @@ protected:
             }// while in slice
             // write tail
             // close output context
-            if (pAVFormatRemux != NULL) {
-                if(pAVFormatRemux->pb != NULL) {
+            if (pAVFormatRemux != nullptr) {
+                if(pAVFormatRemux->pb != nullptr) {
                     avio_closep(&pAVFormatRemux->pb);
                 }
                 avformat_free_context(pAVFormatRemux);
@@ -443,12 +443,12 @@ public:
     EvSlicer()
     {
         const char *strEnv = getenv("DR_PORT");
-        if(strEnv != NULL) {
+        if(strEnv != nullptr) {
             drport = strEnv;
         }
 
         strEnv = getenv("PEERID");
-        if(strEnv != NULL) {
+        if(strEnv != nullptr) {
             selfId = strEnv;
             auto v = strutils::split(selfId, ':');
             if(v.size() != 3||v[1] != "evslicer") {
@@ -481,21 +481,21 @@ public:
     };
     ~EvSlicer()
     {
-        if(pSub != NULL) {
+        if(pSub != nullptr) {
             zmq_close(pSub);
-            pSub = NULL;
+            pSub = nullptr;
         }
-        if(pSubCtx != NULL) {
+        if(pSubCtx != nullptr) {
             zmq_ctx_destroy(pSubCtx);
-            pSubCtx = NULL;
+            pSubCtx = nullptr;
         }
-        if(pDealer != NULL) {
+        if(pDealer != nullptr) {
             zmq_close(pSub);
-            pDealer = NULL;
+            pDealer = nullptr;
         }
-        if(pDealerCtx != NULL) {
+        if(pDealerCtx != nullptr) {
             zmq_ctx_destroy(pSub);
-            pDealerCtx = NULL;
+            pDealerCtx = nullptr;
         }
         freeStream();
     };

@@ -55,8 +55,8 @@ class EvDaemon{
     json mapModsToPids;
 
     // for zmq
-    void *pRouterCtx = NULL, *pRouter = NULL;
-    void *pDealerCtx = NULL, *pDealer = NULL;
+    void *pRouterCtx = nullptr, *pRouter = nullptr;
+    void *pDealerCtx = nullptr, *pDealer = nullptr;
     string cloudAddr = "tcp://127.0.0.1:5548";
 
     /// tracking sub-systems: evmgr, evpuller, evpusher, evml*, evslicer etc.
@@ -491,19 +491,19 @@ class EvDaemon{
         devSn = info["sn"];
         
         char* strEnv = getenv("BOOTSTRAP");
-        if(strEnv != NULL && memcmp(strEnv, "false", 5) == 0) {
+        if(strEnv != nullptr && memcmp(strEnv, "false", 5) == 0) {
             bBootstrap = false;
         }
 
         // http port
         strEnv = getenv("DAEMON_PORT");
-        if(strEnv != NULL) {
+        if(strEnv != nullptr) {
             port = stoi(strEnv);
         }
 
         // zmq router port
         strEnv = getenv("ROUTER_PORT");
-        if(strEnv != NULL) {
+        if(strEnv != nullptr) {
             portRouter = stoi(strEnv);
         }
 
@@ -533,7 +533,7 @@ class EvDaemon{
 
         // dealer port
         strEnv = getenv("CLOUD_ADDR");
-        if(strEnv != NULL) {
+        if(strEnv != nullptr) {
             cloudAddr = strEnv;
         }
 

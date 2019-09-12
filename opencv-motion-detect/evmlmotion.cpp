@@ -67,13 +67,13 @@ enum EventState {
 
 class EvMLMotion: public TinyThread {
 private:
-    void *pSubCtx = NULL, *pDealerCtx = NULL; // for packets relay
-    void *pSub = NULL, *pDealer = NULL, *pDaemonCtx = NULL, *pDaemon = NULL;
+    void *pSubCtx = nullptr, *pDealerCtx = nullptr; // for packets relay
+    void *pSub = nullptr, *pDealer = nullptr, *pDaemonCtx = nullptr, *pDaemon = nullptr;
     string urlOut, urlPub, urlRouter, devSn, mgrSn, selfId, pullerGid, slicerGid;
     int iid;
-    AVFormatContext *pAVFormatInput = NULL;
-    AVCodecContext *pCodecCtx = NULL;
-    AVDictionary *pOptsRemux = NULL;
+    AVFormatContext *pAVFormatInput = nullptr;
+    AVCodecContext *pCodecCtx = nullptr;
+    AVDictionary *pOptsRemux = nullptr;
     DetectParam detPara = {25,500,-1,10,3,30, 2};
     EventState evtState = EventState::NONE;
     chrono::system_clock::time_point evtStartTm, evtStartTmLast;
@@ -358,12 +358,12 @@ private:
 
     void freeStream()
     {
-        if(pAVFormatInput != NULL) {
+        if(pAVFormatInput != nullptr) {
             AVFormatCtxSerializer::freeCtx(pAVFormatInput);
-            pAVFormatInput = NULL;
+            pAVFormatInput = nullptr;
         }
 
-        pAVFormatInput = NULL;
+        pAVFormatInput = nullptr;
     }
 
     int decode_packet(bool detect, AVPacket *pPacket, AVCodecContext *pCodecContext, AVFrame *pFrame)
@@ -652,12 +652,12 @@ public:
     {
         evtQueue = queue;
         const char *strEnv = getenv("DR_PORT");
-        if(strEnv != NULL) {
+        if(strEnv != nullptr) {
             drport = strEnv;
         }
 
         strEnv = getenv("PEERID");
-        if(strEnv != NULL) {
+        if(strEnv != nullptr) {
             selfId = strEnv;
             auto v = strutils::split(selfId, ':');
             if(v.size() != 3||v[1] != "evmlmotion") {
@@ -691,21 +691,21 @@ public:
     };
     ~EvMLMotion()
     {
-        if(pSub != NULL) {
+        if(pSub != nullptr) {
             zmq_close(pSub);
-            pSub = NULL;
+            pSub = nullptr;
         }
-        if(pSubCtx != NULL) {
+        if(pSubCtx != nullptr) {
             zmq_ctx_destroy(pSubCtx);
-            pSubCtx = NULL;
+            pSubCtx = nullptr;
         }
-        if(pDealer != NULL) {
+        if(pDealer != nullptr) {
             zmq_close(pSub);
-            pDealer = NULL;
+            pDealer = nullptr;
         }
-        if(pDealerCtx != NULL) {
+        if(pDealerCtx != nullptr) {
             zmq_ctx_destroy(pSub);
-            pDealerCtx = NULL;
+            pDealerCtx = nullptr;
         }
     };
 };

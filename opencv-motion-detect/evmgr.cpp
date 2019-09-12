@@ -37,9 +37,9 @@ using namespace zmqhelper;
 
 class EvMgr:public TinyThread {
 private:
-    void *pRouterCtx = NULL;
-    void *pRouter = NULL;
-    void *pCtxDealer = NULL, *pDealer = NULL;
+    void *pRouterCtx = nullptr;
+    void *pRouter = nullptr;
+    void *pCtxDealer = nullptr, *pDealer = nullptr;
     json config;
     string devSn, ident;
     json peerStatus;
@@ -127,7 +127,7 @@ private:
                 return -1;
             }
             json *mod = LVDB::findConfigModule(config, sp[0], sp[1], stoi(sp[2]));
-            if(mod == NULL) {
+            if(mod == nullptr) {
                 spdlog::warn("evmgr {} failed to find module with id: {}", devSn, selfId);
                 return -1;
             }
@@ -281,12 +281,12 @@ public:
     EvMgr()
     {
         const char *strEnv = getenv("DR_PORT");
-        if(strEnv != NULL) {
+        if(strEnv != nullptr) {
             drport = strEnv;
         }
 
         strEnv = getenv("PEERID");
-        if(strEnv != NULL) {
+        if(strEnv != nullptr) {
             ident = strEnv;
             auto v = strutils::split(ident, ':');
             if(v.size() != 3||v[1] != "evmgr" || v[2] != "0") {
@@ -318,13 +318,13 @@ public:
     }
     ~EvMgr()
     {
-        if(pRouter != NULL) {
+        if(pRouter != nullptr) {
             zmq_close(pRouter);
-            pRouter = NULL;
+            pRouter = nullptr;
         }
-        if(pRouterCtx != NULL) {
+        if(pRouterCtx != nullptr) {
             zmq_ctx_destroy(pRouterCtx);
-            pRouterCtx = NULL;
+            pRouterCtx = nullptr;
         }
     }
 };

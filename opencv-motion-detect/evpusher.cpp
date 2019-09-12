@@ -38,14 +38,14 @@ using namespace zmqhelper;
 
 class EvPusher: public TinyThread {
 private:
-    void *pSubCtx = NULL, *pDealerCtx = NULL; // for packets relay
-    void *pSub = NULL, *pDealer = NULL, *pDaemonCtx = NULL, *pDaemon = NULL;
+    void *pSubCtx = nullptr, *pDealerCtx = nullptr; // for packets relay
+    void *pSub = nullptr, *pDealer = nullptr, *pDaemonCtx = nullptr, *pDaemon = nullptr;
     string urlOut, urlPub, urlDealer, devSn, pullerGid, mgrSn, selfId;
     int iid;
     bool enablePush = false;
-    int *streamList = NULL;
-    AVFormatContext *pAVFormatRemux = NULL;
-    AVFormatContext *pAVFormatInput = NULL;
+    int *streamList = nullptr;
+    AVFormatContext *pAVFormatRemux = nullptr;
+    AVFormatContext *pAVFormatInput = nullptr;
     time_t tsLastBoot, tsUpdateTime;
     json config;
     thread thPing;
@@ -220,7 +220,7 @@ private:
     int setupStream()
     {
         int ret = 0;
-        AVDictionary *pOptsRemux = NULL;
+        AVDictionary *pOptsRemux = nullptr;
 
         ret = avformat_alloc_output_context2(&pAVFormatRemux, NULL, "rtsp", urlOut.c_str());
         if (ret < 0) {
@@ -300,14 +300,14 @@ private:
 
             avformat_free_context(pAVFormatRemux);
         }
-        pAVFormatRemux = NULL;
+        pAVFormatRemux = nullptr;
         // free avformatcontex
-        if(pAVFormatInput != NULL) {
+        if(pAVFormatInput != nullptr) {
             AVFormatCtxSerializer::freeCtx(pAVFormatInput);
-            pAVFormatInput = NULL;
+            pAVFormatInput = nullptr;
         }
 
-        pAVFormatInput = NULL;
+        pAVFormatInput = nullptr;
     }
 protected:
     void run()
@@ -357,7 +357,7 @@ protected:
 
             spdlog::debug("packet stream indx: {:d}", packet.stream_index);
             // relay
-            AVStream *in_stream =NULL, *out_stream = NULL;
+            AVStream *in_stream =NULL, *out_stream = nullptr;
             in_stream  = pAVFormatInput->streams[packet.stream_index];
             packet.stream_index = streamList[packet.stream_index];
             out_stream = pAVFormatRemux->streams[packet.stream_index];
@@ -406,12 +406,12 @@ public:
     EvPusher()
     {
         const char *strEnv = getenv("DR_PORT");
-        if(strEnv != NULL) {
+        if(strEnv != nullptr) {
             drport = strEnv;
         }
 
         strEnv = getenv("PEERID");
-        if(strEnv != NULL) {
+        if(strEnv != nullptr) {
             selfId = strEnv;
             auto v = strutils::split(selfId, ':');
             if(v.size() != 3||v[1] != "evpusher") {
@@ -445,21 +445,21 @@ public:
 
     ~EvPusher()
     {
-        if(pSub != NULL) {
+        if(pSub != nullptr) {
             zmq_close(pSub);
-            pSub = NULL;
+            pSub = nullptr;
         }
-        if(pSubCtx != NULL) {
+        if(pSubCtx != nullptr) {
             zmq_ctx_destroy(pSubCtx);
-            pSubCtx = NULL;
+            pSubCtx = nullptr;
         }
-        if(pDealer != NULL) {
+        if(pDealer != nullptr) {
             zmq_close(pSub);
-            pDealer = NULL;
+            pDealer = nullptr;
         }
-        if(pDealerCtx != NULL) {
+        if(pDealerCtx != nullptr) {
             zmq_ctx_destroy(pSub);
-            pDealerCtx = NULL;
+            pDealerCtx = nullptr;
         }
 
         freeStream();

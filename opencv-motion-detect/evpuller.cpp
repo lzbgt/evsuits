@@ -117,14 +117,14 @@ public:
 
 class EvPuller: public TinyThread {
 private:
-    void *pPubCtx = NULL; // for packets publishing
-    void *pPub = NULL;
-    void *pDealerCtx = NULL;
-    void *pDealer = NULL;
-    void *pDaemonCtx = NULL, *pDaemon = NULL;
-    AVFormatContext *pAVFormatInput = NULL;
+    void *pPubCtx = nullptr; // for packets publishing
+    void *pPub = nullptr;
+    void *pDealerCtx = nullptr;
+    void *pDealer = nullptr;
+    void *pDaemonCtx = nullptr, *pDaemon = nullptr;
+    AVFormatContext *pAVFormatInput = nullptr;
     string urlIn, urlPub, urlDealer, mgrSn, devSn, selfId, ipcPort;
-    int *streamList = NULL, numStreams = 0, iid;
+    int *streamList = nullptr, numStreams = 0, iid;
     time_t tsLastBoot, tsUpdateTime;
     json config;
     string drport = "5549";
@@ -270,7 +270,7 @@ protected:
         }
 
         // serialize formatctx to bytes
-        char *pBytes = NULL;
+        char *pBytes = nullptr;
         ret = AVFormatCtxSerializer::encode(pAVFormatInput, &pBytes);
         auto repSrv = RepSrv(mgrSn, devSn, iid, pBytes, ret, pDealer);
         repSrv.detach();
@@ -325,7 +325,7 @@ protected:
             packet.stream_index = streamList[packet.stream_index];
 
             // serialize packet to raw bytes
-            char * data = NULL;
+            char * data = nullptr;
             int size = AVPacketSerializer::encode(packet, &data);
             zmq_msg_init_data(&msg, (void*)data, size, mqPacketFree, NULL);
             zmq_send_const(pPub, zmq_msg_data(&msg), size, 0);
@@ -347,12 +347,12 @@ public:
     EvPuller()
     {
         const char *strEnv = getenv("DR_PORT");
-        if(strEnv != NULL) {
+        if(strEnv != nullptr) {
             drport = strEnv;
         }
 
         strEnv = getenv("PEERID");
-        if(strEnv != NULL) {
+        if(strEnv != nullptr) {
             selfId = strEnv;
             auto v = strutils::split(selfId, ':');
             if(v.size() != 3||v[1] != "evpuller") {
@@ -383,21 +383,21 @@ public:
 
     ~EvPuller()
     {
-        if(pPub != NULL) {
+        if(pPub != nullptr) {
             zmq_close(pPub);
-            pPub = NULL;
+            pPub = nullptr;
         }
-        if(pPubCtx != NULL) {
+        if(pPubCtx != nullptr) {
             zmq_ctx_destroy(pPubCtx);
-            pPubCtx = NULL;
+            pPubCtx = nullptr;
         }
-        if(pDealer != NULL) {
+        if(pDealer != nullptr) {
             zmq_close(pDealer);
-            pDealer= NULL;
+            pDealer= nullptr;
         }
-        if(pDealerCtx != NULL) {
+        if(pDealerCtx != nullptr) {
             zmq_ctx_destroy(pPubCtx);
-            pDealerCtx = NULL;
+            pDealerCtx = nullptr;
         }
     }
 };
