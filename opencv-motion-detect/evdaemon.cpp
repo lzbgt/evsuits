@@ -184,35 +184,29 @@ class EvDaemon{
     }
 
     int startSubSystems() {
-        // TODO: check configuratin modified subsystem and force start
+        // check status and startup
         int ret = 0;
-        json keyPids = json();
-        json keyConfig = json();
+        vector<string> tmp;
         for(auto &[k,v]: this->peerData["config"].items()) {
-            keyConfig.push_back(k);
+            if(this->peerData["status"].count(k) == 0 || this->peerData["status"][k] == 0) {
+                tmp.push_back(k);
+            }
         }
 
-        for(auto &[k, v]: this->peerData["pids"].items()) {
-            keyPids.push_back(k);
+        //
+        
+        for(string &e : tmp) {
+            pid_t pid = 0;
+            ret = zmqhelper::forkSubsystem(devSn, e, portRouter, pid);
+            if(0 == ret) {
+                this->peerData["status"][e] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                this->peerData["pids"][e] = pid;
+                spdlog::info("evdaemon {} created subsystem {}", devSn, e);
+            }else{
+                spdlog::info("evdaemon {} failed to create subsystem {}", devSn, e);
+            }
         }
-        
-        json diff = json::diff(keyPids, keyConfig);
-        spdlog::info("evdaemon {} key diff: {}", devSn, diff.dump());
-        
-        // int ret = 0;
-        // if(this->peerData["pids"].count(peerId) != 0 && force) {
-        //     kill(this->peerData["pids"][peerId], SIGTERM);
-        // }else if(this->peerData["pids"].count(peerId) == 0) {
-        //     pid_t pid;
-        //     ret = zmqhelper::forkSubsystem(devSn, peerId, portRouter, pid);
-        //     if(ret != 0) {
-        //         spdlog::error("evdaemon {} failed to fork subsystem: {}", devSn, peerId);
-        //     }
-        //     this->peerData["pids"][peerId] = pid;
-        //     spdlog::info("evdaemon {} created subsystem {}", devSn, peerId); 
-        // }else{
 
-        // }
         return ret;
     }
 
