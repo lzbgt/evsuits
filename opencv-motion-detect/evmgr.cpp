@@ -42,7 +42,7 @@ private:
     void *pCtxDealer = nullptr, *pDealer = nullptr;
     json config;
     string devSn, ident;
-    json peerStatus;
+    json peerData;
     unordered_map<string, queue<vector<vector<uint8_t> >> > cachedMsg;
     mutex cacheLock;
     queue<string> eventQue;
@@ -131,16 +131,13 @@ private:
                 return -1;
             }
 
-            if(peerStatus.count(selfId) == 0||peerStatus[selfId] == 0) {
-                peerStatus[selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+            if(peerData["status"].count(selfId) == 0||peerData["status"][selfId] == 0) {
+                peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                 spdlog::info("evmgr {} peer connected: {}", devSn, selfId);
                 eventConn = true;
-                mod->at("status") = 1;
-                spdlog::debug("evmgr {} update status of {} to 1", devSn, selfId);
             }
             else {
-                peerStatus[selfId] = 0;
-                mod->at("status") = 0;
+                peerData["status"][selfId] = 0;
                 spdlog::warn("evmgr {} peer disconnected: {}", devSn, selfId);
             }
 
@@ -176,7 +173,7 @@ private:
         selfId = body2str(body[0]);
         peerId = body2str(body[1]);
         // update status;
-        this->peerStatus[selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+        this->peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
 
         // msg to peer
         string myId = devSn + ":0:0";
@@ -185,7 +182,7 @@ private:
             // message to other peer
             // check peer status
             vector<vector<uint8_t> >v = {body[1], body[0], body[2], body[3]};
-            if(peerStatus.count(peerId)!= 0 && peerStatus[peerId] != 0) {
+            if(peerData["status"].count(peerId)!= 0 && peerData["status"][peerId] != 0) {
                 spdlog::info("evmgr {} route msg from {} to {}", devSn, selfId, peerId);
                 ret = z_send_multiple(pRouter, v);
                 if(ret < 0) {
@@ -277,6 +274,7 @@ public:
     EvMgr& operator=(EvMgr &&) = delete;
     EvMgr()
     {
+        peerData["status"] = json();
         const char *strEnv = getenv("DR_PORT");
         if(strEnv != nullptr) {
             drport = strEnv;

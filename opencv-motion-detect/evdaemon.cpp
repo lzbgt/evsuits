@@ -170,7 +170,7 @@ private:
         string info;
         int cnt = 0;
         for(auto &[k,v]: this->peerData["config"].items()) {
-            if((this->peerData["status"].count(k) == 0 || this->peerData["status"][k] == 0) && this->peerData["enabled"] != 0) {
+            if(this->peerData["enabled"].count(k) != 0 && this->peerData["enabled"][k] != 0 && (this->peerData["status"].count(k) == 0 || this->peerData["status"][k] == 0)) {
                 tmp.push_back(k);
                 info += (cnt == 0? "" : string(", ")) + k;
             }
@@ -182,7 +182,7 @@ private:
             pid_t pid = 0;
             ret = zmqhelper::forkSubsystem(devSn, e, portRouter, pid);
             if(0 == ret) {
-                this->peerData["status"][e] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                this->peerData["status"][e] = 0;
                 this->peerData["pids"][e] = pid;
                 spdlog::info("evdaemon {} created subsystem {}", devSn, e);
             }
