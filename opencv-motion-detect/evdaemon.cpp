@@ -209,7 +209,7 @@ private:
             pid_t pid = 0;
             ret = zmqhelper::forkSubsystem(devSn, e, portRouter, pid);
             if(0 == ret) {
-                this->peerData["status"][e] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                this->peerData["status"][e] = 0;
                 this->peerData["pids"][e] = pid;
                 spdlog::info("evdaemon {} created subsystem {}", devSn, e);
             }
@@ -237,7 +237,7 @@ private:
                 return -1;
             }
 
-            if(peerData["status"].count(selfId) == 0 || peerData["status"][selfId] == 0) {
+            if((peerData["status"].count(selfId) == 0 || peerData["status"][selfId] == 0) ) {
                 peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                 spdlog::info("evdaemon {} peer connected: {}", devSn, selfId);
                 eventConn = true;
@@ -255,9 +255,7 @@ private:
                     peerData["pids"].erase(selfId);
                 }
 
-                spdlog::warn("evdaemon {} peer disconnected: {}", devSn, selfId);
-
-                spdlog::info("evadmon {} reloading config for {}", devSn, selfId);
+                spdlog::warn("evdaemon {} peer {} disconnected. reloading config", devSn, selfId);
                 if(bBootstrap) {
                     ret = reloadCfg(selfId);
                 }
@@ -397,8 +395,7 @@ private:
                     if(meta == EV_MSG_META_CONFIG) {
                         if(data.size() == 0) {
                             spdlog::error("evdaemon {} received invalid empty config", devSn);
-                        }
-                        else {
+                        } else {
                             this->deltaCfg = json::diff(this->config, data);
                             spdlog::info("evdaemon {} received cloud config diff: {}\nnew: {}", devSn, this->deltaCfg.dump(4), data.dump());
                             if(this->deltaCfg.size() != 0 || this->bColdStart) {
@@ -419,7 +416,11 @@ private:
                             else {
                             }
 
-                            startSubSystems();
+                            if(bBootstrap) {
+                                startSubSystems();
+                            }else{
+                                spdlog::info("evdaemon {} skip startup subsystems since BOOTSTRAP is set to false", devSn);
+                            }      
                         }
                     }
                 }
