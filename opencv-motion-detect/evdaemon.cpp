@@ -210,7 +210,7 @@ class EvDaemon{
         return ret;
     }
 
-    void subSystemsMgr() {
+    void setupSubsystems() {
         thMon = thread([this](){
             int ret = 0;
             while(true) {
@@ -220,15 +220,18 @@ class EvDaemon{
                     
                     if(ret != 0) {
                         //TODO
+                        spdlog::error("evdaemon {} failed to parse new configuration, check prevous log for details", devSn);
                     }else{
                         bReload = false;
                     }
                     
                     if(this->bColdStart) {
                         // TODO:
+                        this->bColdStart = false;
+                        // for peers to connect
+                        this_thread::sleep_for(chrono::seconds(5));
                     }
                     if(this->bBootstrap) {
-                        // todo
                         startSubSystems();
                     }
                 }
@@ -447,7 +450,7 @@ class EvDaemon{
     public:
     void run(){
 
-        subSystemsMgr();
+        setupSubsystems();
 
         // get config
         svr.Get("/info", [this](const Request& req, Response& res){
