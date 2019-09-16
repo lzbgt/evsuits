@@ -4,6 +4,3 @@
 [submodule "opencv-motion-detect/vendor/leveldb"]
 	path = opencv-motion-detect/vendor/leveldb
 	url = https://github.com/google/leveldb
-[submodule "opencv-motion-detect/vendor/curlpp"]
-	path = opencv-motion-detect/vendor/curlpp
-	url = https://github.com/jpbarrette/curlpp
