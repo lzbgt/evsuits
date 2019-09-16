@@ -64,20 +64,22 @@ private:
         int ret = 0;
         string peerId, meta;
         json data;
+        string msg;
+        for(auto &b:v) {
+            msg +=body2str(b) + ";";
+        } 
+
         if(v.size() == 3) {
             try{
                 peerId = body2str(v[0]);
                 meta = json::parse(body2str(v[1]))["type"];
                 data = json::parse(body2str(v[2]));
-                spdlog::info("evslicer {} received msg from {}, type = {}, data = {}", selfId, meta, data.dump());
+                spdlog::info("evslicer {} received msg from {}, type = {}, data = {}", selfId, peerId, meta, data.dump());
             }catch(exception &e){
-                spdlog::error("evslicer {} failed to process msg:{}", body2str(v[1]), body2str(v[2]));
+                spdlog::error("evslicer {} failed to process msg:{}", selfId, msg);
             }  
         }else{
-            string msg;
-            for(auto &b:v) {
-                msg +=body2str(b) + ";";
-            } 
+            
             spdlog::error("evslicer {} get invalid msg with size {}: {}", selfId, v.size(), msg);
         }
 
