@@ -40,10 +40,10 @@ using namespace zmqhelper;
 class EvSlicer: public TinyThread {
 private:
 #define URLOUT_DEFAULT "slices"
-#define NUM_DAYS_DEFAULT 5
-#define MINUTES_PER_SLICE_DEFAULT 2
-// 2 days, 10 minutes per record
-#define NUM_SLICES_DEFAULT (24 * NUM_DAYS_DEFAULT * 60 / MINUTES_PER_SLICE_DEFAULT)
+#define NUM_DAYS_DEFAULT 2
+#define MINUTES_PER_SLICE_DEFAULT 5
+// 2 days, 5 minutes per record
+
     void *pSubCtx = nullptr, *pDealerCtx = nullptr; // for packets relay
     void *pSub = nullptr, *pDealer = nullptr, *pDaemonCtx = nullptr, *pDaemon = nullptr;
     string urlOut, urlPub, urlRouter, devSn, mgrSn, selfId, pullerGid;
@@ -52,13 +52,12 @@ private:
     AVFormatContext *pAVFormatRemux = nullptr;
     AVFormatContext *pAVFormatInput = nullptr;
     AVDictionary *pOptsRemux = nullptr;
-    // load from db
-    vector<int> *sliceIdxToName = nullptr;
     int *streamList = nullptr;
     time_t tsLastBoot, tsUpdateTime;
     json config;
     thread thMsgProcessor;
     string drport = "5549";
+    json slices;
 
     int handleMsg(vector<vector<uint8_t> > v){
         int ret = 0;
