@@ -203,20 +203,6 @@ private:
             exit(1);
         }
 
-        thMsgProcessor = thread([this](){
-            while(true) {
-                auto body = z_recv_multiple(pDealer,false);
-                if(body.size() == 0) {
-                    spdlog::error("evslicer {} failed to receive multiple msg: {}", selfId, zmq_strerror(zmq_errno()));
-                    continue;
-                }
-                // full proto msg received.
-                handleMsg(body);
-            }
-        });
-
-        thMsgProcessor.detach();
-
         return ret;
     }
 
@@ -512,6 +498,21 @@ public:
         init();
         getInputFormat();
         setupStream();
+
+        // thread for msg
+        thMsgProcessor = thread([this](){
+            while(true) {
+                auto body = z_recv_multiple(pDealer,false);
+                if(body.size() == 0) {
+                    spdlog::error("evslicer {} failed to receive multiple msg: {}", selfId, zmq_strerror(zmq_errno()));
+                    continue;
+                }
+                // full proto msg received.
+                handleMsg(body);
+            }
+        });
+
+        thMsgProcessor.detach();
     };
     ~EvSlicer()
     {

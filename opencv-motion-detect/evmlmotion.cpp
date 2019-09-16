@@ -715,7 +715,6 @@ int main(int argc, const char *argv[])
     av_log_set_level(AV_LOG_ERROR);
     queue<string> evtQueue;
     EvMLMotion es(&evtQueue);
-    es.detach();
 
 #ifdef DEBUG
     cv::namedWindow( "Display window", cv::WINDOW_AUTOSIZE );
@@ -732,17 +731,7 @@ int main(int argc, const char *argv[])
         }
     }
 #else
-    while(true) {
-        if(evtQueue.size() >  0) {
-            string p = evtQueue.front();
-            spdlog::info("evmlmotion event: {}", p);
-            evtQueue.pop();
-        }
-        else {
-            this_thread::sleep_for(chrono::duration(chrono::seconds(2)));
-        }
-    }
-
+    es.join();
 #endif
     return 0;
 }
