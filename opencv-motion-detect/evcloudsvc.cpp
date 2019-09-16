@@ -400,7 +400,8 @@ private:
                 ret["code"] = 1;
                 string msg = "no such sn: " + sn;
                 ret["msg"] = msg;
-                spdlog::warn("evcloudsvc no config for sn: {}", sn);   
+                spdlog::warn("evcloudsvc no config for sn: {}", sn);
+                // TODO: append to retry queue 
             }
         }catch(exception &e) {
             string msg = "evcloudsvc exception in file" + string(__FILE__) + ":" + to_string(__LINE__) + " for: " + e.what();

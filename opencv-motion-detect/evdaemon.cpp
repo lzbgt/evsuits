@@ -67,7 +67,7 @@ class EvDaemon{
     /// tracking sub-systems: evmgr, evpuller, evpusher, evml*, evslicer etc.
     json mapSubSystems;
 
-    int reloadCfg(string subModGid) {
+    int reloadCfg(string subModGid = "") {
         int bootType = 0;
         if(subModGid == "ALL") {
             bootType = 1;
@@ -76,6 +76,8 @@ class EvDaemon{
         }else{
             bootType = 3;
         }
+
+        spdlog::info("evadmon {} reloading config: {}", devSn, this->config.dump());
 
         int ret = LVDB::getSn(this->info);
         if(ret < 0) {
@@ -116,7 +118,6 @@ class EvDaemon{
                 }
 
                 // startup other submodules
-                spdlog::info("dump: {}", v.dump());
                 json &ipcs = v["ipcs"];
                 for(auto &ipc : ipcs) {
                     json &modules = ipc["modules"];
@@ -135,7 +136,6 @@ class EvDaemon{
                                 }
 
                                 this->peerData["config"][peerId] = v;
-
                                 if(this->peerData["status"].count(peerId) == 0||this->peerData["status"][peerId] == 0) {
                                     this->peerData["status"][peerId] = 0;
                                     if(bootType == 1 || (bootType == 3 && subModGid == peerId)){
@@ -179,7 +179,6 @@ class EvDaemon{
             if(this->peerData["pids"].count(k) != 0) {
                 this->peerData["pids"].erase(k);
             }
-            
         }
     }
 
@@ -187,14 +186,18 @@ class EvDaemon{
         // check status and startup
         int ret = 0;
         vector<string> tmp;
+        string info;
+        int cnt = 0;
         for(auto &[k,v]: this->peerData["config"].items()) {
+            spdlog::info("evdaemon {} submodule {}, config {}", devSn, k, v.dump());
             if(this->peerData["status"].count(k) == 0 || this->peerData["status"][k] == 0) {
                 tmp.push_back(k);
+                info += (cnt == 0? "" : string(", ")) + k;
             }
+            cnt++;
         }
-
+        spdlog::info("evdaemon {} will start following subsystems: {}", devSn, info);
         //
-        
         for(string &e : tmp) {
             pid_t pid = 0;
             ret = zmqhelper::forkSubsystem(devSn, e, portRouter, pid);
@@ -208,39 +211,6 @@ class EvDaemon{
         }
 
         return ret;
-    }
-
-    void setupSubsystems() {
-        thMon = thread([this](){
-            int ret = 0;
-            while(true) {
-                if(this->bReload) {
-                    //cleanupSubSystems();
-                    ret = reloadCfg("");
-                    
-                    if(ret != 0) {
-                        //TODO
-                        spdlog::error("evdaemon {} failed to parse new configuration, check prevous log for details", devSn);
-                    }else{
-                        bReload = false;
-                    }
-                    
-                    if(this->bColdStart) {
-                        // TODO:
-                        this->bColdStart = false;
-                        // for peers to connect
-                        this_thread::sleep_for(chrono::seconds(5));
-                    }
-                    if(this->bBootstrap) {
-                        startSubSystems();
-                    }
-                }
-
-                this_thread::sleep_for(chrono::seconds(5));
-            }
-        });
-
-        thMon.detach();
     }
 
     int handleEdgeMsg(vector<vector<uint8_t> > &body)
@@ -416,22 +386,24 @@ class EvDaemon{
                             spdlog::error("evdaemon {} received invalid empty config", devSn);
                         }else{
                             this->deltaCfg = json::diff(this->config, data);
-                            if(this->deltaCfg.size() != 0) {
+                            spdlog::info("evdaemon {} received cloud config diff: {}\nnew: {}", devSn, this->deltaCfg.dump(4), data.dump());
+                            if(this->deltaCfg.size() != 0 || this->bColdStart) {
                                 this->config = data;
-                                this->bReload = true;
-                                spdlog::info("evdaemon {} received cloud config diff:\n{}\nnew\n{}", devSn, this->deltaCfg.dump(4), data.dump());
+                                ret = reloadCfg();
+                                if(ret != 0) {
+                                    spdlog::error("evdameon {} failed to parse new config: {}", devSn, data.dump());
+                                    return ret;
+                                }
                                 ret = LVDB::setLocalConfig(data, "", EV_FILE_LVDB_DAEMON);
-                                if(ret < 0) {
+                                if(ret != 0) {
                                     spdlog::error("evdameon {} failed to save new config to local db: {}", devSn, data.dump());
+                                    return ret;
                                 }
-                                // TODO: detailed diff on submodules
+                                this->bColdStart = false;
                             }else{
-                                if(this->bColdStart) {
-                                    startSubSystems();
-                                }else{
-                                    spdlog::info("evdaemon {} received same configuration and ignored: {}", devSn, data.dump());
-                                }
                             }
+
+                            startSubSystems();
                         }
                     }
                 }else{
@@ -449,9 +421,7 @@ class EvDaemon{
     protected:
     public:
     void run(){
-
-        setupSubsystems();
-
+        //setupSubsystems();
         // get config
         svr.Get("/info", [this](const Request& req, Response& res){
             LVDB::getSn(this->info);
@@ -554,9 +524,10 @@ class EvDaemon{
         json cfg;
         ret = LVDB::getLocalConfig(cfg, "", EV_FILE_LVDB_DAEMON);
         if(ret < 0) {
-            spdlog::info("evdameon {} no local config", devSn, cfg.dump());
+            spdlog::info("evdaemon {} no local config", devSn);
         }else{
             this->config = cfg;
+            spdlog::info("evdaemon {} local config: {}", devSn, cfg.dump());
         }
 
         // zmq router port
