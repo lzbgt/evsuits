@@ -215,7 +215,7 @@ private:
             }
         }
 
-        while(unkown.size() != 0) {
+        while(unkown.size() != 0 && cnt < 3) {
             this_thread::sleep_for(chrono::seconds(3));
             for(auto &[k,v]: unkown.items()) {
                 if(this->peerData["status"][k] != -1 && this->peerData["status"][k] != 0) {
