@@ -148,10 +148,7 @@ private:
             }
 
             numSlices = 24 * days * 60 /minutes;
-            // alloc memory
-            sliceIdxToName = new vector<int>(numSlices);
-            // TODO: load db
-            // DB::exec(NULL, "select id, ts, last from slices;", DB::get_slices, sliceIdxToName);
+            
             spdlog::info("evslicer mkdir -p {}", selfId, urlOut);
             ret = system((string("mkdir -p ") + urlOut).c_str());
             // if(ret == -1) {

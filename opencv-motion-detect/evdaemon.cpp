@@ -69,16 +69,16 @@ private:
 
     int reloadCfg(string subModGid = "")
     {
-        int bootType = 0;
-        if(subModGid == "ALL") {
-            bootType = 1;
-        }
-        else if(subModGid.empty()) {
-            bootType = 2;
-        }
-        else {
-            bootType = 3;
-        }
+        // int bootType = 0;
+        // if(subModGid == "ALL") {
+        //     bootType = 1;
+        // }
+        // else if(subModGid.empty()) {
+        //     bootType = 2;
+        // }
+        // else {
+        //     bootType = 3;
+        // }
 
 
         int ret = LVDB::getSn(this->info);
@@ -102,22 +102,7 @@ private:
                     peerId = v["sn"].get<string>() + ":evmgr:0";
                     // offline
                     this->peerData["config"][peerId] = v;
-                    if(this->peerData["status"].count(peerId) == 0||this->peerData["status"][peerId] == 0) {
-                        this->peerData["status"][peerId] = 0;
-                        if(bootType == 1 || (bootType == 3 && subModGid == peerId)) {
-                            ret = zmqhelper::forkSubsystem(devSn, peerId, portRouter, pid);
-                            if(ret != 0) {
-                                spdlog::error("evdaemon {} failed to fork subsystem: {}", devSn, peerId);
-                                // TODO: clean up and reload config
-                                return -3;
-                            }
-                            this->peerData["pids"][peerId] = pid;
-                            spdlog::info("evdaemon {} created subsystem {}", devSn, peerId);
-                        }
-                    }
-                    else {
-                        // TODO
-                    }
+                    this->peerData["status"][peerId] = 0;
                 }
 
                 // startup other submodules
@@ -129,34 +114,22 @@ private:
                             if(m["sn"] != this->devSn) {
                                 continue;
                             }
-                            if(m.count("enabled") == 0 || m["enabled"] == 0) {
-                                spdlog::warn("evdaemon {} {} was disabled, ignore", this->devSn, mn);
+                            
+                            string peerName;
+                            ret = cfgutils::getPeerId(mn, m, peerId, peerName);
+                            if(ret != 0) {
+                                continue;
                             }
-                            else {
-                                string peerName;
-                                ret = cfgutils::getPeerId(mn, m, peerId, peerName);
-                                if(ret != 0) {
-                                    continue;
-                                }
 
-                                this->peerData["config"][peerId] = v;
-                                if(this->peerData["status"].count(peerId) == 0||this->peerData["status"][peerId] == 0) {
-                                    this->peerData["status"][peerId] = 0;
-                                    if(bootType == 1 || (bootType == 3 && subModGid == peerId)) {
-                                        ret = zmqhelper::forkSubsystem(devSn, peerId, portRouter, pid);
-                                        if(ret != 0) {
-                                            spdlog::error("evdaemon {} failed to fork subsystem: {}", devSn, peerId);
-                                            // TODO: cleanup and reload
-                                            return -2;
-                                        }
-                                        this->peerData["pids"][peerId] = pid;
-                                        spdlog::info("evdaemon {} created subsystem {}", devSn, peerId);
-                                    }
-                                }
-                                else {
-                                    // TODO:
-                                }
+                            if(m.count("enabled") == 0 || m["enabled"] == 0) {
+                                spdlog::warn("evdaemon {} {} was disabled", this->devSn, mn);
+                                this->peerData["enabled"][peerId] = 0;
+                            }else{
+                                this->peerData["enabled"][peerId] = 1;
                             }
+
+                            this->peerData["config"][peerId] = v;
+                            this->peerData["status"][peerId] = 0;
                         }
                     }
                 }
@@ -197,7 +170,7 @@ private:
         string info;
         int cnt = 0;
         for(auto &[k,v]: this->peerData["config"].items()) {
-            if(this->peerData["status"].count(k) == 0 || this->peerData["status"][k] == 0) {
+            if((this->peerData["status"].count(k) == 0 || this->peerData["status"][k] == 0) && this->peerData["enabled"] != 0) {
                 tmp.push_back(k);
                 info += (cnt == 0? "" : string(", ")) + k;
             }
@@ -256,17 +229,16 @@ private:
                 }
 
                 spdlog::warn("evdaemon {} peer {} disconnected. reloading config", devSn, selfId);
-                if(bBootstrap) {
-                    ret = reloadCfg(selfId);
-                }
-                else {
-                    ret = reloadCfg("");
-                }
 
+                ret = reloadCfg();
                 if(ret != 0) {
-                    cleanupSubSystems();
+                    spdlog::error("evdaemon {} failed to reload config. please check configuration", devSn);
+                    return -1;
                 }
 
+                if(this->bBootstrap) {
+                    startSubSystems();
+                }
             }
 
             // event
