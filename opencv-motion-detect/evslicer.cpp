@@ -57,8 +57,32 @@ private:
     int *streamList = nullptr;
     time_t tsLastBoot, tsUpdateTime;
     json config;
-    thread thPing;
+    thread thMsgProcessor;
     string drport = "5549";
+
+    int handleMsg(vector<vector<uint8_t> > v){
+        int ret = 0;
+        string peerId, meta;
+        json data;
+        if(v.size() == 3) {
+            try{
+                peerId = body2str(v[0]);
+                meta = json::parse(body2str(v[1]))["type"];
+                data = json::parse(body2str(v[2]));
+                spdlog::info("evslicer {} received msg from {}, type = {}, data = {}", selfId, meta, data.dump());
+            }catch(exception &e){
+                spdlog::error("evslicer {} failed to process msg:{}", body2str(v[1]), body2str(v[2]));
+            }  
+        }else{
+            string msg;
+            for(auto &b:v) {
+                msg +=body2str(b) + ";";
+            } 
+            spdlog::error("evslicer {} get invalid msg with size {}: {}", selfId, v.size(), msg);
+        }
+
+        return ret;
+    }
 
     int init()
     {
@@ -178,7 +202,20 @@ private:
             spdlog::error("evslicer {} exception in init {:s} retrying", selfId, e.what());
             exit(1);
         }
- 
+
+        thMsgProcessor = thread([this](){
+            while(true) {
+                auto body = z_recv_multiple(pDealer,false);
+                if(body.size() == 0) {
+                    spdlog::error("evslicer {} failed to receive multiple msg: {}", selfId, zmq_strerror(zmq_errno()));
+                    continue;
+                }
+                // full proto msg received.
+                handleMsg(body);
+            }
+        });
+
+        thMsgProcessor.detach();
 
         return ret;
     }

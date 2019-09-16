@@ -251,8 +251,6 @@ protected:
     {
         bool bStopSig = false;
         int ret = 0;
-        zmq_msg_t msg;
-
         while (true) {
             if(checkStop() == true) {
                 bStopSig = true;

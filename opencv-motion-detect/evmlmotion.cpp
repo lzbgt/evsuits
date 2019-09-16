@@ -462,7 +462,7 @@ private:
             }
         } //end for
 
-        spdlog::debug("evmlmotion {} contours {} area {}, thresh {} hasEvent {}", selfId, cnts.size(), cnts.size() == 0? 0:cv::contourArea(cnts[i]), detPara.area, hasEvent);
+        spdlog::debug("evmlmotion {} contours {} area {}, thresh {} hasEvent {}", selfId, cnts.size(), hasEvent? cv::contourArea(cnts[i]):0, detPara.area, hasEvent);
 
         // business logic for event
         auto dura = chrono::duration_cast<chrono::seconds>(evtStartTm - evtStartTmLast).count();
@@ -579,7 +579,7 @@ protected:
                         spdlog::error("evmlmotion {} failed to send event {} to {}: {}", this->selfId, evt, this->slicerGid, zmq_strerror(zmq_errno()));
                     }
                     else {
-                        spdlog::info("evmlmotion {} send event: {}", this->selfId, evt);
+                        spdlog::info("evmlmotion {} sent event: {}", this->selfId, evt);
                     }
                 }
                 else {

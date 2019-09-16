@@ -242,7 +242,6 @@ private:
     int handleMsg(vector<vector<uint8_t> > &body)
     {
         int ret = 0;
-        zmq_msg_t msg;
         // ID_SENDER, ID_TARGET, meta ,MSG
         string selfId, peerId, meta;
         if(body.size() == 2 && body[1].size() == 0) {

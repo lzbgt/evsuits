@@ -230,9 +230,11 @@ int encode(AVFormatContext *ctx, char **bytes)
     got += sizeof(wholeSize);
     memcpy((*bytes) + got, PS_MARK_E, strlen(PS_MARK_E));
     got += strlen(PS_MARK_E);
-
+    if(wholeSize != got){
+        spdlog::error("encode wholesize: {}, should be {}", got, wholeSize);
+    }
     assert(wholeSize == got);
-    spdlog::info("encode wholesize: {}", got);
+    
     return wholeSize;
 }
 
