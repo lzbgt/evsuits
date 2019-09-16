@@ -182,7 +182,7 @@ private:
             pid_t pid = 0;
             ret = zmqhelper::forkSubsystem(devSn, e, portRouter, pid);
             if(0 == ret) {
-                this->peerData["status"][e] = 0;
+                this->peerData["status"][e] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                 this->peerData["pids"][e] = pid;
                 spdlog::info("evdaemon {} created subsystem {}", devSn, e);
             }
