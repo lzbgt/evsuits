@@ -400,7 +400,7 @@ private:
                             spdlog::info("evdaemon {} received cloud config diff: {}\nnew: {}", devSn, this->deltaCfg.dump(4), data.dump());
                             if(this->deltaCfg.size() != 0 || this->bColdStart) {
                                 this->config = data;
-                                spdlog::info("evadmon {} reloading config from cloud", devSn);
+                                spdlog::info("evdaemon {} reloading config from cloud", devSn);
                                 ret = reloadCfg();
                                 if(ret != 0) {
                                     spdlog::error("evdameon {} failed to parse new config: {}", devSn, data.dump());

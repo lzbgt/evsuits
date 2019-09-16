@@ -54,10 +54,9 @@ private:
     int init()
     {
         int ret = 0;
-        spdlog::info("evpusher startup {}", selfId);
         bool found = false;
         try {
-            spdlog::info("config: {:s}", config.dump());
+            spdlog::info("evpusher boot config: {} -> {}", selfId, config.dump());
             json evpusher;
             json &evmgr = this->config;
             json ipc;
@@ -131,7 +130,7 @@ private:
             if(ret < 0) {
                 spdlog::error("evpusher {} failed to set config: {}", selfId, config.dump());
             }
-            spdlog::info("new config: {}", config.dump());
+            spdlog::info("evpusher new config: {}", config.dump());
             ping();
         }
         catch(exception &e) {
@@ -262,7 +261,7 @@ private:
         }
 
         for(int i = 0; i < pAVFormatInput->nb_streams; i++ ) {
-            spdlog::info("streamList[{:d}]: {:d}", i, streamList[i]);
+            spdlog::info("evpusher {} streamList[{:d}]: {:d}", selfId, i, streamList[i]);
         }
 
         av_dump_format(pAVFormatRemux, 0, urlOut.c_str(), 1);
@@ -341,7 +340,7 @@ protected:
             }
 
             if(pktCnt % EV_LOG_PACKET_CNT == 0) {
-                spdlog::info("seq: {}, pts: {}, dts: {}, idx: {}", pktCnt, packet.pts, packet.dts, packet.stream_index);
+                spdlog::info("evpusher {} seq: {}, pts: {}, dts: {}, idx: {}", selfId, pktCnt, packet.pts, packet.dts, packet.stream_index);
             }
 
             pktCnt++;

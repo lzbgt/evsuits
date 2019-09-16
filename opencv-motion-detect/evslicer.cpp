@@ -32,6 +32,7 @@ namespace fs = std::filesystem;
 #include "inc/tinythread.hpp"
 #include "inc/common.hpp"
 #include "inc/database.h"
+#include "postfile.h"
 
 using namespace std;
 using namespace zmqhelper;
@@ -62,13 +63,9 @@ private:
     int init()
     {
         int ret = 0;
-        spdlog::info("evslicer boot {}", selfId);
-
-    
-        // TODO: req config
         bool found = false;
         try {
-            spdlog::info("config: {:s}", config.dump());
+            spdlog::info("evslicer boot config: {} -> {}", selfId, config.dump());
             json evslicer;
             json &evmgr = this->config;
             json ipc;
@@ -130,7 +127,7 @@ private:
             sliceIdxToName = new vector<int>(numSlices);
             // TODO: load db
             // DB::exec(NULL, "select id, ts, last from slices;", DB::get_slices, sliceIdxToName);
-            spdlog::info("mkdir -p {}", urlOut);
+            spdlog::info("evslicer mkdir -p {}", selfId, urlOut);
             ret = system((string("mkdir -p ") + urlOut).c_str());
             // if(ret == -1) {
             //     spdlog::error("failed to create {} dir", urlOut);
@@ -280,7 +277,7 @@ private:
         }
 
         for(int i = 0; i < pAVFormatInput->nb_streams; i++ ) {
-            spdlog::info("streamList[{:d}]: {:d}", i, streamList[i]);
+            spdlog::info("evslicer {} streamList[{:d}]: {:d}", selfId, i, streamList[i]);
         }
 
         //av_dict_set(&pOptsRemux, "movflags", "frag_keyframe+empty_moov+default_base_moof", 0);
@@ -357,7 +354,7 @@ protected:
 
             // TODO:
 
-            spdlog::info("writing new slice {}", name.c_str());
+            spdlog::info("evslicer {} writing new slice {}", selfId, name.c_str());
             while(chrono::duration_cast<chrono::seconds>(end-start).count() < minutes * 60) {
                 if(checkStop() == true) {
                     bStopSig = true;
@@ -393,7 +390,7 @@ protected:
                 //calc pts
 
                 if(pktCnt % EV_LOG_PACKET_CNT == 0) {
-                    spdlog::info("seq: {}, pts: {}, dts: {}, idx: {}", pktCnt, packet.pts, packet.dts, packet.stream_index);
+                    spdlog::info("evslicer {} seq: {}, pts: {}, dts: {}, idx: {}", selfId, pktCnt, packet.pts, packet.dts, packet.stream_index);
                 }
                 /* copy packet */
                 if(pktCnt == 0) {
@@ -504,7 +501,7 @@ public:
 int main(int argc, const char *argv[])
 {
     av_log_set_level(AV_LOG_ERROR);
-    spdlog::set_level(spdlog::level::debug);
+    spdlog::set_level(spdlog::level::info);
     EvSlicer es;
     es.join();
     return 0;

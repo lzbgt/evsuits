@@ -56,13 +56,12 @@ private:
         int ret = 0;
         json jret;
         bool inited = false;
-        spdlog::info("evmgr boot {}", devSn);
         int opt_notify = ZMQ_NOTIFY_DISCONNECT|ZMQ_NOTIFY_CONNECT;
         string addr;
-        
+
         try {
             //
-            spdlog::info("evmgr {} starting with configuration:{}", devSn, config.dump());
+            spdlog::info("evmgr boot configuration: {} -> {}", devSn, config.dump());
 
             if(config["proto"] != "zmq") {
                 spdlog::warn("evmgr {} unsupported protocol: {}, try fallback to zmq instead now...", devSn, config["proto"].get<string>());

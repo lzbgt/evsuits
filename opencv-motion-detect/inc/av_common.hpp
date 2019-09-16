@@ -191,7 +191,7 @@ int encode(AVFormatContext *ctx, char **bytes)
     wholeSize += strlen(PS_MARK_S);
     // num streams
     wholeSize += sizeof(ctx->nb_streams);
-    spdlog::info("encode num of streams: {:d}", ctx->nb_streams);
+    spdlog::debug("encode num of streams: {:d}", ctx->nb_streams);
     for (int i = 0; i < ctx->nb_streams; i++)
     {
         wholeSize += sizeof(AVStream);
@@ -246,7 +246,7 @@ int decode(char *bytes, int len, AVFormatContext *pCtx)
         spdlog::error("invalid avformatctx: {} {}", ret, len);
         return -1;
     }
-    spdlog::info("decode len: {}", ret);
+    spdlog::debug("decode len: {}", ret);
     got += strlen(PS_MARK_S);
     memcpy(&ret, bytes + got, sizeof(ret));
     got += sizeof(ret);

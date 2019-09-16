@@ -144,14 +144,11 @@ private:
     int init()
     {
         bool inited = false;
-        int ret = 0;
-
-        spdlog::info("evpuller: {}", selfId);
-            
+        int ret = 0;   
         bool found = false;
         string user, passwd, addr;
         try {
-            spdlog::info("config dump: {:s}", config.dump());
+            spdlog::info("evpuller boot config: {} -> {}", selfId, config.dump());
             json evpuller;
             json &evmgr = this->config;
             json ipc;
@@ -237,7 +234,7 @@ private:
         }
 
         inited = true;
-        spdlog::info("successfully load config");
+        spdlog::info("evpuller successfully load config");
 
         return 0;
     }
@@ -309,7 +306,7 @@ protected:
 
             ret = av_read_frame(pAVFormatInput, &packet);
             if (ret < 0) {
-                spdlog::error("failed read packet: {}", av_err2str(ret));
+                spdlog::error("evpuller {} failed read packet: {}", selfId, av_err2str(ret));
                 break;
             }
             in_stream  = pAVFormatInput->streams[packet.stream_index];
@@ -318,7 +315,7 @@ protected:
                 continue;
             }
             if(pktCnt % EV_LOG_PACKET_CNT == 0) {
-                spdlog::info("pktCnt: {:d}", pktCnt);
+                spdlog::info("evpuller {} pktCnt: {:d}", selfId, pktCnt);
             }
 
             pktCnt++;
@@ -405,7 +402,7 @@ public:
 int main(int argc, char **argv)
 {
     av_log_set_level(AV_LOG_ERROR);
-    spdlog::set_level(spdlog::level::debug);
+    spdlog::set_level(spdlog::level::info);
     //DB::exec(NULL, NULL, NULL,NULL);
     auto evp = EvPuller();
     evp.join();

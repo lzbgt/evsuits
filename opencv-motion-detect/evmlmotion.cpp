@@ -85,15 +85,14 @@ private:
     thread thEvent;
     string drport = "5549";
     //
-
+    
     int init()
     {
         int ret = 0;
-        spdlog::info("evmlmotion boot {}", selfId);
         // TODO: req config
         bool found = false;
         try {
-            spdlog::info("evmlmotion {} config: {}", devSn, config.dump());
+            spdlog::info("evmlmotion boot config: {} -> {}", selfId, config.dump());
             json evmlmotion;
             json &evmgr = this->config;
             json ipc;
@@ -623,7 +622,7 @@ protected:
             }
             zmq_msg_close(&msg);
             if(pktCnt % EV_LOG_PACKET_CNT == 0) {
-                spdlog::info("seq: {}, pts: {}, dts: {}, idx: {}", pktCnt, packet.pts, packet.dts, packet.stream_index);
+                spdlog::info("evmlmotion {} seq: {}, pts: {}, dts: {}, idx: {}", selfId, pktCnt, packet.pts, packet.dts, packet.stream_index);
             }
             pktCnt++;
 
@@ -712,7 +711,7 @@ public:
 
 int main(int argc, const char *argv[])
 {
-    spdlog::set_level(spdlog::level::debug);
+    spdlog::set_level(spdlog::level::info);
     av_log_set_level(AV_LOG_ERROR);
     queue<string> evtQueue;
     EvMLMotion es(&evtQueue);
@@ -736,7 +735,7 @@ int main(int argc, const char *argv[])
     while(true) {
         if(evtQueue.size() >  0) {
             string p = evtQueue.front();
-            spdlog::info("event: {}", p);
+            spdlog::info("evmlmotion event: {}", p);
             evtQueue.pop();
         }
         else {
