@@ -173,7 +173,7 @@ int recvConfigMsg(void *s, json &config, string addr, string ident){
             return -1;
         }
 
-        spdlog::info("evmgr {} msg received: {} {} {}", ident, body2str(v[0]), body2str(v[1]), body2str(v[2]));
+        spdlog::debug("{} configuration msg received: {} {} {}", ident, body2str(v[0]), body2str(v[1]), body2str(v[2]));
         try{
             string sMeta = json::parse(body2str(v[1]))["type"];
             if(sMeta != EV_MSG_META_CONFIG) {
