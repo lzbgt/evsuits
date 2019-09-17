@@ -1,5 +1,5 @@
 
-DEBUG=-g
+#DEBUG=-g
 CC = gcc
 CPP = g++
 CPPFLAGS = $(DEBUG) -Wall -std=gnu++1z
@@ -21,7 +21,7 @@ all: evmgr evpuller evpusher evslicer evmlmotion evmlmotion_d evdaemon evcloudsv
 # sqlite C object
 sqlite3.o: vendor/sqlite/sqlite3.c
 	gcc -D SQLITE_THREADSAFE=1 -c vendor/sqlite/sqlite3.c
-
+	
 evmgr: evmgr.cpp database.cpp inc/utils.hpp inc/common.hpp inc/database.h inc/zmqhelper.hpp inc/tinythread.hpp $(SQLITE_SRC)
 	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evmgr evmgr.cpp $(SQLITE) database.cpp $(HEADERS) $(LIBFFMPEG) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
 

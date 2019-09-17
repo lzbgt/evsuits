@@ -20,6 +20,7 @@ update: 2019/09/10
 #include "inc/json.hpp"
 #include "inc/utils.hpp"
 #include <unistd.h>
+#include <sys/wait.h>
 
 using namespace std;
 using namespace httplib;
@@ -68,6 +69,18 @@ private:
     /// tracking sub-systems: evmgr, evpuller, evpusher, evml*, evslicer etc.
     json mapSubSystems;
 
+    int ping(void *s)
+    {
+        int ret = 0;
+        vector<vector<uint8_t> >body = {str2body("evcloudsvc:0:0"), str2body(EV_MSG_META_PING), str2body(MSG_HELLO)};
+
+        ret = z_send_multiple(s, body);
+        if(ret < 0) {
+            spdlog::error("evdaemon {} failed to send ping: {}", devSn, zmq_strerror(zmq_errno()));
+        }
+        return ret;
+    }
+
     int reloadCfg(string subModGid = "")
     {
         // int bootType = 0;
@@ -80,7 +93,6 @@ private:
         // else {
         //     bootType = 3;
         // }
-
 
         int ret = LVDB::getSn(this->info);
         if(ret < 0) {
@@ -599,7 +611,6 @@ public:
 
         spdlog::info("evdaemon {} edge message processor had setup {}", devSn, addr);
 
-
         // dealer port
         strEnv = getenv("CLOUD_ADDR");
         if(strEnv != nullptr) {
@@ -628,6 +639,7 @@ public:
 
         thCloud.detach();
         spdlog::info("evdaemon {} cloud message processor had setup {}", devSn, cloudAddr);
+        ping(pDealer);
 
         this->thIdMain = this_thread::get_id();
 

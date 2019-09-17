@@ -43,7 +43,6 @@ private:
 #define NUM_DAYS_DEFAULT 2
 #define MINUTES_PER_SLICE_DEFAULT 1
 // 2 days, 5 minutes per record
-
     void *pSubCtx = nullptr, *pDealerCtx = nullptr; // for packets relay
     void *pSub = nullptr, *pDealer = nullptr, *pDaemonCtx = nullptr, *pDaemon = nullptr;
     string urlOut, urlPub, urlRouter, devSn, mgrSn, selfId, pullerGid;

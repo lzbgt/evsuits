@@ -346,12 +346,6 @@ protected:
             }
             zmq_msg_close(&msg);
 
-            // if(pktCnt == 0 && packet.stream_index != 0) {
-            //     pktIgnore++;
-            //     av_packet_unref(&packet);
-            //     continue;
-            // }
-
             spdlog::debug("packet stream indx: {:d}", packet.stream_index);
             // relay
             AVStream *in_stream =NULL, *out_stream = nullptr;

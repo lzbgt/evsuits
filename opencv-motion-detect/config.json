@@ -1,6 +1,6 @@
 {
    "data":{
-      "NMXH73Y2":{
+      "19JG1U6E":{
          "addr":"127.0.0.1",
          "api-cloud":"http://127.0.0.1:8089",
          "ipcs":[
@@ -14,7 +14,7 @@
                         "iid":1,
                         "post":30,
                         "pre":3,
-                        "sn":"NMXH73Y2",
+                        "sn":"19JG1U6E",
                         "status":0,
                         "thresh":80,
                         "type":"motion"
@@ -24,8 +24,9 @@
                      {
                         "addr":"127.0.0.1",
                         "iid":1,
+                        "enabled": 1,
                         "port-pub":5556,
-                        "sn":"NMXH73Y2",
+                        "sn":"19JG1U6E",
                         "status":0
                      }
                   ],
@@ -34,7 +35,7 @@
                         "enabled":1,
                         "iid":1,
                         "password":"",
-                        "sn":"NMXH73Y2",
+                        "sn":"19JG1U6E",
                         "status":0,
                         "token":"",
                         "urlDest":"rtsp://40.73.41.176:554/test1",
@@ -46,7 +47,7 @@
                         "enabled":1,
                         "iid":1,
                         "path":"slices",
-                        "sn":"NMXH73Y2",
+                        "sn":"19JG1U6E",
                         "status":0
                      }
                   ]
@@ -62,7 +63,7 @@
          "port-cloud":5556,
          "port-router":5550,
          "proto":"zmq",
-         "sn":"NMXH73Y2",
+         "sn":"19JG1U6E",
          "status":1
       }
    },
