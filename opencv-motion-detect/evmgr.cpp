@@ -176,7 +176,7 @@ private:
         this->peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
 
         // msg to peer
-        string myId = devSn + ":0:0";
+        string myId = devSn + ":evmgr:0";
         int minLen = std::min(body[1].size(), myId.size());
         if(memcmp((void*)(body[1].data()), myId.data(), minLen) != 0) {
             // message to other peer

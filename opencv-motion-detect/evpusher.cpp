@@ -146,7 +146,7 @@ private:
     {
         // send hello to router
         int ret = 0;
-        vector<vector<uint8_t> >body = {str2body(mgrSn+":0:0"), str2body(EV_MSG_META_PING),str2body(MSG_HELLO)};
+        vector<vector<uint8_t> >body = {str2body(mgrSn+":evmgr:0"), str2body(EV_MSG_META_PING),str2body(MSG_HELLO)};
         ret = z_send_multiple(pDealer, body);
         if(ret < 0) {
             spdlog::error("evpusher {} {} failed to send multiple: {}", devSn, iid, zmq_strerror(zmq_errno()));

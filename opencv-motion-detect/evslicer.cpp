@@ -148,7 +148,7 @@ private:
             }
 
             numSlices = 24 * days * 60 /minutes;
-            
+
             spdlog::info("evslicer mkdir -p {}", selfId, urlOut);
             ret = system((string("mkdir -p ") + urlOut).c_str());
             // if(ret == -1) {
@@ -209,7 +209,7 @@ private:
         // send hello to router
         int ret = 0;
         /// identity is auto set
-        vector<vector<uint8_t> >body = {str2body(mgrSn+":0:0"), str2body(EV_MSG_META_PING), str2body(MSG_HELLO)};
+        vector<vector<uint8_t> >body = {str2body(mgrSn+":evmgr:0"), str2body(EV_MSG_META_PING), str2body(MSG_HELLO)};
         ret = z_send_multiple(pDealer, body);
         if(ret < 0) {
             spdlog::error("evslicer {} failed to send multiple: {}", selfId, zmq_strerror(zmq_errno()));

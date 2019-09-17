@@ -132,7 +132,7 @@ private:
     int ping()
     {
         int ret = 0;
-        vector<vector<uint8_t> >body = {str2body(mgrSn + ":0:0"), str2body(EV_MSG_META_PING), str2body(MSG_HELLO)};
+        vector<vector<uint8_t> >body = {str2body(mgrSn + ":evmgr:0"), str2body(EV_MSG_META_PING), str2body(MSG_HELLO)};
 
         ret = z_send_multiple(pDealer, body);
         if(ret < 0) {

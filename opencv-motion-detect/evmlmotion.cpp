@@ -235,7 +235,7 @@ private:
         int ret = 0;
         vector<vector<uint8_t> >body;
         // since identity is auto set
-        body.push_back(str2body(mgrSn+":0:0"));
+        body.push_back(str2body(mgrSn+":evmgr:0"));
         body.push_back(str2body(EV_MSG_META_PING)); // blank meta
         body.push_back(str2body(MSG_HELLO));
 
