@@ -362,13 +362,13 @@ protected:
                 int ret =zmq_msg_init(&msg);
                 ret = zmq_recvmsg(pSub, &msg, 0);
                 if(ret < 0) {
-                    spdlog::error("failed to recv zmq msg: {}", zmq_strerror(ret));
+                    spdlog::error("evslicer {} failed to recv zmq msg: {}",selfId, zmq_strerror(ret));
                     continue;
                 }
                 ret = AVPacketSerializer::decode((char*)zmq_msg_data(&msg), ret, &packet);
                 {
                     if (ret < 0) {
-                        spdlog::error("packet decode failed: {:d}", ret);
+                        spdlog::error("evslicer {} packet decode failed: {}", selfId, ret);
                         continue;
                     }
                 }

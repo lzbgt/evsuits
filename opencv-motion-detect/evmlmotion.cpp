@@ -207,7 +207,7 @@ private:
             ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());
             ret += zmq_setsockopt (pDealer, ZMQ_ROUTING_ID, selfId.c_str(), selfId.size());
             if(ret < 0) {
-                spdlog::error("evpusher {} {} failed setsockopts router: {}", selfId, urlRouter);
+                spdlog::error("evmlmotion {} {} failed setsockopts router: {}", selfId, urlRouter);
                 exit(1);
             }
             if(ret < 0) {
@@ -325,7 +325,7 @@ private:
         }
 
         if(streamIdx == -1) {
-            spdlog::error("no video stream found.");
+            spdlog::error("evmlmotion {} no video stream found.", selfId);
             return -1;
         }
 
@@ -333,22 +333,22 @@ private:
         detPara.fpsIn = (int)(pStream->r_frame_rate.num/pStream->r_frame_rate.den);
         AVCodec *pCodec = avcodec_find_decoder(pStream->codecpar->codec_id);
         if (pCodec==NULL) {
-            spdlog::error("ERROR unsupported codec!");
+            spdlog::error("evmlmotion {} ERROR unsupported codec!", selfId);
             return -1;
         }
 
         pCodecCtx = avcodec_alloc_context3(pCodec);
         if (!pCodecCtx) {
-            spdlog::error("failed to allocated memory for AVCodecContext");
+            spdlog::error("evmlmotion {} failed to allocated memory for AVCodecContext", selfId);
             return -1;
         }
         if (avcodec_parameters_to_context(pCodecCtx, pStream->codecpar) < 0) {
-            spdlog::error("failed to copy codec params to codec context");
+            spdlog::error("evmlmotion {} failed to copy codec params to codec context", selfId);
             return -1;
         }
 
         if (avcodec_open2(pCodecCtx, pCodec, NULL) < 0) {
-            spdlog::error("failed to open codec through avcodec_open2");
+            spdlog::error("evmlmotion {} failed to open codec through avcodec_open2", selfId);
             return -1;
         }
 
@@ -369,7 +369,7 @@ private:
     {
         int response = avcodec_send_packet(pCodecContext, pPacket);
         if (response < 0) {
-            spdlog::error("Error while sending a packet to the decoder: {}", av_err2str(response));
+            spdlog::error("evmlmotion {} Error while sending a packet to the decoder: {}", selfId, av_err2str(response));
             return response;
         }
 
@@ -380,7 +380,7 @@ private:
             }
 
             if (response < 0) {
-                spdlog::error("Error while receiving a frame from the decoder: {}", av_err2str(response));
+                spdlog::error("evmlmotion {} Error while receiving a frame from the decoder: {}", selfId, av_err2str(response));
                 return response;
             }
             else {
@@ -592,7 +592,7 @@ protected:
 
         AVFrame *pFrame = av_frame_alloc();
         if (!pFrame) {
-            spdlog::error("failed to allocated memory for AVFrame");
+            spdlog::error("evmlmotion {} failed to allocated memory for AVFrame", selfId);
             exit(1);
         }
         while(true) {
@@ -610,13 +610,13 @@ protected:
             int ret =zmq_msg_init(&msg);
             ret = zmq_recvmsg(pSub, &msg, 0);
             if(ret < 0) {
-                spdlog::error("failed to recv zmq msg: {}", zmq_strerror(ret));
+                spdlog::error("evmlmotion {} failed to recv zmq msg: {}", selfId, zmq_strerror(ret));
                 continue;
             }
             ret = AVPacketSerializer::decode((char*)zmq_msg_data(&msg), ret, &packet);
             {
                 if (ret < 0) {
-                    spdlog::error("packet decode failed: {:d}", ret);
+                    spdlog::error("evmlmotion {} packet decode failed: {}", selfId, ret);
                     continue;
                 }
             }

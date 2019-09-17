@@ -216,7 +216,7 @@ private:
             }
             ret += zmq_setsockopt (pDealer, ZMQ_ROUTING_ID, selfId.c_str(), selfId.size());
             if(ret < 0) {
-                spdlog::error("evpusher {} {} failed setsockopts router: {}", selfId, urlDealer);
+                spdlog::error("evpuller {} {} failed setsockopts router: {}", selfId, urlDealer);
                 exit(1);
             }
             ret = zmq_connect(pDealer, urlDealer.c_str());
@@ -248,12 +248,12 @@ protected:
         av_dict_set(&optsIn, "rtsp_transport", "tcp", 0);
         spdlog::info("evpuller {} openning stream: {}", selfId, urlIn);
         if ((ret = avformat_open_input(&pAVFormatInput, urlIn.c_str(), NULL, &optsIn)) < 0) {
-            spdlog::error("Could not open input stream {}", urlIn);
+            spdlog::error("evpuller {} Could not open input stream {}", selfId, urlIn);
         }
 
         spdlog::info("evpuller {} finding stream info: {}", selfId, urlIn);
         if ((ret = avformat_find_stream_info(pAVFormatInput, NULL)) < 0) {
-            spdlog::error("Failed to retrieve input stream information");
+            spdlog::error("evpuller {} Failed to retrieve input stream information", selfId);
         }
 
         //pAVFormatInput->flags = AVFMT_FLAG_NOBUFFER | AVFMT_FLAG_FLUSH_PACKETS;
@@ -263,7 +263,7 @@ protected:
 
         if (!streamList) {
             ret = AVERROR(ENOMEM);
-            spdlog::error("failed create avformatcontext for output: {}", av_err2str(AVERROR(ENOMEM)));
+            spdlog::error("evpuller {} failed create avformatcontext for output: {}", selfId, av_err2str(AVERROR(ENOMEM)));
         }
 
         // serialize formatctx to bytes
@@ -353,13 +353,13 @@ public:
             selfId = strEnv;
             auto v = strutils::split(selfId, ':');
             if(v.size() != 3||v[1] != "evpuller") {
-                spdlog::error("evpusher received invalid gid: {}", selfId);
+                spdlog::error("evpuller {} received invalid gid: {}", selfId);
                 exit(1);
             }
             devSn = v[0];
             iid = stoi(v[2]);
         }else{
-            spdlog::error("evpusher failed to start. no SN set");
+            spdlog::error("evpuller {} failed to start. no SN set", selfId);
             exit(1);
         }
 
@@ -367,13 +367,13 @@ public:
         string addr = string("tcp://127.0.0.1:") + drport;
         int ret = zmqhelper::setupDealer(&pDaemonCtx, &pDaemon, addr, selfId);
         if(ret != 0) {
-            spdlog::error("evpusher {} failed to setup dealer {}", devSn, addr);
+            spdlog::error("evpuller {} failed to setup dealer {}", selfId, addr);
             exit(1);
         }
 
         ret = zmqhelper::recvConfigMsg(pDaemon, config, addr, selfId);
         if(ret != 0) {
-            spdlog::error("evpusher {} failed to receive configration message {}", devSn , addr);
+            spdlog::error("evpusher {} failed to receive configration message {}", selfId , addr);
         }
         init();
     }

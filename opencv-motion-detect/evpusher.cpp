@@ -318,20 +318,15 @@ protected:
         uint64_t pktCnt = 0;
         int pktIgnore = 0;
         while (true) {
-            // if(1 == getppid()) {
-            //     spdlog::error("evpusher {} exit since evdaemon is dead", selfId);
-            //     exit(1);
-            // }
-
             ret =zmq_msg_init(&msg);
             if(ret != 0) {
-                spdlog::error("failed to init zmq msg");
+                spdlog::error("evpusher {} failed to init zmq msg", selfId);
                 continue;
             }
             // receive packet
             ret = zmq_recvmsg(pSub, &msg, 0);
             if(ret < 0) {
-                spdlog::error("failed to recv zmq msg: {}", zmq_strerror(ret));
+                spdlog::error("evpusher {} failed to recv zmq msg: {}", selfId, zmq_strerror(ret));
                 continue;
             }
 
@@ -344,7 +339,7 @@ protected:
             ret = AVPacketSerializer::decode((char*)zmq_msg_data(&msg), ret, &packet);
             {
                 if (ret < 0) {
-                    spdlog::error("packet decode failed: {:d}", ret);
+                    spdlog::error("evpusher {} packet decode failed: {:d}", selfId, ret);
                     continue;
                 }
             }
@@ -393,13 +388,6 @@ protected:
             }
         }
         av_write_trailer(pAVFormatRemux);
-        if(!bStopSig && ret < 0) {
-            //TOOD: reconnect
-            spdlog::error("TODO: failed, reconnecting");
-        }
-        else {
-            spdlog::error("exit on command");
-        }
     }
 
 public:

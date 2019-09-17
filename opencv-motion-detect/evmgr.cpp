@@ -69,7 +69,7 @@ private:
 
             //
             if(config["addr"].get<string>()  == "*" || config["addr"].get<string>() == "0.0.0.0") {
-                spdlog::error("invalid mgr address: {} in config:\n{}", config["addr"].get<string>(), config.dump());
+                spdlog::error("evmgr invalid mgr address: {} in config:\n{}", config["addr"].get<string>(), config.dump());
                 goto error_exit;
             }
 
