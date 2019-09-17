@@ -58,6 +58,7 @@ private:
     thread thMsgProcessor;
     string drport = "5549";
     json slices;
+    int sliceHead = -1, sliceTail = 0;
 
     int handleMsg(vector<vector<uint8_t> > v){
         int ret = 0;
@@ -337,7 +338,8 @@ protected:
         while (true) {
             auto start = chrono::system_clock::now();
             auto end = start;
-            string name = to_string(chrono::duration_cast<chrono::seconds>(start.time_since_epoch()).count()) + ".mp4";
+            int ts = chrono::duration_cast<chrono::seconds>(start.time_since_epoch()).count();
+            string name = to_string(ts) + ".mp4";
             name = urlOut + "/" + name;
             ret = avformat_alloc_output_context2(&pAVFormatRemux, NULL, "mp4", name.c_str());
             if (ret < 0) {
@@ -373,9 +375,16 @@ protected:
                 spdlog::error("evslicer {} error occurred when opening output file", selfId);
             }
 
-            // TODO:
-
             spdlog::info("evslicer {} writing new slice {}", selfId, name.c_str());
+            slices[tail] = name;
+            tail++;
+            if(tail >= numSlices) {
+                tail = 0;
+                head = 0;
+            }
+            slices["tail"] = tail;
+            slices["head"] = head;
+
             while(chrono::duration_cast<chrono::seconds>(end-start).count() < minutes * 60) {
                 if(checkStop() == true) {
                     bStopSig = true;
