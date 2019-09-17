@@ -317,6 +317,7 @@ protected:
         AVPacket packet;
         uint64_t pktCnt = 0;
         int pktIgnore = 0;
+        int64_t lastPts = 0;
         while (true) {
             ret =zmq_msg_init(&msg);
             if(ret != 0) {
@@ -345,11 +346,11 @@ protected:
             }
             zmq_msg_close(&msg);
 
-            if(pktCnt == 0 && pktIgnore < 18*7) {
-                pktIgnore++;
-                av_packet_unref(&packet);
-                continue;
-            }
+            // if(pktCnt == 0 && packet.stream_index != 0) {
+            //     pktIgnore++;
+            //     av_packet_unref(&packet);
+            //     continue;
+            // }
 
             spdlog::debug("packet stream indx: {:d}", packet.stream_index);
             // relay
@@ -359,18 +360,20 @@ protected:
             out_stream = pAVFormatRemux->streams[packet.stream_index];
 
             /* copy packet */
-            if(pktCnt == 0) {
-                packet.pts = 0;
-                packet.dts = 0;
-                packet.duration = 0;
-                packet.pos = -1;
-            }
-            else {
-                packet.pts = av_rescale_q_rnd(packet.pts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
-                packet.dts = av_rescale_q_rnd(packet.dts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
-                packet.duration = av_rescale_q(packet.duration, in_stream->time_base, out_stream->time_base);
-                packet.pos = -1;
-            }
+            // spdlog::info("evpusher {} packet pts: {} dts: {}", selfId, packet.pts, packet.dts);
+            // if(pktCnt == 0) {
+            //     packet.pts = AV_NOPTS_VALUE;
+            //     packet.dts = AV_NOPTS_VALUE;
+            //     packet.duration = 0;
+            //     packet.pos = -1;
+            // }else{
+            //     packet.pts = av_rescale_q_rnd(packet.pts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
+            //     packet.dts = av_rescale_q_rnd(packet.dts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
+            //     packet.duration = av_rescale_q(packet.duration, in_stream->time_base, out_stream->time_base);
+            //     packet.pos = -1;
+            //     lastPts = packet.dts;
+            // }
+            // spdlog::info("evpusher {} packet new pts: {} dts: {}", selfId, packet.pts, packet.dts);
 
             ret = av_interleaved_write_frame(pAVFormatRemux, &packet);
             av_packet_unref(&packet);
