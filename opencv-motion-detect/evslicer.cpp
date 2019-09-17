@@ -270,6 +270,7 @@ private:
                         pAVFormatInput = (AVFormatContext *)malloc(sizeof(AVFormatContext));
                         AVFormatCtxSerializer::decode((char *)(v[2].data()), v[2].size(), pAVFormatInput);
                         gotFormat = true;
+                        break;
                     }
                 }
                 catch(exception &e) {
@@ -302,7 +303,10 @@ private:
             spdlog::info("evslicer {} streamList[{:d}]: {:d}", selfId, i, streamList[i]);
         }
 
-        //av_dict_set(&pOptsRemux, "movflags", "frag_keyframe+empty_moov+default_base_moof", 0);
+        av_dict_set(&pOptsRemux, "movflags", "frag_keyframe+empty_moov+default_base_moof", 0);
+        //av_dict_set(&pOptsRemux, "brand", "mp42", 0);
+        //av_dict_set(&pOptsRemux, "movflags", "faststart", 0);
+        //av_dict_set(&pOptsRemux, "-f", "mp4", 0);
         return ret;
     }
     void freeStream()
@@ -376,14 +380,14 @@ protected:
             }
 
             spdlog::info("evslicer {} writing new slice {}", selfId, name.c_str());
-            slices[tail] = name;
-            tail++;
-            if(tail >= numSlices) {
-                tail = 0;
-                head = 0;
-            }
-            slices["tail"] = tail;
-            slices["head"] = head;
+            // slices[sliceTail] = name;
+            // sliceTail++;
+            // if(sliceTail >= numSlices) {
+            //     sliceTail = 0;
+            //     sliceHead = 0;
+            // }
+            // slices["sliceTail"] = sliceTail;
+            // slices["sliceHead"] = sliceHead;
 
             while(chrono::duration_cast<chrono::seconds>(end-start).count() < minutes * 60) {
                 if(checkStop() == true) {
