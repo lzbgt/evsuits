@@ -188,7 +188,7 @@ private:
                 ipcPort = to_string(ipc["port"]);
             }
 
-            urlIn = "rtsp://" + user + ":" + passwd + "@" + ipc["addr"].get<string>() + ":" + ipcPort + "/h264/ch1/sub/av_stream";
+            urlIn = "rtsp://" + user + ":" + passwd + "@" + ipc["addr"].get<string>() + ":" + ipcPort + "/h264/ch1/main/av_stream";
             addr = evpuller["addr"].get<string>();
             spdlog::info("evpuller {} connecting to IPC {}", selfId, urlIn);
             if(addr == "*" || addr == "0.0.0.0") {
@@ -401,7 +401,7 @@ public:
 
 int main(int argc, char **argv)
 {
-    av_log_set_level(AV_LOG_ERROR);
+    av_log_set_level(AV_LOG_INFO);
     spdlog::set_level(spdlog::level::info);
     //DB::exec(NULL, NULL, NULL,NULL);
     auto evp = EvPuller();

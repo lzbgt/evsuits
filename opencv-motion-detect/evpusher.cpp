@@ -316,12 +316,8 @@ protected:
         zmq_msg_t msg;
         AVPacket packet;
         uint64_t pktCnt = 0;
+        int pktIgnore = 0;
         while (true) {
-            if(checkStop() == true) {
-                bStopSig = true;
-                break;
-            }
-
             // if(1 == getppid()) {
             //     spdlog::error("evpusher {} exit since evdaemon is dead", selfId);
             //     exit(1);
@@ -354,6 +350,12 @@ protected:
             }
             zmq_msg_close(&msg);
 
+            if(pktCnt == 0 && pktIgnore < 18*7) {
+                pktIgnore++;
+                av_packet_unref(&packet);
+                continue;
+            }
+
             spdlog::debug("packet stream indx: {:d}", packet.stream_index);
             // relay
             AVStream *in_stream =NULL, *out_stream = nullptr;
@@ -378,11 +380,10 @@ protected:
             ret = av_interleaved_write_frame(pAVFormatRemux, &packet);
             av_packet_unref(&packet);
             if (ret < 0) {
-                spdlog::error("error muxing packet: {}, {}, {}, {}, restreaming...", av_err2str(ret), packet.dts, packet.pts, packet.dts==AV_NOPTS_VALUE);
+                spdlog::error("evpusher {} error muxing packet: {}, {}, {}, {}, restreaming...", selfId, av_err2str(ret), packet.dts, packet.pts, packet.dts==AV_NOPTS_VALUE);
                 if(pktCnt != 0 && packet.pts == AV_NOPTS_VALUE) {
                     // reset
                     av_write_trailer(pAVFormatRemux);
-                    this_thread::sleep_for(chrono::seconds(5));
                     freeStream();
                     getInputFormat();
                     setupStream();
@@ -467,7 +468,7 @@ public:
 
 int main(int argc, char *argv[])
 {
-    av_log_set_level(AV_LOG_ERROR);
+    av_log_set_level(AV_LOG_INFO);
     spdlog::set_level(spdlog::level::info);
     EvPusher pusher;
     pusher.join();

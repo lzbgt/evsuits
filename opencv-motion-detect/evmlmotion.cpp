@@ -639,7 +639,7 @@ protected:
 
             av_packet_unref(&packet);
             if (ret < 0) {
-                spdlog::error("error muxing packet");
+                spdlog::error("evmlmotion error muxing packet");
             }
         }
 
