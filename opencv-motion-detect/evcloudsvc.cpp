@@ -239,19 +239,15 @@ private:
         return ret;
     }
 
-    int handleMsg(vector<vector<uint8_t> > &body)
-    {
-        int ret = 0;
-        // ID_SENDER, ID_TARGET, meta ,MSG
-        string selfId, peerId, meta;
-        if(body.size() == 2 && body[1].size() == 0) {
-            selfId = body2str(body[0]);
-            bool eventConn = false;
-
-            if(peerData["status"].count(selfId) == 0 || peerData["status"][selfId] == 0) {
+    // 
+    bool handleConnection(string selfId) {
+        bool ret = false;
+        int state = zmq_socket_get_peer_state(pRouter, selfId.data(), selfId.size());
+        spdlog::info("{} state: {}", selfId, state);
+        if(peerData["status"].count(selfId) == 0 || peerData["status"][selfId] == 0) {
                 peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                 spdlog::info("evcloudsvc peer connected: {}", selfId);
-                eventConn = true;
+                ret = true;
                 spdlog::debug("evcloudsvc update status of {} to 1 and send config", selfId);
                 json data = getConfigForDevice(selfId);
                 if(data["code"] != 0) {
@@ -263,8 +259,20 @@ private:
             else {
                 peerData["status"][selfId] = 0;
                 spdlog::warn("evcloudsvc {} peer disconnected: {}", devSn, selfId);
-            }
+        }
+        return ret;
+    }
 
+    int handleMsg(vector<vector<uint8_t> > &body)
+    {
+        int ret = 0;
+        // ID_SENDER, ID_TARGET, meta ,MSG
+        string selfId, peerId, meta;
+        if(body.size() == 2 && body[1].size() == 0) {
+            selfId = body2str(body[0]);
+            bool eventConn = handleConnection(selfId);
+
+            // TODO
             // event
             json jEvt;
             jEvt["type"] = EV_MSG_TYPE_CONN_STAT;
@@ -338,6 +346,7 @@ private:
             if(meta == "pong"||meta == "ping") {
                 // update status
                 spdlog::info("evcloudsvc {}, ping msg from {}", devSn, selfId);
+                handleConnection(selfId);
                 if(meta=="ping") {
                     if(cachedMsg.find(selfId) != cachedMsg.end()) {
                         while(!cachedMsg[selfId].empty()) {
