@@ -83,17 +83,6 @@ private:
 
     int reloadCfg(string subModGid = "")
     {
-        // int bootType = 0;
-        // if(subModGid == "ALL") {
-        //     bootType = 1;
-        // }
-        // else if(subModGid.empty()) {
-        //     bootType = 2;
-        // }
-        // else {
-        //     bootType = 3;
-        // }
-
         int ret = LVDB::getSn(this->info);
         if(ret < 0) {
             spdlog::error("evdaemon {} failed to get info", this->devSn);
