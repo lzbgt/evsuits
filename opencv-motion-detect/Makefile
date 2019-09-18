@@ -21,29 +21,31 @@ all: evmgr evpuller evpusher evslicer evmlmotion evmlmotion_d evdaemon evcloudsv
 # sqlite C object
 sqlite3.o: vendor/sqlite/sqlite3.c
 	gcc -D SQLITE_THREADSAFE=1 -c vendor/sqlite/sqlite3.c
-	
-evmgr: evmgr.cpp database.cpp inc/utils.hpp inc/common.hpp inc/database.h inc/zmqhelper.hpp inc/tinythread.hpp $(SQLITE_SRC)
-	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evmgr evmgr.cpp $(SQLITE) database.cpp $(HEADERS) $(LIBFFMPEG) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
+objs/database.o: database.cpp inc/database.h
+	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -c database.cpp -o objs/database.o $(HEADERS)
 
-evpuller: evpuller.cpp database.cpp inc/av_common.hpp inc/utils.hpp inc/common.hpp inc/database.h inc/zmqhelper.hpp inc/tinythread.hpp $(SQLITE_SRC)
-	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evpuller evpuller.cpp $(SQLITE) database.cpp $(HEADERS) $(LIBFFMPEG) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
+evmgr: evmgr.cpp database.cpp inc/utils.hpp inc/common.hpp objs/database.o inc/zmqhelper.hpp inc/tinythread.hpp $(SQLITE_SRC)
+	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evmgr evmgr.cpp $(SQLITE) objs/database.o $(HEADERS) $(LIBFFMPEG) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
 
-evpusher: evpusher.cpp inc/common.hpp inc/av_common.hpp inc/utils.hpp inc/tinythread.hpp inc/database.h inc/zmqhelper.hpp  database.cpp $(SQLITE_SRC)
-	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evpusher evpusher.cpp database.cpp $(SQLITE) $(LIBFFMPEG) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
+evpuller: evpuller.cpp database.cpp inc/av_common.hpp inc/utils.hpp inc/common.hpp objs/database.o inc/zmqhelper.hpp inc/tinythread.hpp $(SQLITE_SRC)
+	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evpuller evpuller.cpp $(SQLITE) objs/database.o $(HEADERS) $(LIBFFMPEG) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
 
-evslicer: evslicer.cpp inc/common.hpp inc/av_common.hpp inc/utils.hpp inc/tinythread.hpp inc/database.h inc/zmqhelper.hpp  database.cpp $(SQLITE_SRC)
-	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evslicer evslicer.cpp database.cpp $(SQLITE) $(LIBFFMPEG) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
+evpusher: evpusher.cpp inc/common.hpp inc/av_common.hpp inc/utils.hpp inc/tinythread.hpp objs/database.o inc/zmqhelper.hpp $(SQLITE_SRC)
+	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evpusher evpusher.cpp objs/database.o $(SQLITE) $(LIBFFMPEG) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
 
-evmlmotion: evmlmotion.cpp inc/common.hpp inc/av_common.hpp inc/utils.hpp inc/avcvhelpers.hpp inc/database.h inc/zmqhelper.hpp  inc/tinythread.hpp database.cpp $(SQLITE_SRC)
-	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evmlmotion evmlmotion.cpp database.cpp $(SQLITE) $(LIBFFMPEG) $(HEADERS) $(LIBOPENCV) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
-evmlmotion_d: evmlmotion.cpp inc/common.hpp inc/av_common.hpp inc/utils.hpp inc/avcvhelpers.hpp inc/database.h inc/zmqhelper.hpp  inc/tinythread.hpp database.cpp $(SQLITE_SRC)
-	$(CPP) $(CPPFLAGS) -DDEBUG $(LD_FLAGS) -o evmlmotion_d evmlmotion.cpp database.cpp $(SQLITE) $(LIBFFMPEG) $(HEADERS) $(LIBOPENCV) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
+evslicer: evslicer.cpp inc/common.hpp inc/av_common.hpp inc/utils.hpp inc/tinythread.hpp objs/database.o inc/zmqhelper.hpp $(SQLITE_SRC)
+	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evslicer evslicer.cpp objs/database.o $(SQLITE) $(LIBFFMPEG) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
 
-evdaemon: evdaemon.cpp inc/common.hpp inc/utils.hpp inc/database.h inc/zmqhelper.hpp  inc/tinythread.hpp database.cpp
-	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evdaemon evdaemon.cpp database.cpp $(SQLITE) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
+evmlmotion: evmlmotion.cpp inc/common.hpp inc/av_common.hpp inc/utils.hpp inc/avcvhelpers.hpp objs/database.o inc/zmqhelper.hpp  inc/tinythread.hpp $(SQLITE_SRC)
+	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evmlmotion evmlmotion.cpp objs/database.o $(SQLITE) $(LIBFFMPEG) $(HEADERS) $(LIBOPENCV) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
+evmlmotion_d: evmlmotion.cpp inc/common.hpp inc/av_common.hpp inc/utils.hpp inc/avcvhelpers.hpp objs/database.o inc/zmqhelper.hpp  inc/tinythread.hpp $(SQLITE_SRC)
+	$(CPP) $(CPPFLAGS) -DDEBUG $(LD_FLAGS) -o evmlmotion_d evmlmotion.cpp objs/database.o $(SQLITE) $(LIBFFMPEG) $(HEADERS) $(LIBOPENCV) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
 
-evcloudsvc: evcloudsvc.cpp inc/utils.hpp inc/database.h inc/zmqhelper.hpp  inc/tinythread.hpp database.cpp
-	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evcloudsvc evcloudsvc.cpp database.cpp $(SQLITE) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
+evdaemon: evdaemon.cpp inc/common.hpp inc/utils.hpp objs/database.o inc/zmqhelper.hpp  inc/tinythread.hpp database.cpp
+	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evdaemon evdaemon.cpp objs/database.o $(SQLITE) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
+
+evcloudsvc: evcloudsvc.cpp inc/utils.hpp objs/database.o inc/zmqhelper.hpp  inc/tinythread.hpp
+	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evcloudsvc evcloudsvc.cpp objs/database.o $(SQLITE) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
 
 rtspr: rtsp-relay.cpp
 	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o rtspr rtsp-relay.cpp $(LIBFFMPEG) $(LD_FLAGS)
@@ -56,7 +58,7 @@ mux: demuxing_decoding.c
 
 .PHONY: clean
 clean:
-	rm -fr evmgr evpuller evpusher evslicer evmlmotion evdaemon evcloudsvc *.dSYM *.out *.o
+	rm -fr evmgr evpuller evpusher evslicer evmlmotion evdaemon evcloudsvc *.dSYM *.out *.o objs/*.o
 
 .PHONY: zmq
 zmq:
