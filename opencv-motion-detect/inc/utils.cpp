@@ -193,12 +193,3 @@ namespace cfgutils {
       return ret;
    }
 } // cfgutils
-
-
-struct StrException : public std::exception
-{
-   std::string s;
-   StrException(std::string ss) : s(ss) {}
-   ~StrException() throw () {} // Updated
-   const char* what() const throw() { return s.c_str(); }
-};
