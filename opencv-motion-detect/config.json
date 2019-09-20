@@ -1,6 +1,6 @@
 {
    "data":{
-      "19JG1U6E":{
+      "OLL91IZQ":{
          "addr":"127.0.0.1",
          "api-cloud":"http://127.0.0.1:8089",
          "ipcs":[
@@ -14,8 +14,7 @@
                         "iid":1,
                         "post":30,
                         "pre":3,
-                        "sn":"19JG1U6E",
-                        "status":0,
+                        "sn":"OLL91IZQ",
                         "thresh":80,
                         "type":"motion"
                      }
@@ -26,8 +25,7 @@
                         "iid":1,
                         "enabled": 1,
                         "port-pub":5556,
-                        "sn":"19JG1U6E",
-                        "status":0
+                        "sn":"OLL91IZQ"
                      }
                   ],
                   "evpusher":[
@@ -35,8 +33,7 @@
                         "enabled":1,
                         "iid":1,
                         "password":"",
-                        "sn":"19JG1U6E",
-                        "status":0,
+                        "sn":"OLL91IZQ",
                         "token":"",
                         "urlDest":"rtsp://40.73.41.176:554/test1",
                         "user":""
@@ -47,15 +44,13 @@
                         "enabled":1,
                         "iid":1,
                         "path":"slices",
-                        "sn":"19JG1U6E",
-                        "status":0
+                        "sn":"OLL91IZQ"
                      }
                   ]
                },
                "password":"FWBWTU",
                "port":554,
                "proto":"rtsp",
-               "status":0,
                "user":"admin"
             }
          ],
@@ -63,8 +58,7 @@
          "port-cloud":5556,
          "port-router":5550,
          "proto":"zmq",
-         "sn":"19JG1U6E",
-         "status":1
+         "sn":"OLL91IZQ"
       }
    },
    "lastupdated":1567669674
