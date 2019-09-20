@@ -324,8 +324,11 @@ protected:
             // serialize packet to raw bytes
             char * data = nullptr;
             int size = AVPacketSerializer::encode(packet, &data);
-            zmq_msg_init_data(&msg, (void*)data, size, mqPacketFree, NULL);
+            zmq_msg_init_data(&msg, (void*)data, size, NULL, NULL);
             zmq_send_const(pPub, zmq_msg_data(&msg), size, 0);
+            if(data != nullptr) {
+                free(data);
+            }
 
             av_packet_unref(&packet);
         }
