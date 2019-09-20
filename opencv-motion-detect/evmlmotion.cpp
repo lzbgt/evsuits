@@ -22,10 +22,6 @@ update: 2019/09/10
 #include <vector>
 #include <queue>
 
-#ifdef OS_LINUX
-#include <filesystem>
-namespace fs = std::filesystem;
-#endif
 #include <cstdlib>
 #include <ctime>
 #include "zmqhelper.hpp"

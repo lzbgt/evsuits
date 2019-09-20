@@ -21,11 +21,6 @@ update: 2019/09/10
 #include <future>
 #include <ctime>
 
-#ifdef OS_LINUX
-#include <filesystem>
-namespace fs = std::filesystem;
-#endif
-
 #include "inc/zmqhelper.hpp"
 #include "inc/tinythread.hpp"
 #include "inc/common.hpp"

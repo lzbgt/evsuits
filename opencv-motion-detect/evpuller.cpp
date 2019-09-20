@@ -21,11 +21,6 @@ update: 2019/09/10
 #include <future>
 #include <ctime>
 
-#ifdef OS_LINUX
-#include <filesystem>
-namespace fs = std::filesystem;
-#endif
-
 #include "inc/zmqhelper.hpp"
 #include "inc/tinythread.hpp"
 #include "inc/common.hpp"
@@ -374,7 +369,7 @@ public:
 
         ret = zmqhelper::recvConfigMsg(pDaemon, config, addr, selfId);
         if(ret != 0) {
-            spdlog::error("evpusher {} failed to receive configration message {}", selfId , addr);
+            spdlog::error("evpuller {} failed to receive configration message {}", selfId , addr);
         }
         init();
     }
