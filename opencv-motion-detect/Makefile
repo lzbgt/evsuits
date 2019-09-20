@@ -1,3 +1,34 @@
+# ifeq ($(OS),Windows_NT)
+#     CCFLAGS += -D WIN32
+#     ifeq ($(PROCESSOR_ARCHITEW6432),AMD64)
+#         CFLAGS
+#     else
+#         ifeq ($(PROCESSOR_ARCHITECTURE),AMD64)
+#             CCFLAGS += -D AMD64
+#         endif
+#         ifeq ($(PROCESSOR_ARCHITECTURE),x86)
+#             CCFLAGS += -D IA32
+#         endif
+#     endif
+# else
+    UNAME_S := $(shell uname -s)
+    ifeq ($(UNAME_S),Linux)
+        LIBS += -ldl -lm -latomic
+    endif
+    ifeq ($(UNAME_S),Darwin)
+        NOP=
+    endif
+    UNAME_P := $(shell uname -p)
+    ifeq ($(UNAME_P),x86_64)
+        NOP=
+    endif
+    ifneq ($(filter %86,$(UNAME_P)),)
+        NOP=
+    endif
+    ifneq ($(filter arm%,$(UNAME_P)),)
+        NOP=
+    endif
+# endif
 
 #DEBUG=-g
 CC = gcc
@@ -7,7 +38,7 @@ CFLAGS = $(DEBUG) -Wall
 
 LIBOPENCV = `pkg-config opencv --cflags --libs`
 LIBFFMPEG = `pkg-config libavformat libavutil libavcodec libswscale --cflags --libs`
-LIBS=-Lvendor/lib -lpthread -lleveldb -ldl -lm -latomic
+LIBS +=-Lvendor/lib -lpthread -lleveldb
 #-static
 HEADERS=-Iinc -Ivendor/include
 
