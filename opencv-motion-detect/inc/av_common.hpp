@@ -119,7 +119,7 @@ int decode(char *bytes, int len, AVPacket *pkt)
     int got = 0;
     if (memcmp(PS_MARK_E, bytes + len - strlen(PS_MARK_E), strlen(PS_MARK_E)) != 0 || memcmp(PS_MARK_S, bytes, strlen(PS_MARK_S)))
     {
-        spdlog::error("invalid packet");
+        spdlog::error("invalid packet. len {}", len);
         return -1;
     }
     //skip mark_s
