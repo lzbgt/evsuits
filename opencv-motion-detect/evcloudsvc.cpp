@@ -346,7 +346,7 @@ private:
             if(meta == "pong"||meta == "ping") {
                 // update status
                 spdlog::info("evcloudsvc {}, ping msg from {}", devSn, selfId);
-                handleConnection(selfId);
+                // handleConnection(selfId);
                 if(meta=="ping") {
                     if(cachedMsg.find(selfId) != cachedMsg.end()) {
                         while(!cachedMsg[selfId].empty()) {
