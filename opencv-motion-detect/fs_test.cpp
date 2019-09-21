@@ -34,42 +34,58 @@ void ftime2ctime(fs::file_time_type ftime){
     std::cout << "\t\twt: " << std::asctime(std::localtime(&cftime)) << std::endl; 
 }
 
-int LoadVideoFiles(string path, map<long, string> &ts2fileName, list<long> &tsRing) {
-    int ret = 0;
+vector<long> LoadVideoFiles(string path, int days, map<long, string> &ts2fileName, list<long> &tsRing, list<long> &tsNeedProc) {
+    vector<long> v;
+    // get current timestamp
+
+    auto now = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
     try{
         for (const auto & entry : fs::directory_iterator(path))
         {
-            if(entry.file_size() == 0 || !entry.is_regular_file()) {
-                spdlog::warn("LoasdVideoFiles skipped {} (empty or directory)", entry.path().c_str());
+            if(entry.file_size() == 0 || !entry.is_regular_file()||entry.path().extension() != ".mp4") {
+                spdlog::warn("LoasdVideoFiles skipped {} (empty/directory/!mp4)", entry.path().c_str());
+                continue;
             }
             auto ftime = fs::last_write_time(entry.path());
             auto ts = decltype(ftime)::clock::to_time_t(ftime);
-            spdlog::debug("ts: {}, file: {}", ts, entry.path().c_str());
+
+            // check it was processed already
             if(ts2fileName.count(ts) != 0) {
                 spdlog::warn("LoasdVideoFiles multiple files with same timestamp: {}, {}(skipped), ", ts2fileName[ts], entry.path().c_str());
                 continue;
             }
-            tsRing.insert(std::lower_bound(tsRing.begin(), tsRing.end(), ts), ts);
+
+            // check it was old files
+            if(ts - now > days * 24 * 60 * 60) {
+                spdlog::info("file {} old that {} days", entry.path().c_str(), days);
+                tsNeedProc.push_back(ts);
+            }
+            else{
+                tsRing.insert(std::lower_bound(tsRing.begin(), tsRing.end(), ts), ts);
+            }
+
+            // add to map
             ts2fileName[ts] = entry.path();
         }
-        // for(auto &i: tsRing) {
-        //     spdlog::debug("ts: {}, file: {}", i, ts2fileName[i]);
-        // }
-        
     }catch(exception &e) {
         spdlog::error("LoasdVideoFiles exception : {}", e.what());
-        ret = -1;
     }
 
-    return ret;
+    return v;
 }
 
 int main(int argc, const char *argv[]) {
 
     std::string path = argv[1];
     list<long> tsRing;
+    list<long> tsProcess;
     map<long, string> ts2fileName;
-    LoadVideoFiles(path, ts2fileName, tsRing);
+    
+    LoadVideoFiles(path, 2, ts2fileName, tsRing, tsProcess);
+
+    for(auto &i:tsRing) {
+        spdlog::info("tsRing: {} file: {}", i, ts2fileName[i]);
+    }
 
     return 0;
 }
