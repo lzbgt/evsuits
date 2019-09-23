@@ -35,7 +35,7 @@ make -j
   $ CLOUD_ADDR=tcp://<EVCLOUDSVC_IP>:<EVCLOUDSVC_PORT> path_to/evdaemo
 
   # on cloud
-  # environments: MSG_PORT(5548, tcp), HTTP_PORT(8088, http)
+  # environments: MSG_PORT(5548, tcp), HTTP_PORT(8089, http)
   $ MSG_PORT=<EVCLOUDSVC_PORT> evcloudsvc
   ```
 
