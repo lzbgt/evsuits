@@ -91,7 +91,8 @@
         "hash_set": "cpp",
         "bit": "cpp",
         "*.tcc": "cpp",
-        "memory_resource": "cpp"
+        "memory_resource": "cpp",
+        "csignal": "cpp"
     },
     "C_Cpp.errorSquiggles": "Disabled"
 }
