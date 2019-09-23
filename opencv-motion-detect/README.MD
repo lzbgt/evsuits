@@ -6,19 +6,19 @@
   ```
 - FFMPEG
   ```
-  ref:
+  offical ref:
   ```
 - OPENCV
   ```
-  ref:
+  offical ref:
   ```
 - CURL
   ```
-  ref:
+  offical ref:
   ```
 - fswatch
   ```
-  ref:
+  offical ref:
   ```
 
 ## build executables
