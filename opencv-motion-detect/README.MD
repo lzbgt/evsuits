@@ -27,7 +27,7 @@ make -j
 ```
 
 ## deploy edge & cloud systems
-- TODO: systemd or supervisor auto for auto start on boot and monitoring
+- TODO: use systemd or supervisord to auto start on boot and monitoring
 - manually: evdaemon will start all other 5 subsystems(evmgr, evpuller, evpusher, evmlmotion, evslicer) on a edge device.
   ```
   # on edge device
