@@ -497,7 +497,7 @@ protected:
                 // add to map
                 string fname = entry.path().c_str();
                 auto baseName = getBaseName(fname);
-                
+
                 //spdlog::info("LoadVideoFiles path {}, s {}, e {}", fname, posS, posE);
                 ts2fileName[ts] = baseName;
             }
@@ -533,6 +533,8 @@ protected:
 
         return v;
     }
+
+    // file monitor callback
     static void fileMonHandler(const std::vector<event>& evts, void *pUserData) {
         static string lastFile;
         static long lastTs;
@@ -540,9 +542,19 @@ protected:
         auto self = static_cast<EvSlicer*>(pUserData);
         for(auto &i : evts) {
             spdlog::info("evslicer {} filemon file: {}, ts: {}", self->selfId, i.get_path().c_str(), i.get_time());
+            if(lastFile == i.get_path()) {
+                // skip
+            }else{
 
+            }
         }
     }
+
+    // find video files
+    int findTsRang(vector &vTs, long start, long end, int &poss, int &pose) {
+
+    }
+
 public:
     EvSlicer()
     {
