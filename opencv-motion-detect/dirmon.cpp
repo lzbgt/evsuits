@@ -27,7 +27,7 @@ int CreateDirMon(monitor **m, string path, string ext, vector<string> &&events, 
 
 int CloseDirMon()
 {
-
+    return 0;
 }
 
 #define DEBUG
