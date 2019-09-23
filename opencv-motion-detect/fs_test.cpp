@@ -36,7 +36,7 @@ void ftime2ctime(fs::file_time_type ftime)
     std::cout << "\t\twt: " << std::asctime(std::localtime(&cftime)) << std::endl;
 }
 
-vector<long> LoadVideoFiles(string path, int days, map<long, string> &ts2fileName, list<long> &tsRing, list<long> &tsNeedProc)
+vector<long> LoadVideoFiles(string path, int days, int maxSlices, map<long, string> &ts2fileName, list<long> &tsRing, list<long> &tsNeedProc)
 {
     vector<long> v;
     // get current timestamp
@@ -60,10 +60,10 @@ vector<long> LoadVideoFiles(string path, int days, map<long, string> &ts2fileNam
             // check old files
             if(ts - now > days * 24 * 60 * 60) {
                 spdlog::info("file {} old that {} days", entry.path().c_str(), days);
-                tsNeedProc.push_back(ts);
+                tsNeedProc.insert(std::upper_bound(tsNeedProc.begin(), tsNeedProc.end(), ts), ts);
             }
             else {
-                tsRing.insert(std::lower_bound(tsRing.begin(), tsRing.end(), ts), ts);
+                tsRing.insert(std::upper_bound(tsRing.begin(), tsRing.end(), ts), ts);
             }
 
             // add to map
@@ -72,6 +72,26 @@ vector<long> LoadVideoFiles(string path, int days, map<long, string> &ts2fileNam
     }
     catch(exception &e) {
         spdlog::error("LoasdVideoFiles exception : {}", e.what());
+    }
+    
+    // skip old items
+    list<long>olds;
+    int delta = maxSlices - tsRing.size();
+    int skip = delta < 0? (-delta):0;
+    spdlog::info("LoasdVideoFiles max: {}, current: {}, skip: {}",maxSlices, tsRing.size(), skip);
+    int idx = 0;
+    list<long>::iterator pos = tsRing.begin();
+    for(auto &i:tsRing) {
+        if(idx < skip) {
+            idx++;
+            pos++;
+            continue;
+        }
+        v.push_back(i);
+    }
+    // merge
+    if(skip > 0) {
+        tsNeedProc.insert(std::upper_bound(tsNeedProc.begin(), tsNeedProc.end(), tsRing.front()), tsRing.begin(), pos);
     }
 
     return v;
@@ -85,9 +105,9 @@ int main(int argc, const char *argv[])
     list<long> tsProcess;
     map<long, string> ts2fileName;
 
-    LoadVideoFiles(path, 2, ts2fileName, tsRing, tsProcess);
+    auto v = LoadVideoFiles(path, 2, 3, ts2fileName, tsRing, tsProcess);
 
-    for(auto &i:tsRing) {
+    for(auto &i:v) {
         spdlog::info("tsRing: {} file: {}", i, ts2fileName[i]);
     }
 
