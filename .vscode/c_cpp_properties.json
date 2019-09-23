@@ -7,6 +7,8 @@
                 "${workspaceFolder}/opencv-motion-detect/vendor/include/**",
                 "/usr/local/Cellar/opencv/4.1.0_2/include/opencv4",
                 "/usr/local/Cellar/ffmpeg/4.1.4_1/include",
+                "vendor/include",
+                "vendor/include/**",
                 "${workspaceFolder}/opencv-motion-detect/vendor/leveldb/include"
             ],
             "defines": [],

@@ -7,3 +7,6 @@
 [submodule "opencv-motion-detect/vendor/curl"]
 	path = opencv-motion-detect/vendor/curl
 	url = https://github.com/curl/curl
+[submodule "opencv-motion-detect/vendor/fswatch"]
+	path = opencv-motion-detect/vendor/fswatch
+	url = https://github.com/emcrisostomo/fswatch

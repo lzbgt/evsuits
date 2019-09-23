@@ -48,6 +48,7 @@ vector<long> LoadVideoFiles(string path, int days, int maxSlices, map<long, stri
                 spdlog::warn("LoasdVideoFiles skipped {} (empty/directory/!mp4)", entry.path().c_str());
                 continue;
             }
+
             auto ftime = fs::last_write_time(entry.path());
             auto ts = decltype(ftime)::clock::to_time_t(ftime);
 
@@ -99,7 +100,6 @@ vector<long> LoadVideoFiles(string path, int days, int maxSlices, map<long, stri
 
 int main(int argc, const char *argv[])
 {
-
     std::string path = argv[1];
     list<long> tsRing;
     list<long> tsProcess;
@@ -108,7 +108,7 @@ int main(int argc, const char *argv[])
     auto v = LoadVideoFiles(path, 2, 3, ts2fileName, tsRing, tsProcess);
 
     for(auto &i:v) {
-        spdlog::info("tsRing: {} file: {}", i, ts2fileName[i]);
+        spdlog::info("tsRing: {} File: {}", i, ts2fileName[i]);
     }
 
     return 0;
