@@ -31,10 +31,12 @@ make -j
 - manually: evdaemon will start all other 5 subsystems(evmgr, evpuller, evpusher, evmlmotion, evslicer) on a edge device.
   ```
   # on edge device
+  # environments: BOOTSTRAP=true(default)|fase, DAEMON_PORT(8088, http), ROUTER_PORT(5549, tcp) 
   $ CLOUD_ADDR=tcp://<EVCLOUDSVC_IP>:<EVCLOUDSVC_PORT> path_to/evdaemo
 
   # on cloud
-  $ evcloudsvc
+  # environments: MSG_PORT(5548, tcp), HTTP_PORT(8088, http)
+  $ MSG_PORT=<EVCLOUDSVC_PORT> evcloudsvc
   ```
 
 ## configuration
