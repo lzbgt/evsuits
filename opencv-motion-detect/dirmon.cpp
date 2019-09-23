@@ -1,6 +1,6 @@
 #include "dirmon.h"
 
-int CreateDirMon(monitor **m, string path, string ext, vector<string> &&events, FSW_EVENT_CALLBACK cb)
+int CreateDirMon(monitor **m, string path, string ext, vector<string> &&events, FSW_EVENT_CALLBACK cb, void *pUserData)
 {
     vector<string> paths= {path};
     vector<fsw_event_type_filter> event_filters = {{fsw_event_flag::Created}};
@@ -8,7 +8,7 @@ int CreateDirMon(monitor **m, string path, string ext, vector<string> &&events, 
     *m = monitor_factory::create_monitor(
              fsw_monitor_type::system_default_monitor_type,
              paths,
-             cb);
+             cb, pUserData);
     (*m)->set_latency(1.1);
     (*m)->set_filters(flt);
     (*m)->start();

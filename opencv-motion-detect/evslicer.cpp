@@ -21,6 +21,7 @@ update: 2019/09/10
 #include <future>
 #include <vector>
 #include <ctime>
+#include <functional>
 
 #include <cstdlib>
 #include "inc/zmqhelper.hpp"
@@ -88,7 +89,6 @@ private:
             }
         }
         else {
-
             spdlog::error("evslicer {} get invalid msg with size {}: {}", selfId, v.size(), msg);
         }
 
@@ -297,7 +297,6 @@ private:
             if(pAVFormatRemux->pb) {
                 avio_closep(&pAVFormatRemux->pb);
             }
-
             avformat_free_context(pAVFormatRemux);
         }
         pAVFormatRemux = nullptr;
@@ -522,6 +521,12 @@ protected:
 
         return v;
     }
+    static void fileMonHandler(const std::vector<event>& evts, void *pUserData) {
+        auto self = static_cast<EvSlicer*>(pUserData);
+        for(auto &i : evts) {
+            spdlog::info("evslicer {} filemon file: {}, ts: {}", self->selfId, i.get_path().c_str(), i.get_time());
+        }
+    }
 public:
     EvSlicer()
     {
@@ -581,8 +586,9 @@ public:
             this->vTsActive = this->LoadVideoFiles(this->urlOut, this->days, this->numSlices, this->mapTs2BaseName, this->vTsOld);
             this->segHead = 0;
             this->segTail = vTsActive.size();
-
-
+            monitor * m = nullptr;
+            // auto fn = (FSW_EVENT_CALLBACK)bind(&EvSlicer::fileMonHandler, this, placeholders::_1, placeholders::_2);
+            CreateDirMon(&m, this->urlOut, ".mp4", vector<string>(), EvSlicer::fileMonHandler, (void *)this);
 
         });
         thSliceMgr.detach();

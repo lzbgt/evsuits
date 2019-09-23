@@ -15,7 +15,7 @@
 using namespace std;
 using namespace fsw;
 
-int CreateDirMon(monitor **m, string path, string ext, vector<string> &&events, FSW_EVENT_CALLBACK cb);
+int CreateDirMon(monitor **m, string path, string ext, vector<string> &&events, FSW_EVENT_CALLBACK cb, void *pUserData);
 int CloseDirMon(monitor*m);
 
 #endif
