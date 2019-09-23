@@ -335,7 +335,6 @@ private:
                     }
                 }
             }
-
             catch(exception &e) {
                 spdlog::error("evcloudsvc {} exception parse event msg from {} to {}: ", devSn, selfId, peerId, e.what());
             }
@@ -409,7 +408,6 @@ private:
                 string msg = "no such sn: " + sn;
                 ret["msg"] = msg;
                 spdlog::warn("evcloudsvc no config for sn: {}", sn);
-                // TODO: append to retry queue 
             }
         }catch(exception &e) {
             string msg = "evcloudsvc exception in file" + string(__FILE__) + ":" + to_string(__LINE__) + " for: " + e.what();

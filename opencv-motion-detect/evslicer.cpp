@@ -134,13 +134,15 @@ private:
             json evpuller = ipc["modules"]["evpuller"][0];
             pullerGid = evpuller["sn"].get<string>() + ":evpuller:" + to_string(evpuller["iid"]);
             mgrSn = evmgr["sn"];
-            if(evslicer.count("path") == 0) {
+            
+            if(evslicer.count("path") == 0){
                 spdlog::info("evslicer {} no params for path, using default: {}", selfId, URLOUT_DEFAULT);
                 urlOut = URLOUT_DEFAULT;
             }
             else {
                 urlOut = evslicer["path"];
             }
+
             if(evslicer.count("days") == 0) {
                 spdlog::info("evslicer {} no params for days, using default: {}", selfId, NUM_DAYS_DEFAULT);
                 days = NUM_DAYS_DEFAULT;
@@ -587,14 +589,12 @@ public:
             this->segHead = 0;
             this->segTail = vTsActive.size();
             monitor * m = nullptr;
-            // auto fn = (FSW_EVENT_CALLBACK)bind(&EvSlicer::fileMonHandler, this, placeholders::_1, placeholders::_2);
+            
             CreateDirMon(&m, this->urlOut, ".mp4", vector<string>(), EvSlicer::fileMonHandler, (void *)this);
-
         });
         thSliceMgr.detach();
 
         // thread for uploading slices
-
         getInputFormat();
         setupStream();
     };
