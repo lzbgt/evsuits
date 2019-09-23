@@ -134,7 +134,7 @@ private:
             json evpuller = ipc["modules"]["evpuller"][0];
             pullerGid = evpuller["sn"].get<string>() + ":evpuller:" + to_string(evpuller["iid"]);
             mgrSn = evmgr["sn"];
-            
+
             if(evslicer.count("path") == 0){
                 spdlog::info("evslicer {} no params for path, using default: {}", selfId, URLOUT_DEFAULT);
                 urlOut = URLOUT_DEFAULT;
@@ -180,6 +180,7 @@ private:
                 spdlog::error("evslicer {} failed set setsockopt: {}", selfId, urlPub);
                 exit(1);
             }
+
             ret = zmq_connect(pSub, urlPub.c_str());
             if(ret != 0) {
                 spdlog::error("evslicer {} failed connect pub: {}", selfId, urlPub);
@@ -437,6 +438,29 @@ protected:
 
     }
 
+    string getBaseName(string &fname) {
+        string ret;
+        auto posS = fname.find_last_of('/');
+        if(posS == string::npos) {
+            posS = 0;
+        }else{
+            posS = posS +1;
+        }
+        auto posE = fname.find_last_of('.');
+        if(posE == string::npos) {
+            posE = fname.size()-1;
+        }else{
+            posE = posE -1;
+        }
+        if(posE < posS) {
+            spdlog::error("evslicer getBaseName invalid filename");
+            return ret;
+        }
+
+        //spdlog::info("LoadVideoFiles path {}, s {}, e {}", fname, posS, posE);
+        return fname.substr(posS, posE - posS + 1);
+    }
+
     vector<long> LoadVideoFiles(string path, int days, int maxSlices, map<long, string> &ts2fileName, vector<long> &tsNeedUpload)
     {
         vector<long> v;
@@ -472,24 +496,10 @@ protected:
 
                 // add to map
                 string fname = entry.path().c_str();
-                auto posS = fname.find_last_of('/');
-                if(posS == string::npos) {
-                    posS = 0;
-                }else{
-                    posS = posS +1;
-                }
-                auto posE = fname.find_last_of('.');
-                if(posE == string::npos) {
-                    posE = fname.size()-1;
-                }else{
-                    posE = posE -1;
-                }
-                if(posE < posS) {
-                    spdlog::error("LoadVideoFiles invalid filename");
-                }
-
+                auto baseName = getBaseName(fname);
+                
                 //spdlog::info("LoadVideoFiles path {}, s {}, e {}", fname, posS, posE);
-                ts2fileName[ts] = fname.substr(posS, posE - posS + 1);
+                ts2fileName[ts] = baseName;
             }
         }
         catch(exception &e) {
@@ -524,9 +534,13 @@ protected:
         return v;
     }
     static void fileMonHandler(const std::vector<event>& evts, void *pUserData) {
+        static string lastFile;
+        static long lastTs;
+
         auto self = static_cast<EvSlicer*>(pUserData);
         for(auto &i : evts) {
             spdlog::info("evslicer {} filemon file: {}, ts: {}", self->selfId, i.get_path().c_str(), i.get_time());
+
         }
     }
 public:
