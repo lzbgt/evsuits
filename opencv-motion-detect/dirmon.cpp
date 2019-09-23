@@ -1,14 +1,4 @@
 #include "dirmon.h"
-using namespace std;
-
-using namespace fsw;
-
-void fileEventHandler(const std::vector<event>&evts, void *pUser)
-{
-    for(auto&i:evts) {
-        spdlog::info("path: {}, time: {}", i.get_path(), i.get_time());
-    }
-}
 
 int CreateDirMon(monitor **m, string path, string ext, vector<string> &&events, FSW_EVENT_CALLBACK cb)
 {
@@ -18,20 +8,20 @@ int CreateDirMon(monitor **m, string path, string ext, vector<string> &&events, 
     *m = monitor_factory::create_monitor(
              fsw_monitor_type::system_default_monitor_type,
              paths,
-             fileEventHandler);
+             cb);
     (*m)->set_latency(1.1);
     (*m)->set_filters(flt);
     (*m)->start();
     return 0;
 }
 
-int CloseDirMon()
+int CloseDirMon(monitor *m)
 {
+    m->stop();
     return 0;
 }
 
-#define DEBUG
-
+#undef DEBUG
 #ifdef DEBUG
 
 int main()

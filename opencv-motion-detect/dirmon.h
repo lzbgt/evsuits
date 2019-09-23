@@ -12,5 +12,10 @@
 #include "libfswatch/c++/monitor_factory.hpp"
 #include "libfswatch/c++/libfswatch_exception.hpp"
 #include "inc/spdlog/spdlog.h"
+using namespace std;
+using namespace fsw;
+
+int CreateDirMon(monitor **m, string path, string ext, vector<string> &&events, FSW_EVENT_CALLBACK cb);
+int CloseDirMon(monitor*m);
 
 #endif

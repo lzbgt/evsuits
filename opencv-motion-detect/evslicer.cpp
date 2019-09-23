@@ -28,6 +28,8 @@ update: 2019/09/10
 #include "inc/common.hpp"
 #include "inc/database.h"
 #include "postfile.h"
+#include "dirmon.h"
+#include "inc/fs.h"
 
 using namespace std;
 using namespace zmqhelper;
@@ -49,22 +51,26 @@ private:
     int *streamList = nullptr;
     time_t tsLastBoot, tsUpdateTime;
     json config;
-    thread thMsgProcessor;
+    thread thMsgProcessor, thSliceMgr;
     string drport = "5549";
     json slices;
     bool gotFormat = false;
+    vector<long> vTsOld;
+    vector<long> vTsActive;
+    map<long, string> mapTs2BaseName;
 
-    int handleMsg(vector<vector<uint8_t> > v){
+    int handleMsg(vector<vector<uint8_t> > v)
+    {
         int ret = 0;
         string peerId, meta;
         json data;
         string msg;
         for(auto &b:v) {
             msg +=body2str(b) + ";";
-        } 
+        }
 
         if(v.size() == 3) {
-            try{
+            try {
                 peerId = body2str(v[0]);
                 meta = json::parse(body2str(v[1]))["type"];
                 if(meta == EV_MSG_META_AVFORMATCTX) {
@@ -72,14 +78,17 @@ private:
                     AVFormatCtxSerializer::decode((char *)(v[2].data()), v[2].size(), pAVFormatInput);
                     gotFormat = true;
                     spdlog::info("evslicer {} got avformat from {}", selfId, peerId);
-                }else{
+                }
+                else {
                     spdlog::info("evslicer {} received msg from {}, type = {}, data = {}", selfId, peerId, meta, data.dump());
-                }       
-            }catch(exception &e){
+                }
+            }
+            catch(exception &e) {
                 spdlog::error("evslicer {} failed to process msg:{}", selfId, msg);
-            }  
-        }else{
-            
+            }
+        }
+        else {
+
             spdlog::error("evslicer {} get invalid msg with size {}: {}", selfId, v.size(), msg);
         }
 
@@ -160,7 +169,7 @@ private:
             urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(evpuller["port-pub"]);
             urlRouter = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(evmgr["port-router"]);
             spdlog::info("evslicer {} will connect to {} for sub, {} for router", selfId, urlPub, urlRouter);
-            
+
             // setup sub
             pSubCtx = zmq_ctx_new();
             pSub = zmq_socket(pSubCtx, ZMQ_SUB);
@@ -243,7 +252,7 @@ private:
                 spdlog::error("evslicer {}, failed to send hello to puller: {}", selfId, zmq_strerror(zmq_errno()));
                 continue;
             }
-            this_thread::sleep_for(chrono::seconds(7));
+            this_thread::sleep_for(chrono::seconds(20));
         }
         return ret;
     }
@@ -422,9 +431,96 @@ protected:
                 }
                 avformat_free_context(pAVFormatRemux);
             }
-   
+
         }// outer while
+
+    }
+
+    vector<long> LoadVideoFiles(string path, int days, int maxSlices, map<long, string> &ts2fileName, vector<long> &tsNeedUpload)
+    {
+        vector<long> v;
+        // get current timestamp
+        list<long> tsRing;
+        list<long>tsToProcess;
+
+        auto now = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+        try {
+            for (const auto & entry : fs::directory_iterator(path)) {
+                if(entry.file_size() == 0 || !entry.is_regular_file()||entry.path().extension() != ".mp4") {
+                    spdlog::warn("LoasdVideoFiles skipped {} (empty/directory/!mp4)", entry.path().c_str());
+                    continue;
+                }
+
+                auto ftime = fs::last_write_time(entry.path());
+                auto ts = decltype(ftime)::clock::to_time_t(ftime);
+
+                // check if processed already
+                if(ts2fileName.count(ts) != 0) {
+                    spdlog::warn("LoasdVideoFiles multiple files with same timestamp: {}, {}(skipped), ", ts2fileName[ts], entry.path().c_str());
+                    continue;
+                }
+
+                // check old files
+                if(ts - now > days * 24 * 60 * 60) {
+                    spdlog::info("file {} old that {} days", entry.path().c_str(), days);
+                    tsToProcess.insert(std::upper_bound(tsToProcess.begin(), tsToProcess.end(), ts), ts);
+                }
+                else {
+                    tsRing.insert(std::upper_bound(tsRing.begin(), tsRing.end(), ts), ts);
+                }
+
+                // add to map
+                string fname = entry.path().c_str();
+                auto posS = fname.find_last_of('/');
+                if(posS == string::npos) {
+                    posS = 0;
+                }else{
+                    posS = posS +1;
+                }
+                auto posE = fname.find_last_of('.');
+                if(posE == string::npos) {
+                    posE = fname.size()-1;
+                }else{
+                    posE = posE -1;
+                }
+                if(posE < posS) {
+                    spdlog::error("LoadVideoFiles invalid filename");
+                }
+
+                //spdlog::info("LoadVideoFiles path {}, s {}, e {}", fname, posS, posE);
+                ts2fileName[ts] = fname.substr(posS, posE - posS + 1);
+            }
+        }
+        catch(exception &e) {
+            spdlog::error("LoasdVideoFiles exception : {}", e.what());
+        }
+
+        // skip old items
+        list<long>olds;
+        int delta = maxSlices - tsRing.size();
+        int skip = delta < 0? (-delta):0;
+        spdlog::info("LoasdVideoFiles max: {}, current: {}, skip: {}",maxSlices, tsRing.size(), skip);
+        int idx = 0;
+        list<long>::iterator pos = tsRing.begin();
+        for(auto &i:tsRing) {
+            if(idx < skip) {
+                idx++;
+                pos++;
+                continue;
+            }
+            v.push_back(i);
+        }
+        // merge
+        if(skip > 0) {
+            tsToProcess.insert(std::upper_bound(tsToProcess.begin(), tsToProcess.end(), tsRing.front()), tsRing.begin(), pos);
+        }
         
+        //
+        for(auto &i:tsToProcess) {
+            tsNeedUpload.push_back(i);
+        }
+
+        return v;
     }
 public:
     EvSlicer()
@@ -444,7 +540,8 @@ public:
             }
             devSn = v[0];
             iid = stoi(v[2]);
-        }else{
+        }
+        else {
             spdlog::error("evslicer failed to start. no SN set");
             exit(1);
         }
@@ -459,13 +556,13 @@ public:
 
         ret = zmqhelper::recvConfigMsg(pDaemon, config, addr, selfId);
         if(ret != 0) {
-            spdlog::error("evslicer {} failed to receive configration message {}", devSn , addr);
+            spdlog::error("evslicer {} failed to receive configration message {}", devSn, addr);
         }
 
         init();
 
         // thread for msg
-        thMsgProcessor = thread([this](){
+        thMsgProcessor = thread([this]() {
             while(true) {
                 auto body = z_recv_multiple(pDealer,false);
                 if(body.size() == 0) {
@@ -476,8 +573,22 @@ public:
                 handleMsg(body);
             }
         });
-
         thMsgProcessor.detach();
+
+        // thread for slicer maintenace
+        thSliceMgr = thread([this]() {
+            // get old and active slices
+            this->vTsActive = this->LoadVideoFiles(this->urlOut, this->days, this->numSlices, this->mapTs2BaseName, this->vTsOld);
+            this->segHead = 0;
+            this->segTail = vTsActive.size();
+
+
+
+        });
+        thSliceMgr.detach();
+
+        // thread for uploading slices
+
         getInputFormat();
         setupStream();
     };

@@ -38,7 +38,7 @@ CFLAGS = $(DEBUG) -Wall
 
 LIBOPENCV = `pkg-config opencv --cflags --libs`
 LIBFFMPEG = `pkg-config libavformat libavutil libavcodec libswscale --cflags --libs`
-LIBS +=-Lvendor/lib -lpthread -lleveldb
+LIBS +=-Lvendor/lib -lpthread -lleveldb -lfswatch
 #-static
 HEADERS=-Iinc -Ivendor/include
 
@@ -56,6 +56,8 @@ objs/database.o: database.cpp inc/database.h
 	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -c database.cpp -o objs/database.o $(HEADERS)
 objs/zmqhelper.o: inc/zmqhelper.cpp inc/zmqhelper.hpp
 	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -c inc/zmqhelper.cpp -o objs/zmqhelper.o $(HEADERS)
+objs/dirmon.o: dirmon.cpp dirmon.h
+	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -c dirmon.cpp -o objs/dirmon.o $(HEADERS)
 
 objs/utils.o: inc/utils.cpp inc/utils.hpp
 	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -c inc/utils.cpp -o objs/utils.o $(HEADERS)
@@ -69,8 +71,8 @@ evpuller: evpuller.cpp database.cpp inc/av_common.hpp objs/utils.o inc/common.hp
 evpusher: evpusher.cpp inc/common.hpp inc/av_common.hpp objs/utils.o inc/tinythread.hpp objs/database.o objs/zmqhelper.o $(SQLITE_SRC)
 	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evpusher evpusher.cpp objs/database.o objs/utils.o objs/zmqhelper.o $(SQLITE) $(LIBFFMPEG) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
 
-evslicer: evslicer.cpp inc/common.hpp inc/av_common.hpp objs/utils.o inc/tinythread.hpp objs/database.o objs/zmqhelper.o $(SQLITE_SRC)
-	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evslicer evslicer.cpp objs/database.o objs/utils.o objs/zmqhelper.o $(SQLITE) $(LIBFFMPEG) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
+evslicer: evslicer.cpp inc/common.hpp inc/av_common.hpp objs/utils.o objs/dirmon.o inc/tinythread.hpp objs/database.o objs/zmqhelper.o $(SQLITE_SRC)
+	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evslicer evslicer.cpp objs/database.o  objs/dirmon.o objs/utils.o objs/zmqhelper.o $(SQLITE) $(LIBFFMPEG) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
 
 evmlmotion: evmlmotion.cpp inc/common.hpp inc/av_common.hpp objs/utils.o inc/avcvhelpers.hpp objs/database.o objs/zmqhelper.o  inc/tinythread.hpp $(SQLITE_SRC)
 	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evmlmotion evmlmotion.cpp objs/database.o objs/utils.o objs/zmqhelper.o $(SQLITE) $(LIBFFMPEG) $(HEADERS) $(LIBOPENCV) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)

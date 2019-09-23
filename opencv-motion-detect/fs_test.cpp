@@ -68,7 +68,26 @@ vector<long> LoadVideoFiles(string path, int days, int maxSlices, map<long, stri
             }
 
             // add to map
-            ts2fileName[ts] = entry.path();
+            string fname = entry.path().c_str();
+            auto posS = fname.find_last_of('/');
+            if(posS == string::npos) {
+                posS = 0;
+            }else{
+                posS = posS +1;
+            }
+            auto posE = fname.find_last_of('.');
+            if(posE == string::npos) {
+                posE = fname.size()-1;
+            }else{
+                posE = posE -1;
+            }
+            if(posE < posS) {
+                spdlog::error("LoadVideoFiles invalid filename");
+            }
+
+            //spdlog::info("LoadVideoFiles path {}, s {}, e {}", fname, posS, posE);
+
+            ts2fileName[ts] = fname.substr(posS, posE - posS + 1);
         }
     }
     catch(exception &e) {
