@@ -259,7 +259,10 @@ private:
                 return -1;
             }
 
-            if((peerData["status"].count(selfId) == 0 || peerData["status"][selfId] == 0) ) {
+            //auto state = zmq_socket_get_peer_state(pRouter, selfId.data(), selfId.size());
+            //spdlog::info("evdaemon {} peerState: {}", devSn, state);
+
+            if((peerData["status"].count(selfId) == 0 || peerData["status"][selfId] == 0||this->peerData["status"][selfId] == -1) ) {
                 peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                 spdlog::info("evdaemon {} peer connected: {}", devSn, selfId);
                 eventConn = true;
@@ -320,7 +323,7 @@ private:
             // message to other peer
             // check peer status
             vector<vector<uint8_t> >v = {body[1], body[0], body[2], body[3]};
-            if(peerData["status"].count(peerId) != 0 && peerData["status"][peerId] != 0) {
+            if(peerData["status"].count(peerId) != 0 && peerData["status"][peerId] != 0 && this->peerData["status"][peerId][peerId] != -1) {
                 spdlog::info("evdaemon {} route msg from {} to {}", devSn, selfId, peerId);
                 ret = z_send_multiple(pRouter, v);
                 if(ret < 0) {
