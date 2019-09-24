@@ -249,6 +249,7 @@ private:
         body.push_back(str2body(MSG_HELLO));
 
         uint64_t failedCnt = 0;
+        // TODO: change to notification style
         while(!gotFormat) {
             ret = z_send_multiple(pDealer, body);
             if(ret < 0) {
@@ -327,7 +328,7 @@ protected:
             auto end = start;
             int ts = chrono::duration_cast<chrono::seconds>(start.time_since_epoch()).count();
             string name = to_string(ts) + ".mp4";
-            name = urlOut + "/" + "capture-%03d.mp4";
+            name = urlOut + "/" + "%06d.mp4";
             ret = avformat_alloc_output_context2(&pAVFormatRemux, NULL, "segment", name.c_str());
             if (ret < 0) {
                 spdlog::error("evslicer {} failed create avformatcontext for output: %s", selfId, av_err2str(ret));
@@ -339,7 +340,7 @@ protected:
                 if(streamList[i] != -1) {
                     out_stream = avformat_new_stream(pAVFormatRemux, NULL);
                     if (!out_stream) {
-                        spdlog::error("evslicer {} failed allocating output stream 1", selfId);
+                        spdlog::error("evslicer {} failed allocating output stream {}", selfId, i);
                         ret = AVERROR_UNKNOWN;
                     }
                     ret = avcodec_parameters_copy(out_stream->codecpar, pAVFormatInput->streams[i]->codecpar);
@@ -385,7 +386,7 @@ protected:
                     continue;
                 }
 
-                AVStream *in_stream =NULL, *out_stream = nullptr;
+                AVStream *in_stream = nullptr, *out_stream = nullptr;
                 in_stream  = pAVFormatInput->streams[packet.stream_index];
                 packet.stream_index = streamList[packet.stream_index];
                 out_stream = pAVFormatRemux->streams[packet.stream_index];
