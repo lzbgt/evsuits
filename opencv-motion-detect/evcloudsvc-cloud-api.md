@@ -85,10 +85,12 @@ query configuration for edge device with specified sn
 ##### description
 set or change configuration for edge device
 ##### params
-- none
+- patch(optional): false(default)|true, wheather body is the json diff regards to edge device identified by sn
+- sn: string, only used when patch is set as true
 ##### body
 - type: json
 - example
+1. full configure
 ```
 {
    "data":{
@@ -155,6 +157,11 @@ set or change configuration for edge device
    },
    "lastupdated":1567669674
 }
+```
+2. patch configure
+POST /config?patch=true&sn=NMXH73Y2
+```
+[{"op":"add","path":"/ipcs/0/modules/evpuller/0/enabled","value":1}]
 ```
 ##### return
 - type: json
