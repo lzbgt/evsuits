@@ -98,7 +98,7 @@ vector<long> LoadVideoFiles(string path, int days, int maxSlices, map<long, stri
     list<long>olds;
     int delta = maxSlices - tsRing.size();
     int skip = delta < 0? (-delta):0;
-    spdlog::info("LoasdVideoFiles max: {}, current: {}, skip: {}",maxSlices, tsRing.size(), skip);
+    spdlog::info("LoasdVideoFiles max: {}, current: {}, skip: {}", maxSlices, tsRing.size(), skip);
     int idx = 0;
     list<long>::iterator pos = tsRing.begin();
     for(auto &i:tsRing) {
@@ -109,6 +109,7 @@ vector<long> LoadVideoFiles(string path, int days, int maxSlices, map<long, stri
         }
         v.push_back(i);
     }
+    
     // merge
     if(skip > 0) {
         tsNeedProc.insert(std::upper_bound(tsNeedProc.begin(), tsNeedProc.end(), tsRing.front()), tsRing.begin(), pos);

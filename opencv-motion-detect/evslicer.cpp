@@ -44,8 +44,8 @@ private:
     void *pSubCtx = nullptr, *pDealerCtx = nullptr; // for packets relay
     void *pSub = nullptr, *pDealer = nullptr, *pDaemonCtx = nullptr, *pDaemon = nullptr;
     string urlOut, urlPub, urlRouter, devSn, mgrSn, selfId, pullerGid;
-    int iid, days, minutes, numSlices, segHead = 0, segTail = 0;
-    bool enablePush = false;
+    int iid, days, minutes, numSlices, segHead = 0;
+    bool enablePush = false, bSegFull = false;
     AVFormatContext *pAVFormatRemux = nullptr;
     AVFormatContext *pAVFormatInput = nullptr;
     AVDictionary *pOptsRemux = nullptr;
@@ -57,8 +57,11 @@ private:
     json slices;
     bool gotFormat = false;
     vector<long> vTsOld;
+    mutex mutTsOld;
     vector<long> vTsActive;
+    mutex mutTsActive;
     map<long, string> mapTs2BaseName;
+    mutex mutTs2BaseName;
 
     int handleMsg(vector<vector<uint8_t> > v)
     {
@@ -356,7 +359,7 @@ protected:
                     spdlog::error("evslicer {} could not open output file {}", selfId, name);
                 }
             }
-            av_dict_set(&pOptsRemux, "segment_start_number", to_string(segTail).data(), 0);
+            av_dict_set(&pOptsRemux, "segment_start_number", to_string(segHead).data(), 0);
             ret = avformat_write_header(pAVFormatRemux, &pOptsRemux);
             if (ret < 0) {
                 spdlog::error("evslicer {} error occurred when opening output file", selfId);
@@ -545,7 +548,35 @@ protected:
             spdlog::info("evslicer {} filemon file: {}, ts: {}", self->selfId, i.get_path().c_str(), i.get_time());
             if(lastFile == i.get_path()) {
                 // skip
+            }else if(!lastFile.empty()){
+                // insert into ts active
+                auto lockg = lock_guard(self->mutTsActive);
+                if(self->segHead >= self->numSlices) {
+                    //wrap it;
+                    self->segHead = 0;
+                    self->bSegFull = true;
+                }
+
+                if(self->bSegFull) {
+                    // TODO: backup orignal self->vTsActive[self->segHead]
+                }
+
+                try{
+                    auto ftime = fs::last_write_time(i.get_path());
+                    auto baseName = getBaseName(i.get_path());
+                    auto ts = decltype(ftime)::clock::to_time_t(ftime);
+                    auto oldTs = self->vTsActive[self->segHead];
+                    self->vTsActive[self->segHead] = ts;
+                    self->mapTs2BaseName[ts] = baseName;
+                    // erase old ts to save memory
+                    self->mapTs2BaseName.erase(oldTs);
+                    self->segHead++;
+                    spdlog::info("evslicer {} fileMonHandler video seg done :{}/{}.mp4, ts:{}", self->selfId, self->urlOut, baseName, ts);
+                }catch(exception &e) {
+                    spdlog::error("evslicer {} fileMonHandler exception: {}", self->selfId, e.what());
+                }
             }else{
+                //nop
             }
         }
     }
@@ -612,8 +643,7 @@ public:
         thSliceMgr = thread([this]() {
             // get old and active slices
             this->vTsActive = this->LoadVideoFiles(this->urlOut, this->days, this->numSlices, this->mapTs2BaseName, this->vTsOld);
-            this->segHead = 0;
-            this->segTail = vTsActive.size();
+            this->segHead = this->vTsActive.size();
             monitor * m = nullptr;
             
             CreateDirMon(&m, this->urlOut, ".mp4", vector<string>(), EvSlicer::fileMonHandler, (void *)this);
