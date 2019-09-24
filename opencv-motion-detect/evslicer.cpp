@@ -546,14 +546,13 @@ protected:
             if(lastFile == i.get_path()) {
                 // skip
             }else{
-
             }
         }
     }
 
     // find video files
-    int findTsRang(vector &vTs, long start, long end, int &poss, int &pose) {
-
+    int findTsRang(vector<long> &vTs, long start, long end, int &poss, int &pose) {
+        return 0;
     }
 
 public:
