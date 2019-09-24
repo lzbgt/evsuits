@@ -141,21 +141,21 @@ private:
             }
 
             // event
-            json jEvt;
-            jEvt["type"] = EV_MSG_TYPE_CONN_STAT;
-            jEvt["gid"] = selfId;
-            jEvt["ts"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
-            if(eventConn) {
-                jEvt["event"] = EV_MSG_EVENT_CONN_CONN;
-            }
-            else {
-                jEvt["event"] = EV_MSG_EVENT_CONN_DISCONN;
-            }
+            // json jEvt;
+            // jEvt["type"] = EV_MSG_TYPE_CONN_STAT;
+            // jEvt["gid"] = selfId;
+            // jEvt["ts"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+            // if(eventConn) {
+            //     jEvt["event"] = EV_MSG_EVENT_CONN_CONN;
+            // }
+            // else {
+            //     jEvt["event"] = EV_MSG_EVENT_CONN_DISCONN;
+            // }
 
-            eventQue.push(jEvt.dump());
-            if(eventQue.size() > MAX_EVENT_QUEUE_SIZE) {
-                eventQue.pop();
-            }
+            // eventQue.push(jEvt.dump());
+            // if(eventQue.size() > MAX_EVENT_QUEUE_SIZE) {
+            //     eventQue.pop();
+            // }
 
             return 0;
         }

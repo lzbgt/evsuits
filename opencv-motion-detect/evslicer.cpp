@@ -83,8 +83,11 @@ private:
                     gotFormat = true;
                     spdlog::info("evslicer {} got avformat from {}", selfId, peerId);
                 }
-                else {
+                else if(meta == EV_MSG_META_EVENT){
+                    data = json::parse(body2str(v[2]));
                     spdlog::info("evslicer {} received msg from {}, type = {}, data = {}", selfId, peerId, meta, data.dump());
+                }else{
+                    spdlog::info("evslicer {} received unkown msg from {}: {}", selfId, peerId, msg);
                 }
             }
             catch(exception &e) {
@@ -587,9 +590,6 @@ protected:
                     auto ts = self->videoFileName2Ts(baseName);
                     auto oldTs = self->vTsActive[self->segHead];
                     self->vTsActive[self->segHead] = ts;
-                    //self->mapTs2BaseName[ts] = baseName;
-                    // erase old ts to save memory
-                    //self->mapTs2BaseName.erase(oldTs);
                     self->segHead++;
                     spdlog::info("evslicer {} fileMonHandler video seg done: {}/{}.mp4, ts:{}", self->selfId, self->urlOut, baseName, ts);
                 }catch(exception &e) {
