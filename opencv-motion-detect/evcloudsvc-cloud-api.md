@@ -158,8 +158,7 @@ set or change configuration for edge device
    "lastupdated":1567669674
 }
 ```
-2. patch configure
-POST /config?patch=true&sn=NMXH73Y2
+2. patch configure (POST /config?patch=true&sn=NMXH73Y2)
 ```
 [{"op":"add","path":"/ipcs/0/modules/evpuller/0/enabled","value":1}]
 ```
