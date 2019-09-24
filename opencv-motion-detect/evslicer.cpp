@@ -62,6 +62,7 @@ private:
     mutex mutTsActive;
     map<long, string> mapTs2BaseName;
     mutex mutTs2BaseName;
+    json eventState;
 
     int handleMsg(vector<vector<uint8_t> > v)
     {
@@ -86,6 +87,24 @@ private:
                 else if(meta == EV_MSG_META_EVENT){
                     data = json::parse(body2str(v[2]));
                     spdlog::info("evslicer {} received msg from {}, type = {}, data = {}", selfId, peerId, meta, data.dump());
+                    
+                    json eventMem;
+                    json event;
+                    if(eventState.count(data["type"] != 0)) {
+                        eventMem = eventState[data["type"]];
+                    }
+                    
+                    if(data["type"] == EV_MSG_TYPE_AI_MOTION) {
+                        if(eventMem.size() == 0){
+                            if(data["event"] == "end" || data["event"] != "start") {
+                                spdlog::error("evslicer {} invalid event state:{}, ignored", selfId, data["event"].get<string>());
+                            }else{
+                                
+                            }   
+                        }
+                    }
+                    
+                    
                 }else{
                     spdlog::info("evslicer {} received unkown msg from {}: {}", selfId, peerId, msg);
                 }
