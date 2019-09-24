@@ -359,13 +359,13 @@ protected:
                     spdlog::error("evslicer {} could not open output file {}", selfId, name);
                 }
             }
-            av_dict_set(&pOptsRemux, "segment_start_number", to_string(segHead).data(), 0);
+            av_dict_set(&pOptsRemux, "segment_start_number", to_string(segHead+1).data(), 0);
             ret = avformat_write_header(pAVFormatRemux, &pOptsRemux);
             if (ret < 0) {
                 spdlog::error("evslicer {} error occurred when opening output file", selfId);
             }
 
-            spdlog::info("evslicer {} writing new slice {}", selfId, name.c_str());
+            spdlog::info("evslicer {} start writing new slices", selfId);
             int pktIgnore = 0;
             while(true) {
                 int ret =zmq_msg_init(&msg);

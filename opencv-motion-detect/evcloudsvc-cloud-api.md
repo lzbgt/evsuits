@@ -86,9 +86,9 @@ query configuration for edge device with specified sn
 set or change configuration for edge device
 ##### params
 - none
-##### return
+##### body
 - type: json
-- example:
+- example
 ```
 {
    "data":{
@@ -155,6 +155,12 @@ set or change configuration for edge device
    },
    "lastupdated":1567669674
 }
+```
+##### return
+- type: json
+- example:
+```
+{"code": 0, "msg":"ok", "data":JSON}
 ```
 
 #### GET /keys

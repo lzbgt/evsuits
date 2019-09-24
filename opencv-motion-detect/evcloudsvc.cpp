@@ -198,8 +198,7 @@ private:
                         }
                     }else{
                         this->peerData["config"][k] = v;
-                    }
-                    
+                    } 
                     // TODO: trigger msg
                 } // for evmgr
 
