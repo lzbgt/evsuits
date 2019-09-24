@@ -498,7 +498,6 @@ public:
                         ret["code"] = 1;
                         ret["msg"] = "no config for sn " +  sn + ", module " + module;
                     }
-
                 }
                 else if(!sn.empty() && module.empty()) {
                     ret = getConfigForDevice(sn);

@@ -442,7 +442,7 @@ protected:
 
     }
 
-    string getBaseName(string &fname) {
+    string getBaseName(const string &fname) {
         string ret;
         auto posS = fname.find_last_of('/');
         if(posS == string::npos) {
@@ -562,8 +562,8 @@ protected:
                 }
 
                 try{
-                    auto ftime = fs::last_write_time(i.get_path());
-                    auto baseName = getBaseName(i.get_path());
+                    auto ftime = fs::last_write_time(lastFile);
+                    auto baseName = self->getBaseName(lastFile);
                     auto ts = decltype(ftime)::clock::to_time_t(ftime);
                     auto oldTs = self->vTsActive[self->segHead];
                     self->vTsActive[self->segHead] = ts;
@@ -571,13 +571,14 @@ protected:
                     // erase old ts to save memory
                     self->mapTs2BaseName.erase(oldTs);
                     self->segHead++;
-                    spdlog::info("evslicer {} fileMonHandler video seg done :{}/{}.mp4, ts:{}", self->selfId, self->urlOut, baseName, ts);
+                    spdlog::info("evslicer {} fileMonHandler video seg done: {}/{}.mp4, ts:{}", self->selfId, self->urlOut, baseName, ts);
                 }catch(exception &e) {
                     spdlog::error("evslicer {} fileMonHandler exception: {}", self->selfId, e.what());
                 }
             }else{
                 //nop
             }
+            lastFile = i.get_path();
         }
     }
 
