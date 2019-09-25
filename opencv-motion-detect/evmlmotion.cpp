@@ -556,8 +556,13 @@ protected:
         uint64_t pktCnt = 0;
         zmq_msg_t msg;
         AVPacket packet;
+        json eventToSlicer;
+        // eventToSlicer["type"] = "event";
+        // eventTOSlicer["extraInfo"] = json(); //array
+        // eventToSlicer["start"]
+        // eventToSlicer["end"]
 
-        //event relay thread: motion to slicer
+        //event relay thread: motion to slicer and sn:evdaemon:0
         thEvent = thread([&,this]() {
             json meta;
             meta["type"] = EV_MSG_META_EVENT;
@@ -566,17 +571,44 @@ protected:
             vector<vector<uint8_t> > v = {str2body(this->slicerGid), str2body(metaType), str2body("")};
             while(true) {
                 if(!this->evtQueue->empty()) {
+                    // send to evslicer
                     string evt = this->evtQueue->front();
-                    v[2] = str2body(evt);
+                    json jevt = json::parse(evt);
                     this->evtQueue->pop();
-                    ret = z_send_multiple(this->pDealer, v);
+                    if(jevt["event"] == EV_MSG_EVENT_MOTION_START){
+                        eventToSlicer["type"] = "event";
+                        eventToSlicer["start"] = jevt["ts"];
+                        eventToSlicer["extraInfo"] = json(); //array
+                        eventToSlicer["extraInfo"].push_back(jevt);
+                        // TODO: save and load saved evt on crash
+                    }else if(jevt["event"] == EV_MSG_EVENT_MOTION_END){
+                        eventToSlicer["end"] = jevt["ts"];
+                        eventToSlicer["extraInfo"].push_back(jevt);
+                        v[2] = str2body(eventToSlicer.dump());
+                        ret = z_send_multiple(this->pDealer, v);
+                        if(ret < 0) {
+                            spdlog::error("evmlmotion {} failed to send event {} to {}: {}", this->selfId, evt, this->slicerGid, zmq_strerror(zmq_errno()));
+                        }
+                        else {
+                            spdlog::info("evmlmotion {} sent event to {}: {}", this->selfId, this->slicerGid, evt);
+                        }
+                        eventToSlicer.clear();
+                    }else{
+                        spdlog::error("evmlmotion {} unknown event to {}: {}", this->selfId, this->slicerGid, evt);
+                    }
 
+                    // send to evdaemon
+                    v[2] = str2body(evt);
+                    string daemonId = this->devSn + ":evdaemon:0";
+                    v[0] = str2body(daemonId);
+                    ret = z_send_multiple(this->pDealer, v);
                     if(ret < 0) {
-                        spdlog::error("evmlmotion {} failed to send event {} to {}: {}", this->selfId, evt, this->slicerGid, zmq_strerror(zmq_errno()));
+                        spdlog::error("evmlmotion {} failed to send event {} to {}: {}", this->selfId, evt, daemonId, zmq_strerror(zmq_errno()));
                     }
                     else {
-                        spdlog::info("evmlmotion {} sent event: {}", this->selfId, evt);
+                        spdlog::info("evmlmotion {} sent event to {}: {}", this->selfId, daemonId, evt);
                     }
+
                 }
                 else {
                     this_thread::sleep_for(chrono::seconds(3));

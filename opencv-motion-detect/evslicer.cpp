@@ -22,6 +22,7 @@ update: 2019/09/10
 #include <vector>
 #include <ctime>
 #include <functional>
+#include <queue>
 
 #include <cstdlib>
 #include "inc/zmqhelper.hpp"
@@ -60,10 +61,14 @@ private:
     mutex mutTsOld;
     vector<long> vTsActive;
     mutex mutTsActive;
-    map<long, string> mapTs2BaseName;
-    mutex mutTs2BaseName;
-    json eventState;
+    queue<string> eventQueue;
+    condition_variable cvEvent;
+    mutex mutEvent;
+    thread thEventHandler;
 
+    bool validMsg(json &msg) {
+        return true;
+    }
     int handleMsg(vector<vector<uint8_t> > v)
     {
         int ret = 0;
@@ -86,25 +91,23 @@ private:
                 }
                 else if(meta == EV_MSG_META_EVENT){
                     data = json::parse(body2str(v[2]));
-                    spdlog::info("evslicer {} received msg from {}, type = {}, data = {}", selfId, peerId, meta, data.dump());
-                    
-                    json eventMem;
-                    json event;
-                    if(eventState.count(data["type"] != 0)) {
-                        eventMem = eventState[data["type"]];
-                    }
-                    
-                    if(data["type"] == EV_MSG_TYPE_AI_MOTION) {
-                        if(eventMem.size() == 0){
-                            if(data["event"] == "end" || data["event"] != "start") {
-                                spdlog::error("evslicer {} invalid event state:{}, ignored", selfId, data["event"].get<string>());
-                            }else{
-                                
-                            }   
+
+                    /// evslicer has two msg interfaces to subsystems on edge side
+                    /// 1. type = "event";  start: timestamp; end: timestamp
+                    /// 2. type = "media"; duration: seconds
+                    if(!validMsg(data)){
+                        spdlog::info("evslicer {} received invalid msg from {}: {}", selfId, peerId, msg);
+                    }else{
+                        spdlog::info("evslicer {} received msg from {}, type = {}, data = {}", selfId, peerId, meta, data.dump());
+                        if(data["type"] == "event") {
+                            lock_guard<mutex> lock(mutEvent);
+                            eventQueue.push(data);
+                            if(eventQueue.size() > MAX_EVENT_QUEUE_SIZE) {
+                                eventQueue.pop();
+                            }
+                            cvEvent.notify_one();       
                         }
-                    }
-                    
-                    
+                    } 
                 }else{
                     spdlog::info("evslicer {} received unkown msg from {}: {}", selfId, peerId, msg);
                 }
@@ -494,7 +497,7 @@ protected:
         return mktime(&t);
     }
 
-    vector<long> LoadVideoFiles(string path, int days, int maxSlices, map<long, string> &ts2fileName, vector<long> &tsNeedUpload)
+    vector<long> LoadVideoFiles(string path, int days, int maxSlices, vector<long> &tsNeedUpload)
     {
         vector<long> v = vector<long>(maxSlices);
         tsNeedUpload = vector<long>(maxSlices);
@@ -682,7 +685,7 @@ public:
         // thread for slicer maintenace
         thSliceMgr = thread([this]() {
             // get old and active slices
-            this->vTsActive = this->LoadVideoFiles(this->urlOut, this->days, this->numSlices, this->mapTs2BaseName, this->vTsOld);
+            this->vTsActive = this->LoadVideoFiles(this->urlOut, this->days, this->numSlices, this->vTsOld);
             spdlog::info("evslicer {} will store slice from index: {}", selfId, this->segHead);
             monitor * m = nullptr;
             
@@ -693,6 +696,26 @@ public:
         // thread for uploading slices
         getInputFormat();
         setupStream();
+
+        // event thread
+        thEventHandler = thread([this]{
+            while(true){
+                unique_lock<mutex> lk(this->mutEvent);
+                while(this->eventQueue.empty()){
+                    this->cvEvent.wait(lk);
+                }
+
+                if(this->eventQueue.empty()){
+                    continue;
+                }
+
+                auto evt = this->eventQueue.front();
+                this->eventQueue.pop();
+                // TODO: upload video
+                spdlog::info("evslicer processing event: {}", evt);
+
+            }
+        });
     };
     ~EvSlicer()
     {
