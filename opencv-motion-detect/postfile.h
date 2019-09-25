@@ -7,9 +7,9 @@
 #include <vector>
 #include "inc/spdlog/spdlog.h"
 
-namespace {
-
-int postFiles(const char*url, vector<tuple<const char* const, const char* const> > params, vector<const char *> fileNames);
+namespace netutils{
+using namespace std;
+int postFiles(const char*url, vector<tuple<const char*, const char*> > params, vector<const char *> fileNames);
 
 }
 

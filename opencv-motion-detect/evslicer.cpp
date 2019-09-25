@@ -44,7 +44,7 @@ private:
 // 2 days, 5 minutes per record
     void *pSubCtx = nullptr, *pDealerCtx = nullptr; // for packets relay
     void *pSub = nullptr, *pDealer = nullptr, *pDaemonCtx = nullptr, *pDaemon = nullptr;
-    string urlOut, urlPub, urlRouter, devSn, mgrSn, selfId, pullerGid;
+    string urlOut, urlPub, urlRouter, devSn, mgrSn, selfId, pullerGid, ipcSn;
     int iid, days, minutes, numSlices, segHead = 0, segHeadP;
     bool enablePush = false, bSegFull = false;
     AVFormatContext *pAVFormatRemux = nullptr;
@@ -65,6 +65,7 @@ private:
     condition_variable cvEvent;
     mutex mutEvent;
     thread thEventHandler;
+    string videoFileServerApi = "http://139.219.142.18:10008/upload/evtvideos/";
 
     bool validMsg(json &msg) {
         return true;
@@ -101,7 +102,7 @@ private:
                         spdlog::info("evslicer {} received msg from {}, type = {}, data = {}", selfId, peerId, meta, data.dump());
                         if(data["type"] == "event") {
                             lock_guard<mutex> lock(mutEvent);
-                            eventQueue.push(data);
+                            eventQueue.push(data.dump());
                             if(eventQueue.size() > MAX_EVENT_QUEUE_SIZE) {
                                 eventQueue.pop();
                             }
@@ -113,7 +114,7 @@ private:
                 }
             }
             catch(exception &e) {
-                spdlog::error("evslicer {} failed to process msg:{}", selfId, msg);
+                spdlog::error("evslicer {} exception to process msg {}: {}", selfId, msg, e.what());
             }
         }
         else {
@@ -158,6 +159,11 @@ private:
             }
 
             selfId = devSn + ":evslicer:" + to_string(iid);
+            if(ipc.count("sn") == 0) {
+                ipcSn = "unkown";
+            }else{
+                ipcSn = ipc["sn"];
+            }
 
             json evpuller = ipc["modules"]["evpuller"][0];
             pullerGid = evpuller["sn"].get<string>() + ":evpuller:" + to_string(evpuller["iid"]);
@@ -595,7 +601,7 @@ protected:
                 // skip
             }else if(!lastFile.empty()){
                 // insert into ts active
-                spdlog::info("evslicer {} filemon file: {}, ts: {}, last: {}", self->selfId, i.get_path().c_str(), i.get_time(), lastFile);
+                //spdlog::info("evslicer {} filemon file: {}, ts: {}, last: {}", self->selfId, i.get_path().c_str(), i.get_time(), lastFile);
                 if(self->segHead >= self->numSlices) {
                     //wrap it;
                     self->segHead = 0;
@@ -613,7 +619,7 @@ protected:
                     auto oldTs = self->vTsActive[self->segHead];
                     self->vTsActive[self->segHead] = ts;
                     self->segHead++;
-                    spdlog::info("evslicer {} fileMonHandler video seg done: {}/{}.mp4, ts:{}", self->selfId, self->urlOut, baseName, ts);
+                    //spdlog::info("evslicer {} fileMonHandler video seg done: {}/{}.mp4, ts:{}", self->selfId, self->urlOut, baseName, ts);
                 }catch(exception &e) {
                     spdlog::error("evslicer {} fileMonHandler exception: {}", self->selfId, e.what());
                 }
@@ -625,8 +631,8 @@ protected:
     }
 
     // find video files
-    int findTsRang(vector<long> &vTs, long start, long end, int &poss, int &pose) {
-        return 0;
+    vector<string> findSlicesByRange(long tss, long tse, int offsetS, int offsetE){
+
     }
 
 public:
@@ -701,18 +707,36 @@ public:
         thEventHandler = thread([this]{
             while(true){
                 unique_lock<mutex> lk(this->mutEvent);
-                while(this->eventQueue.empty()){
-                    this->cvEvent.wait(lk);
-                }
-
+                this->cvEvent.wait(lk, [this]{return !(this->eventQueue.empty());});
+                
                 if(this->eventQueue.empty()){
                     continue;
                 }
 
                 auto evt = this->eventQueue.front();
                 this->eventQueue.pop();
+                json jEvt = json::parse(evt);
                 // TODO: upload video
                 spdlog::info("evslicer processing event: {}", evt);
+                if(jEvt["type"] == "event") {
+                    auto tss = jEvt["start"].get<long>();
+                    auto tse = jEvt["end"].get<long>();
+                    long offsetS = 0;
+                    long offsetE = 0;
+                    auto v = findSlicesByRange(tss, tse, offsetS, offsetE);
+                    if(v.size() == 0) {
+                        spdlog::error("evslicer {} can't find slices by range: {}, {}", this->selfId, tss, tse);
+                    }else{
+                        vector<tuple<const char *, const char *> > params= {{"startTime", to_string(tss).c_str()},{"endTime", to_string(tse).c_str()},{"cameraId", ipcSn.c_str()}, {"headOffset", to_string(offsetS).c_str()},{"tailOffset", to_string(offsetE).c_str()}};
+                        vector<const char*> fileNames;
+                        for(auto &i: v) {
+                            fileNames.push_back(i.c_str());
+                        }
+                        auto url = (videoFileServerApi + ipcSn).c_str();
+                        netutils::postFiles(url, params, fileNames);
+                    }
+                }
+
 
             }
         });
@@ -741,7 +765,7 @@ public:
 
 int main(int argc, const char *argv[])
 {
-    av_log_set_level(AV_LOG_INFO);
+    av_log_set_level(AV_LOG_ERROR);
     spdlog::set_level(spdlog::level::info);
     EvSlicer es;
     es.join();

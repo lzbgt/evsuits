@@ -51,7 +51,8 @@
                "password":"FWBWTU",
                "port":554,
                "proto":"rtsp",
-               "user":"admin"
+               "user":"admin",
+               "sn": "SN_CAMERA"
             }
          ],
          "mqtt-cloud":"<cloud_addr>",

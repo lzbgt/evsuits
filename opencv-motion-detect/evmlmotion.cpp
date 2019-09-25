@@ -567,8 +567,10 @@ protected:
             json meta;
             meta["type"] = EV_MSG_META_EVENT;
             string metaType = meta.dump();
+            string daemonId = this->devSn + ":evdaemon:0";
             int ret = 0;
             vector<vector<uint8_t> > v = {str2body(this->slicerGid), str2body(metaType), str2body("")};
+            vector<vector<uint8_t> > v1 = {str2body(daemonId), str2body(metaType), str2body("")};
             while(true) {
                 if(!this->evtQueue->empty()) {
                     // send to evslicer
@@ -587,21 +589,19 @@ protected:
                         v[2] = str2body(eventToSlicer.dump());
                         ret = z_send_multiple(this->pDealer, v);
                         if(ret < 0) {
-                            spdlog::error("evmlmotion {} failed to send event {} to {}: {}", this->selfId, evt, this->slicerGid, zmq_strerror(zmq_errno()));
+                            spdlog::error("evmlmotion {} failed to send event {} to {}: {}", this->selfId, eventToSlicer.dump(), this->slicerGid, zmq_strerror(zmq_errno()));
                         }
                         else {
-                            spdlog::info("evmlmotion {} sent event to {}: {}", this->selfId, this->slicerGid, evt);
+                            spdlog::info("evmlmotion {} sent event to {}: {}", this->selfId, this->slicerGid, eventToSlicer.dump());
                         }
                         eventToSlicer.clear();
                     }else{
-                        spdlog::error("evmlmotion {} unknown event to {}: {}", this->selfId, this->slicerGid, evt);
+                        spdlog::error("evmlmotion {} unknown event to {}: {}", this->selfId, this->slicerGid, eventToSlicer.dump());
                     }
 
                     // send to evdaemon
-                    v[2] = str2body(evt);
-                    string daemonId = this->devSn + ":evdaemon:0";
-                    v[0] = str2body(daemonId);
-                    ret = z_send_multiple(this->pDealer, v);
+                    v1[2] = str2body(evt);
+                    ret = z_send_multiple(this->pDealer, v1);
                     if(ret < 0) {
                         spdlog::error("evmlmotion {} failed to send event {} to {}: {}", this->selfId, evt, daemonId, zmq_strerror(zmq_errno()));
                     }

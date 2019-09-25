@@ -10,7 +10,7 @@ static void libcurlInit(){
   }
 }
 
-int postFiles(const char*url, vector<tuple<const char* const, const char* const> > params, vector<const char *> fileNames){
+int postFiles(const char*url, vector<tuple<const char*, const char*> > params, vector<const char *> fileNames){
   CURL *curl;
   CURLcode res;
   curl_mime *form = NULL;
