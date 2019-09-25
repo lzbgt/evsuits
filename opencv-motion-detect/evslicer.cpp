@@ -504,11 +504,12 @@ protected:
     }
 
     string videoFileTs2Name(long ts) {
-        std::time_t now = {ts};
+        std::time_t now = ts;
         std::tm * ptm = std::localtime(&now);
         char buffer[20];
         // Format: Mo, 15.06.2009 20:20:00
         std::strftime(buffer, 20, "%Y%m%d_%H%M%S", ptm);
+        spdlog::info("ts: {}, fname: {}", ts, buffer);
         return string(buffer);
     }
 
@@ -532,13 +533,6 @@ protected:
 
                 baseName = getBaseName(fname);
                 auto ts = videoFileName2Ts(baseName);
-                // auto ftime = fs::last_write_time(entry.path());
-                // auto ts = decltype(ftime)::clock::to_time_t(ftime);
-                // // check if processed already
-                // if(ts2fileName.count(ts) != 0) {
-                //     spdlog::warn("LoasdVideoFiles multiple files with same timestamp: {}, {}(skipped), ", ts2fileName[ts], entry.path().c_str());
-                //     continue;
-                // }
 
                 // check old files
                 if(ts - now > days * 24 * 60 * 60) {
@@ -570,7 +564,7 @@ protected:
                 pos++;
                 continue;
             }
-            v.push_back(i);
+            v[segHead] = i;
             segHead++;
         }
         // merge
@@ -588,7 +582,7 @@ protected:
                 pos++;
                 continue;
             }
-            tsNeedUpload.push_back(i);
+            tsNeedUpload[segHeadP] = i;
             segHeadP++;
         }
 
@@ -655,12 +649,22 @@ protected:
             _itss = segHead;
         }
 
+        for(int i = 0; i < numSlices; i++){
+            spdlog::info("vector[{}] = {}", i, vTsActive[i]);
+            if(vTsActive[i] == 0) {
+                break;
+            }
+        }
+
         if(vTsActive[_itss] >= tse || vTsActive[segHead -1] < tss||(!bSegFull && segHead == 0)) {
             spdlog::error("evslicer {} findSlicesByRange range ({},{}) is not in ({}, {}", selfId, tss, tse, vTsActive[_itss], vTsActive[segHead -1]);
         }else{
             int idxS, idxE;
             int delta = bSegFull? numSlices : 0;
             for(int i = segHead + delta; i > _itss; i--){
+                if(vTsActive[segToIdx(i)] == 0) {
+                    continue;
+                }
                 if(tse >= vTsActive[segToIdx(i)]){
                     if((found &1) != 1){
                         idxE = segToIdx(i);
@@ -686,7 +690,10 @@ protected:
 
                 for(int i = idxS; i <= idxE; i++){
                     int idx = segToIdx(i);
-                    ret.push_back(videoFileTs2Name(vTsActive[idx]));
+                    long ts = vTsActive[idx];
+                    string fname = videoFileTs2Name(ts);
+                    spdlog::info("file to upload: {}, {}, {}", fname, ts, idx);
+                    ret.push_back(fname);
                 }
             }
         }
@@ -795,10 +802,13 @@ public:
                             spdlog::info("prepare uploading {}", fname);
                             fileNames.push_back(fname.c_str());
                         }
-                        auto url = (videoFileServerApi + ipcSn).c_str();
+                        auto url = (this->videoFileServerApi + this->ipcSn).c_str();
+                        spdlog::info("url: {}", url);
                         // TODO: check result and reschedule it
                         netutils::postFiles(url, params, fileNames);
                     }
+                }else{
+                    spdlog::error("evslicer {} unkown event :{}", this->selfId, evt);
                 }
             }
         });
