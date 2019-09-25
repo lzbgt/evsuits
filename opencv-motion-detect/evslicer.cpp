@@ -630,8 +630,35 @@ protected:
         }
     }
 
+    //
+    int segToIdx(int seg) {
+        if(seg >= numSlices) {
+            seg -= numSlices;
+        }
+        return seg;
+    }
     // find video files
     vector<string> findSlicesByRange(long tss, long tse, int offsetS, int offsetE){
+        vector<string> ret;
+        bool found = false;
+        int _itss = 0;
+        if(bSegFull) {
+            _itss = segHead;
+        }
+
+        if(vTsActive[_itss] >= tse || vTsActive[segHead -1] < tss||(!bSegFull && segHead == 0)) {
+            spdlog::error("evslicer {} findSlicesByRange range ({},{}) is not in ({}, {}", selfId, tss, tse, vTsActive[_itss], vTsActive[segHead -1]);
+        }else{
+            int idxS, idxE;
+            int delta = bSegFull? numSlices : 0;
+            for(int i = segHead + delta; i > _itss; i--){
+                if(tse < vTsActive[segToIdx(i)]){
+                    continue;
+                }else{
+                    idxE = i;
+                }
+            }
+        }
 
     }
 
@@ -733,11 +760,10 @@ public:
                             fileNames.push_back(i.c_str());
                         }
                         auto url = (videoFileServerApi + ipcSn).c_str();
+                        // TODO: check result and reschedule it
                         netutils::postFiles(url, params, fileNames);
                     }
                 }
-
-
             }
         });
     };
