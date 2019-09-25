@@ -71,7 +71,7 @@ evpuller: evpuller.cpp database.cpp inc/av_common.hpp objs/utils.o inc/common.hp
 evpusher: evpusher.cpp inc/common.hpp inc/av_common.hpp objs/utils.o inc/tinythread.hpp objs/database.o objs/zmqhelper.o $(SQLITE_SRC)
 	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evpusher evpusher.cpp objs/database.o objs/utils.o objs/zmqhelper.o $(SQLITE) $(LIBFFMPEG) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
 
-evslicer: evslicer.cpp inc/common.hpp inc/av_common.hpp objs/utils.o objs/dirmon.o inc/tinythread.hpp objs/database.o objs/zmqhelper.o $(SQLITE_SRC)
+evslicer: evslicer.cpp inc/common.hpp inc/av_common.hpp postfile.cpp objs/utils.o objs/dirmon.o inc/tinythread.hpp objs/database.o objs/zmqhelper.o $(SQLITE_SRC)
 	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evslicer evslicer.cpp postfile.cpp objs/database.o  objs/dirmon.o objs/utils.o objs/zmqhelper.o $(SQLITE) $(LIBFFMPEG) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS) -lcurl
 
 evmlmotion: evmlmotion.cpp inc/common.hpp inc/av_common.hpp objs/utils.o inc/avcvhelpers.hpp objs/database.o objs/zmqhelper.o  inc/tinythread.hpp $(SQLITE_SRC)

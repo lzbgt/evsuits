@@ -165,6 +165,8 @@ private:
                 ipcSn = ipc["sn"];
             }
 
+            this->videoFileServerApi += this->ipcSn;
+
             json evpuller = ipc["modules"]["evpuller"][0];
             pullerGid = evpuller["sn"].get<string>() + ":evpuller:" + to_string(evpuller["iid"]);
             mgrSn = evmgr["sn"];
@@ -657,7 +659,7 @@ protected:
         }
 
         if(vTsActive[_itss] >= tse || vTsActive[segHead -1] < tss||(!bSegFull && segHead == 0)) {
-            spdlog::error("evslicer {} findSlicesByRange range ({},{}) is not in ({}, {}", selfId, tss, tse, vTsActive[_itss], vTsActive[segHead -1]);
+            spdlog::error("evslicer {} findSlicesByRange range ({},{}) is not in ({}, {})", selfId, tss, tse, vTsActive[_itss], vTsActive[segHead -1]);
         }else{
             int idxS, idxE;
             int delta = bSegFull? numSlices : 0;
@@ -795,17 +797,17 @@ public:
                     if(v.size() == 0) {
                         spdlog::error("evslicer {} can't find slices by range: {}, {}", this->selfId, tss, tse);
                     }else{
-                        vector<tuple<const char *, const char *> > params= {{"startTime", to_string(tss).c_str()},{"endTime", to_string(tse).c_str()},{"cameraId", ipcSn.c_str()}, {"headOffset", to_string(offsetS).c_str()},{"tailOffset", to_string(offsetE).c_str()}};
-                        vector<const char*> fileNames;
+                        vector<tuple<string, string> > params= {{"startTime", to_string(tss)},{"endTime", to_string(tse)},{"cameraId", ipcSn}, {"headOffset", to_string(offsetS)},{"tailOffset", to_string(offsetE)}};
+                        vector<string> fileNames;
                         for(auto &i: v) {
                             string fname = this->urlOut + "/" + i + ".mp4";
                             spdlog::info("prepare uploading {}", fname);
-                            fileNames.push_back(fname.c_str());
+                            fileNames.push_back(fname);
                         }
-                        auto url = (this->videoFileServerApi + this->ipcSn).c_str();
-                        spdlog::info("url: {}", url);
+
+                        spdlog::info("url: {}", this->videoFileServerApi);
                         // TODO: check result and reschedule it
-                        netutils::postFiles(url, params, fileNames);
+                        netutils::postFiles(std::move(this->videoFileServerApi), std::move(params), std::move(fileNames));
                     }
                 }else{
                     spdlog::error("evslicer {} unkown event :{}", this->selfId, evt);

@@ -10,7 +10,7 @@ static void libcurlInit(){
   }
 }
 
-int postFiles(const char* url, vector<tuple<const char*, const char*> > params, vector<const char *> fileNames){
+int postFiles(string &&url, vector<tuple<string, string> > &&params, vector<string> &&fileNames){
   CURL *curl;
   CURLcode res;
   curl_mime *form = NULL;
@@ -30,17 +30,20 @@ int postFiles(const char* url, vector<tuple<const char*, const char*> > params, 
   for(auto &f: fileNames) {
     field = curl_mime_addpart(form);
     curl_mime_name(field, "files[]");
-    curl_mime_filedata(field, f);
+    curl_mime_filedata(field, f.c_str());
+    spdlog::info("curl file: {}", f);
   }
 
   string queryString;
   int cnt = 0;
   for(auto &[k, v]: params) {
-    queryString += (cnt == 0?string(""):string("&")) +string(k) + "=" + string(v);
+    queryString += (cnt == 0?string(""):string("&")) + k + "=" + v;
     cnt++;
   }
 
-  string _url  = string(url) + string("?" ) + queryString;
+  spdlog::info("url is: {}, {}", url, url.c_str());
+
+  string _url  = url + string("?" ) + queryString;
   spdlog::info("_url: {}", _url);
   /* what URL that receives this POST */
   curl_easy_setopt(curl, CURLOPT_URL, _url.c_str());
