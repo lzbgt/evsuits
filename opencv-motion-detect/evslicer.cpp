@@ -529,7 +529,7 @@ protected:
             for (const auto & entry : fs::directory_iterator(path)) {
                 fname = entry.path().c_str();
                 if(entry.file_size() == 0 || !entry.is_regular_file()||entry.path().extension() != ".mp4") {
-                    spdlog::warn("LoasdVideoFiles skipped {} (empty/directory/!mp4)", entry.path().c_str());
+                    spdlog::warn("evslicer {} LoasdVideoFiles skipped {} (empty/directory/!mp4)", selfId, entry.path().c_str());
                     continue;
                 }
 
@@ -557,7 +557,7 @@ protected:
         list<long>olds;
         int delta = maxSlices - tsRing.size();
         int skip = delta < 0? (-delta):0;
-        spdlog::info("LoasdVideoFiles max: {}, current: {}, skip: {}",maxSlices, tsRing.size(), skip);
+        spdlog::info("evslicer {} LoasdVideoFiles max: {}, current: {}, skip: {}", selfId, maxSlices, tsRing.size(), skip);
         int idx = 0;
         list<long>::iterator pos = tsRing.begin();
         for(auto &i:tsRing) {
@@ -652,7 +652,7 @@ protected:
         }
 
         for(int i = 0; i < numSlices; i++){
-            spdlog::info("vector[{}] = {}", i, vTsActive[i]);
+            spdlog::info("evslicer {} vector[{}] = {}", selfId, i, vTsActive[i]);
             if(vTsActive[i] == 0) {
                 break;
             }
@@ -689,14 +689,15 @@ protected:
                 if(idxS > idxE) {
                     idxE += numSlices;
                 }
-
+                string sf;
                 for(int i = idxS; i <= idxE; i++){
                     int idx = segToIdx(i);
                     long ts = vTsActive[idx];
                     string fname = videoFileTs2Name(ts);
-                    spdlog::info("file to upload: {}, {}, {}", fname, ts, idx);
+                    sf += "\t" +fname + ", " + to_string(ts) + ", " + to_string(idx) + "\n";
                     ret.push_back(fname);
                 }
+                spdlog::info("evslicer {} event {} - {} files to upload: {}", selfId, videoFileTs2Name(tss), videoFileTs2Name(tse), sf);
             }
         }
 
@@ -801,13 +802,14 @@ public:
                         vector<string> fileNames;
                         for(auto &i: v) {
                             string fname = this->urlOut + "/" + i + ".mp4";
-                            spdlog::info("prepare uploading {}", fname);
                             fileNames.push_back(fname);
                         }
 
-                        spdlog::info("url: {}", this->videoFileServerApi);
+                        spdlog::info("evslicer {} file upload url: {}", selfId, this->videoFileServerApi);
                         // TODO: check result and reschedule it
-                        netutils::postFiles(std::move(this->videoFileServerApi), std::move(params), std::move(fileNames));
+                        if(netutils::postFiles(std::move(this->videoFileServerApi), std::move(params), std::move(fileNames)) != 0){
+                            spdlog::error("evslicer {} failed to upload files", selfId);
+                        }
                     }
                 }else{
                     spdlog::error("evslicer {} unkown event :{}", this->selfId, evt);

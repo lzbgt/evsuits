@@ -31,7 +31,7 @@ int postFiles(string &&url, vector<tuple<string, string> > &&params, vector<stri
     field = curl_mime_addpart(form);
     curl_mime_name(field, "files[]");
     curl_mime_filedata(field, f.c_str());
-    spdlog::info("curl file: {}", f);
+    spdlog::debug("curl file: {}", f);
   }
 
   string queryString;
@@ -41,10 +41,10 @@ int postFiles(string &&url, vector<tuple<string, string> > &&params, vector<stri
     cnt++;
   }
 
-  spdlog::info("url is: {}, {}", url, url.c_str());
+  spdlog::debug("url is: {}, {}", url, url.c_str());
 
   string _url  = url + string("?" ) + queryString;
-  spdlog::info("_url: {}", _url);
+  spdlog::debug("_url: {}", _url);
   /* what URL that receives this POST */
   curl_easy_setopt(curl, CURLOPT_URL, _url.c_str());
   //curl_easy_setopt(curl, CURLOPT_POSTFIELDS, queryString.c_str());
