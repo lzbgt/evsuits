@@ -503,6 +503,15 @@ protected:
         return mktime(&t);
     }
 
+    string videoFileTs2Name(long ts) {
+        std::time_t now = {ts};
+        std::tm * ptm = std::localtime(&now);
+        char buffer[20];
+        // Format: Mo, 15.06.2009 20:20:00
+        std::strftime(buffer, 20, "%Y%m%d_%H%M%S", ptm);
+        return string(buffer);
+    }
+
     vector<long> LoadVideoFiles(string path, int days, int maxSlices, vector<long> &tsNeedUpload)
     {
         vector<long> v = vector<long>(maxSlices);
@@ -640,7 +649,7 @@ protected:
     // find video files
     vector<string> findSlicesByRange(long tss, long tse, int offsetS, int offsetE){
         vector<string> ret;
-        bool found = false;
+        int found = 0;
         int _itss = 0;
         if(bSegFull) {
             _itss = segHead;
@@ -652,14 +661,37 @@ protected:
             int idxS, idxE;
             int delta = bSegFull? numSlices : 0;
             for(int i = segHead + delta; i > _itss; i--){
-                if(tse < vTsActive[segToIdx(i)]){
-                    continue;
-                }else{
-                    idxE = i;
+                if(tse >= vTsActive[segToIdx(i)]){
+                    if((found &1) != 1){
+                        idxE = segToIdx(i);
+                        found |= 1;
+                    }
+                }
+
+                if(tss > vTsActive[segToIdx(i)]){
+                    if((found &2) != 2) {
+                        idxS = segToIdx(i);
+                        found |=2;
+                    }
+                }
+
+                if(found == 3) {
+                    break;
+                }
+            }
+            if(found ==3) {
+                if(idxS > idxE) {
+                    idxE += numSlices;
+                }
+
+                for(int i = idxS; i <= idxE; i++){
+                    int idx = segToIdx(i);
+                    ret.push_back(videoFileTs2Name(vTsActive[idx]));
                 }
             }
         }
 
+        return ret;
     }
 
 public:
@@ -750,6 +782,8 @@ public:
                     auto tse = jEvt["end"].get<long>();
                     long offsetS = 0;
                     long offsetE = 0;
+                    // TODO: async
+                    this_thread::sleep_for(chrono::seconds(25));
                     auto v = findSlicesByRange(tss, tse, offsetS, offsetE);
                     if(v.size() == 0) {
                         spdlog::error("evslicer {} can't find slices by range: {}, {}", this->selfId, tss, tse);
@@ -757,7 +791,9 @@ public:
                         vector<tuple<const char *, const char *> > params= {{"startTime", to_string(tss).c_str()},{"endTime", to_string(tse).c_str()},{"cameraId", ipcSn.c_str()}, {"headOffset", to_string(offsetS).c_str()},{"tailOffset", to_string(offsetE).c_str()}};
                         vector<const char*> fileNames;
                         for(auto &i: v) {
-                            fileNames.push_back(i.c_str());
+                            string fname = this->urlOut + "/" + i + ".mp4";
+                            spdlog::info("prepare uploading {}", fname);
+                            fileNames.push_back(fname.c_str());
                         }
                         auto url = (videoFileServerApi + ipcSn).c_str();
                         // TODO: check result and reschedule it
