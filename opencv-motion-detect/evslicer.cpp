@@ -104,12 +104,12 @@ private:
                     else {
                         spdlog::info("evslicer {} received msg from {}, type = {}, data = {}", selfId, peerId, meta, data.dump());
                         if(data["type"] == "event") {
-                            lock_guard<mutex> lock(mutEvent);
+                            lock_guard<mutex> lock(this->mutEvent);
                             eventQueue.push(data.dump());
                             if(eventQueue.size() > MAX_EVENT_QUEUE_SIZE) {
                                 eventQueue.pop();
                             }
-                            cvEvent.notify_one();
+                            //cvEvent.notify_one();
                         }
                     }
                 }
@@ -794,15 +794,19 @@ public:
         thEventHandler = thread([this] {
             while(true)
             {
-                unique_lock<mutex> lk(this->mutEvent);
-                this->cvEvent.wait(lk, [this] {return !(this->eventQueue.empty());});
-
-                if(this->eventQueue.empty()) {
-                    continue;
+                string evt;
+                // unique_lock<mutex> lk(this->mutEvent);
+                // this->cvEvent.wait(lk, [this] {return !(this->eventQueue.empty());});
+                {
+                    auto lg = lock_guard(this->mutEvent);
+                    if(this->eventQueue.empty()) {
+                        this_thread::sleep_for(chrono::seconds(5));
+                        continue;
+                    }
+                    auto evt = this->eventQueue.front();
+                    this->eventQueue.pop();
                 }
-
-                auto evt = this->eventQueue.front();
-                this->eventQueue.pop();
+                
                 json jEvt = json::parse(evt);
 
                 if(jEvt["type"] == "event") {
@@ -828,7 +832,7 @@ public:
                         for(auto &i: v) {
                             string fname = this->urlOut + "/" + i + ".mp4";
                             fileNames.push_back(fname);
-                            sf+="file\t" + fname + "\n";
+                            sf+="\tfile\t" + fname + "\n";
                         }
 
                         spdlog::info("evslicer {} file upload url: {}", selfId, this->videoFileServerApi);
