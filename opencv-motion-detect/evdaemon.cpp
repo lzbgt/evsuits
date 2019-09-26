@@ -615,7 +615,7 @@ public:
             spdlog::error("evdaemon {} failed to setup dealer", devSn);
             exit(1);
         }
-        spdlog::info("evdaemon {} connected to cloud {}", devSn, cloudAddr);
+        spdlog::info("evdaemon {} connecting to cloud {}", devSn, cloudAddr);
         // setup cloud msg processor
         thCloud = thread([this]() {
             while(true) {

@@ -519,7 +519,21 @@ public:
             string msg;
             try {
                 json cfg = json::parse(req.body);
-                ret = this->config(cfg);
+                if(req.has_param("sn") && req.has_param("patch")){
+                    string _sn = req.get_param_value("sn");
+                    string _patch = req.get_param_value("patch");
+                    if(!_sn.empty() && _patch == "true") {
+                        // verify sn
+                        ret = getConfigForDevice(_sn);
+                        if(ret["code"]!= 0) {
+                            //
+                        }else{
+                           ret["data"].merge_patch(cfg);
+                        }
+                    }
+                }else{
+                    ret = this->config(cfg);
+                }
             }
             catch (exception &e) {
                 msg = string("evcloudsvc exception on POST /config: ") +  e.what();
