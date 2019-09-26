@@ -39,13 +39,13 @@ using namespace zmqhelper;
 class EvSlicer: public TinyThread {
 private:
 #define URLOUT_DEFAULT "slices"
-#define NUM_DAYS_DEFAULT 2
-#define MINUTES_PER_SLICE_DEFAULT 1
-// 2 days, 5 minutes per record
+#define NUM_HOURS_DEFAULT 2
+#define MINUTES_PER_SLICE_DEFAULT 2
+// 2 hours, 2 minutes per record
     void *pSubCtx = nullptr, *pDealerCtx = nullptr; // for packets relay
     void *pSub = nullptr, *pDealer = nullptr, *pDaemonCtx = nullptr, *pDaemon = nullptr;
     string urlOut, urlPub, urlRouter, devSn, mgrSn, selfId, pullerGid, ipcSn;
-    int iid, days, minutes, numSlices, segHead = 0, segHeadP;
+    int iid, hours, minutes, numSlices, segHead = 0, segHeadP;
     bool enablePush = false, bSegFull = false;
     AVFormatContext *pAVFormatRemux = nullptr;
     AVFormatContext *pAVFormatInput = nullptr;
@@ -179,12 +179,12 @@ private:
                 urlOut = evslicer["path"];
             }
 
-            if(evslicer.count("days") == 0) {
-                spdlog::info("evslicer {} no params for days, using default: {}", selfId, NUM_DAYS_DEFAULT);
-                days = NUM_DAYS_DEFAULT;
+            if(evslicer.count("hours") == 0) {
+                spdlog::info("evslicer {} no params for hours, using default: {}", selfId, NUM_HOURS_DEFAULT);
+                hours = NUM_HOURS_DEFAULT;
             }
             else {
-                days = evslicer["days"].get<int>();
+                hours = evslicer["hours"].get<int>();
             }
 
             if(evslicer.count("minutes") == 0) {
@@ -195,7 +195,7 @@ private:
                 minutes = evslicer["minutes"].get<int>();
             }
 
-            numSlices = 24 * days * 60 /minutes;
+            numSlices = hours * 60 /minutes;
 
             spdlog::info("evslicer mkdir -p {}", selfId, urlOut);
             ret = system((string("mkdir -p ") + urlOut).c_str());
@@ -326,7 +326,7 @@ private:
         av_dict_set(&pOptsRemux, "strftime", "1", 0);
         av_dict_set(&pOptsRemux, "segment_format", "mp4", 0);
         av_dict_set(&pOptsRemux, "f", "segment", 0);
-        av_dict_set(&pOptsRemux, "segment_time", "20", 0);
+        av_dict_set(&pOptsRemux, "segment_time", to_string(minutes * 60), 0);
         av_dict_set(&pOptsRemux, "segment_wrap", to_string(numSlices).data(), 0);
 
         return ret;
@@ -516,7 +516,7 @@ protected:
         return string(buffer);
     }
 
-    vector<long> LoadVideoFiles(string path, int days, int maxSlices, vector<long> &tsNeedUpload)
+    vector<long> LoadVideoFiles(string path, int hours, int maxSlices, vector<long> &tsNeedUpload)
     {
         vector<long> v = vector<long>(maxSlices);
         tsNeedUpload = vector<long>(maxSlices);
@@ -538,8 +538,8 @@ protected:
                 auto ts = videoFileName2Ts(baseName);
 
                 // check old files
-                if(ts - now > days * 24 * 60 * 60) {
-                    spdlog::info("evslicer {} file {} old than {} days: {}, {}", selfId, entry.path().c_str(), days, ts, now);
+                if(ts - now > hours * 60 * 60) {
+                    spdlog::info("evslicer {} file {} old than {} hours: {}, {}", selfId, entry.path().c_str(), hours, ts, now);
                     tsToProcess.insert(std::upper_bound(tsToProcess.begin(), tsToProcess.end(), ts), ts);
                 }
                 else {
@@ -761,7 +761,7 @@ public:
         // thread for slicer maintenace
         thSliceMgr = thread([this]() {
             // get old and active slices
-            this->vTsActive = this->LoadVideoFiles(this->urlOut, this->days, this->numSlices, this->vTsOld);
+            this->vTsActive = this->LoadVideoFiles(this->urlOut, this->hours, this->numSlices, this->vTsOld);
             spdlog::info("evslicer {} will store slice from index: {}", selfId, this->segHead);
             monitor * m = nullptr;
             
