@@ -1,6 +1,6 @@
 {
    "data":{
-      "OLL91IZQ":{
+      "PSBV7GKN":{
          "addr":"127.0.0.1",
          "api-cloud":"http://127.0.0.1:8089",
          "ipcs":[
@@ -14,7 +14,7 @@
                         "iid":1,
                         "post":30,
                         "pre":3,
-                        "sn":"OLL91IZQ",
+                        "sn":"PSBV7GKN",
                         "thresh":80,
                         "type":"motion"
                      }
@@ -25,7 +25,7 @@
                         "iid":1,
                         "enabled": 1,
                         "port-pub":5556,
-                        "sn":"OLL91IZQ"
+                        "sn":"PSBV7GKN"
                      }
                   ],
                   "evpusher":[
@@ -33,9 +33,9 @@
                         "enabled":1,
                         "iid":1,
                         "password":"",
-                        "sn":"OLL91IZQ",
+                        "sn":"PSBV7GKN",
                         "token":"",
-                        "urlDest":"rtsp://40.73.41.176:554/test1",
+                        "urlDest":"rtsp://40.73.41.176:554/PSBV7GKN",
                         "user":""
                      }
                   ],
@@ -44,7 +44,7 @@
                         "enabled":1,
                         "iid":1,
                         "path":"slices",
-                        "sn":"OLL91IZQ"
+                        "sn":"PSBV7GKN"
                      }
                   ]
                },
@@ -52,14 +52,14 @@
                "port":554,
                "proto":"rtsp",
                "user":"admin",
-               "sn": "SN_CAMERA"
+               "sn": "PSBV7GKN"
             }
          ],
          "mqtt-cloud":"<cloud_addr>",
          "port-cloud":5556,
          "port-router":5550,
          "proto":"zmq",
-         "sn":"OLL91IZQ"
+         "sn":"PSBV7GKN"
       }
    },
    "lastupdated":1567669674

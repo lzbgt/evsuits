@@ -75,7 +75,7 @@ private:
         ret["code"] = 0;
         ret["msg"] = "ok";
         ret["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
-        spdlog::info(newConfig.dump());
+        spdlog::info("evcloudsvc POST config:{}",newConfig.dump());
         try {
             json deltaCfg = json();
             if(newConfig.count("data") == 0 || newConfig["data"].size() == 0) {
@@ -188,6 +188,7 @@ private:
                     // update in memory peerData
                     if(this->peerData["config"].count(k) != 0) {
                         json diff = json::diff(this->peerData["config"][k], v);
+                        
                         if(diff.size()!=0) {
                             // send config
                             deltaCfg[k] = 1;
@@ -198,7 +199,10 @@ private:
                         }
                     }else{
                         this->peerData["config"][k] = v;
-                    } 
+                    }
+                    // TODO: important! always send config in case edge config is corrupted.
+                    deltaCfg[k] = 1;
+
                     // TODO: trigger msg
                 } // for evmgr
 
@@ -242,7 +246,7 @@ private:
     bool handleConnection(string selfId) {
         bool ret = false;
         int state = zmq_socket_get_peer_state(pRouter, selfId.data(), selfId.size());
-        spdlog::info("{} state: {}", selfId, state);
+        spdlog::info("evcloudsvc peer {} state: {}", selfId, state);
         if(peerData["status"].count(selfId) == 0 || peerData["status"][selfId] == 0) {
                 peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                 spdlog::info("evcloudsvc peer connected: {}", selfId);
