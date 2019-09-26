@@ -802,7 +802,7 @@ public:
                 // unique_lock<mutex> lk(this->mutEvent);
                 // this->cvEvent.wait(lk, [this] {return !(this->eventQueue.empty());});
                 {
-                    auto lg = lock_guard(this->mutEvent);
+                    lock_guard<mutex> lk(this->mutEvent);
                     if(this->eventQueue.empty()) {
                         this_thread::sleep_for(chrono::seconds(5));
                         continue;
