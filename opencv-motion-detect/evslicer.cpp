@@ -23,6 +23,7 @@ update: 2019/09/10
 #include <ctime>
 #include <functional>
 #include <queue>
+#include <fstream>
 
 #include <cstdlib>
 #include "inc/zmqhelper.hpp"
@@ -804,16 +805,48 @@ public:
                         for(auto &i: v) {
                             string fname = this->urlOut + "/" + i + ".mp4";
                             fileNames.push_back(fname);
-                            sf+="\n\t" + fname;
+                            sf+="file\t" + fname + "\n";
                         }
 
                         spdlog::info("evslicer {} file upload url: {}", selfId, this->videoFileServerApi);
                         // TODO: check result and reschedule it
                         if(netutils::postFiles(std::move(this->videoFileServerApi), std::move(params), std::move(fileNames)) != 0){
-                            spdlog::error("evslicer {} failed to upload files: {}", selfId, sf);
+                            spdlog::error("evslicer {} failed to upload files:\n{}", selfId, sf);
                         }else{
-                            spdlog::info("evslicer {} successfull uploaded files: {}", selfId, sf);
+                            spdlog::info("evslicer {} successfull uploaded files:\n{}", selfId, sf);
                         }
+
+                        #define DEBUG
+                        #ifdef DEBUG
+                        int iret = 0;
+                        string _path1 = string("/tmp/merged_video/") + this->videoFileTs2Name(tss) + "_" + this->videoFileTs2Name(tse);
+                        fs::path _path(_path1 + ".txt");
+                        if(!fs::create_directories(_path.parent_path())) {
+                            spdlog::error("evslicer {} failed to create directory {}", selfId, _path.c_str());
+                            return;
+                        }
+                        ofstream ofs(_path);
+                        ofs << sf;
+                        ofs.close();
+                        AVDictionary * _optsIn, *_optsO;
+                        av_dict_set(&_optsIn, "f", "concat", 0);
+                        av_dict_set(&_optsO, "max_muxing_queue_size", "9999", 0);
+                        AVFormatContext *_pCtx = nullptr;
+                        iret = avformat_open_input(&_pCtx, _path.c_str(), nullptr, &_optsIn);
+                        if(iret < 0) {
+                            spdlog::error("evslicer {} failed to open {}",selfId, _path.c_str());
+                            return;
+                        }
+                        iret = avio_open2(&_pCtx->pb, (_path1 + ".mp4").c_str(), AVIO_FLAG_WRITE, nullptr, &_optsO);
+                        if(iret < 0) {
+                            spdlog::error("evslicer {} failed to write output {}", selfId, (_path1 + ".mp4").c_str());
+                        }
+                        if(_pCtx->pb != nullptr)
+                        avio_closep(&_pCtx->pb);
+                        if(_pCtx != nullptr)
+                        avformat_free_context(_pCtx);
+
+                        #endif
                     }
                 }else{
                     spdlog::error("evslicer {} unkown event :{}", this->selfId, evt);
