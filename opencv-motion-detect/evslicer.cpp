@@ -676,7 +676,7 @@ protected:
         else {
             int idxS, idxE;
             int delta = bSegFull? numSlices : 0;
-            for(int i = segHead + delta; i > _itss; i--) {
+            for(int i = segHead - 1 + delta; i >= _itss; i--) {
                 if(vTsActive[segToIdx(i)] == 0) {
                     continue;
                 }
@@ -826,8 +826,8 @@ public:
                     long offsetE = 0;
                     // TODO: async
 
-                    if(tse < bootTime) {
-                        spdlog::warn("evslicer {} discard old msg {}", selfId, evt);
+                    if(tss < this->bootTime) {
+                        spdlog::warn("evslicer {} discard old msg {}, bootTime {}", selfId, evt, this->bootTime);
                         continue;
                     }
                     this_thread::sleep_for(chrono::seconds(this->seconds + 5));
