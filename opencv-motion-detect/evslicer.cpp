@@ -785,8 +785,7 @@ public:
                 auto evt = this->eventQueue.front();
                 this->eventQueue.pop();
                 json jEvt = json::parse(evt);
-                // TODO: upload video
-                spdlog::info("evslicer processing event: {}", evt);
+
                 if(jEvt["type"] == "event") {
                     auto tss = jEvt["start"].get<long>();
                     auto tse = jEvt["end"].get<long>();
