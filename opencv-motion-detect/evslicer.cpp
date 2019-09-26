@@ -326,7 +326,7 @@ private:
         av_dict_set(&pOptsRemux, "strftime", "1", 0);
         av_dict_set(&pOptsRemux, "segment_format", "mp4", 0);
         av_dict_set(&pOptsRemux, "f", "segment", 0);
-        av_dict_set(&pOptsRemux, "segment_time", to_string(minutes * 60), 0);
+        av_dict_set(&pOptsRemux, "segment_time", to_string(minutes * 60).data(), 0);
         av_dict_set(&pOptsRemux, "segment_wrap", to_string(numSlices).data(), 0);
 
         return ret;
