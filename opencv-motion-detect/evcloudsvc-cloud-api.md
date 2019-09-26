@@ -239,6 +239,7 @@ get value for specified key in cloud db. keys list is queried by /keys api
 - op: on|off
 - ip: string. ip of public accessable host
 - port(optional): number. ssh port of the public accessable host. default 22.
+- port_tun(optional): number. tunnuel port of the public accessable host. default 11222.
 - user: ssh user of the public accessable host
 - password: ssh password of the public accessable host
 ##### return
