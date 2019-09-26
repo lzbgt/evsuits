@@ -106,10 +106,13 @@ private:
                         if(data["type"] == "event") {
                             lock_guard<mutex> lock(this->mutEvent);
                             eventQueue.push(data.dump());
+                            spdlog::info("evslicer {} event num: {}", selfId, eventQueue.size());
                             if(eventQueue.size() > MAX_EVENT_QUEUE_SIZE) {
                                 eventQueue.pop();
                             }
                             //cvEvent.notify_one();
+                        }else{
+                            spdlog::error("evslicer {} msg not supported from {}: {}", selfId, peerId, msg);
                         }
                     }
                 }
@@ -555,9 +558,6 @@ protected:
                 else {
                     tsRing.insert(std::upper_bound(tsRing.begin(), tsRing.end(), ts), ts);
                 }
-
-                //spdlog::info("LoadVideoFiles path {}, s {}, e {}", fname, posS, posE);
-                //ts2fileName[ts] = baseName;
             }
         }
         catch(exception &e) {
@@ -668,13 +668,6 @@ protected:
             _itss = segHead;
         }
 
-        for(int i = 0; i < numSlices; i++) {
-            spdlog::info("evslicer {} vector[{}] = {}, {}", selfId, i, vTsActive[i], videoFileTs2Name(vTsActive[i]));
-            if(vTsActive[i] == 0) {
-                break;
-            }
-        }
-
         if(vTsActive[_itss] >= tse || vTsActive[segHead -1] < tss||(!bSegFull && segHead == 0)) {
             spdlog::error("evslicer {} findSlicesByRange event range ({},{}) is not in recorded range ({}, {})", selfId, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse), this->videoFileTs2Name(vTsActive[_itss]), this->videoFileTs2Name(vTsActive[segHead -1]));
         }
@@ -720,6 +713,17 @@ protected:
         }
 
         return ret;
+    }
+
+    void printSlices(){
+        for(int i = 0; i < numSlices; i++) {
+            spdlog::info("evslicer {} vector[{}] = {}, {}", selfId, i, vTsActive[i], videoFileTs2Name(vTsActive[i]));
+            if(vTsActive[i] == 0) {
+                break;
+            }
+        }
+
+        spdlog::info("evslicer {} segHead: {}, full: {}", selfId, segHead, bSegFull);
     }
 
 public:
@@ -826,6 +830,7 @@ public:
                         spdlog::error("evslicer {} ignore upload videos in range ({}, {})", this->selfId, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse));
                     }
                     else {
+                        printSlices();
                         vector<tuple<string, string> > params= {{"startTime", to_string(tss)},{"endTime", to_string(tse)},{"cameraId", ipcSn}, {"headOffset", to_string(offsetS)},{"tailOffset", to_string(offsetE)}};
                         vector<string> fileNames;
                         string sf;
@@ -842,43 +847,6 @@ public:
                         }
                         else {
                             spdlog::info("evslicer {} successfull uploaded files:\n{}", selfId, sf);
-#undef DEBUG
-#ifdef DEBUG
-                            int iret = 0;
-                            string _path1 = string("/tmp/merged_video/") + this->videoFileTs2Name(tss) + "_" + this->videoFileTs2Name(tse);
-                            fs::path _path(_path1 + ".txt");
-                            if(!fs::create_directories(_path.parent_path())) {
-                                spdlog::error("evslicer {} failed to create directory {}", selfId, _path.c_str());
-                                return;
-                            }
-                            ofstream ofs(_path);
-                            ofs << sf;
-                            ofs.close();
-                            AVDictionary * _optsIn, *_optsO;
-                            av_dict_set(&_optsIn, "f", "concat", 0);
-                            av_dict_set(&_optsO, "max_muxing_queue_size", "9999", 0);
-                            AVFormatContext *_pCtx = nullptr;
-                            iret = avformat_open_input(&_pCtx, _path.c_str(), nullptr, &_optsIn);
-                            if(iret < 0) {
-                                spdlog::error("evslicer {} failed to open {}",selfId, _path.c_str());
-                                return;
-                            }
-                            iret = avio_open2(&_pCtx->pb, (_path1 + ".mp4").c_str(), AVIO_FLAG_WRITE, nullptr, &_optsO);
-                            if(iret < 0) {
-                                spdlog::error("evslicer {} failed to write output {}", selfId, (_path1 + ".mp4").c_str());
-                            }
-                            AVPacket pkt;
-                            while(av_read_frame(_pCtx, &pkt)>=0) {
-                                iret = av_interleaved_write_frame(_pCtx, &pkt);
-                                av_packet_unref(&pkt);
-                            }
-                            av_write_trailer(_pCtx);
-                            if(_pCtx->pb != nullptr)
-                                avio_closep(&_pCtx->pb);
-                            if(_pCtx != nullptr)
-                                avformat_free_context(_pCtx);
-
-#endif
                         }
                     }
                 }
