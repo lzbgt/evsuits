@@ -796,7 +796,7 @@ public:
                     this_thread::sleep_for(chrono::seconds(25));
                     auto v = findSlicesByRange(tss, tse, offsetS, offsetE);
                     if(v.size() == 0) {
-                        spdlog::error("evslicer {} can't find slices by range: {}, {}", this->selfId, tss, tse);
+                        spdlog::error("evslicer {} ignore upload videos in range ({}, {})", this->selfId, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse));
                     }else{
                         vector<tuple<string, string> > params= {{"startTime", to_string(tss)},{"endTime", to_string(tse)},{"cameraId", ipcSn}, {"headOffset", to_string(offsetS)},{"tailOffset", to_string(offsetE)}};
                         vector<string> fileNames;
