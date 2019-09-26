@@ -803,7 +803,7 @@ public:
                         this_thread::sleep_for(chrono::seconds(5));
                         continue;
                     }
-                    auto evt = this->eventQueue.front();
+                    evt = this->eventQueue.front();
                     this->eventQueue.pop();
                 }
                 
@@ -818,7 +818,7 @@ public:
                     static auto bootTime = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                     if(tse < bootTime) {
                         spdlog::warn("evslicer {} discard old msg {}", selfId, evt);
-                        return;
+                        continue;
                     }
                     this_thread::sleep_for(chrono::seconds(this->seconds + 5));
                     auto v = findSlicesByRange(tss, tse, offsetS, offsetE);
