@@ -111,7 +111,7 @@ private:
                             if(eventQueue.size() > MAX_EVENT_QUEUE_SIZE) {
                                 eventQueue.pop();
                             }
-                            //cvEvent.notify_one();
+                            cvEvent.notify_one();
                         }else{
                             spdlog::error("evslicer {} msg not supported from {}: {}", selfId, peerId, msg);
                         }
@@ -805,19 +805,15 @@ public:
             while(true)
             {
                 string evt;
-                // unique_lock<mutex> lk(this->mutEvent);
-                // this->cvEvent.wait(lk, [this] {return !(this->eventQueue.empty());});
+                unique_lock<mutex> lk(this->mutEvent);
+                this->cvEvent.wait(lk, [this] {return !(this->eventQueue.empty());});
                 
-                if(!this->eventQueue.empty()){
-                    lock_guard<mutex> lk(this->mutEvent);
-                    if(!this->eventQueue.empty()) {
-                        evt = this->eventQueue.front();
-                        this->eventQueue.pop();
-                    }     
+                if(!this->eventQueue.empty()) {
+                    evt = this->eventQueue.front();
+                    this->eventQueue.pop();
                 }
 
                 if(evt.empty()){
-                    this_thread::sleep_for(chrono::seconds(5));
                     continue;
                 }  
                 
