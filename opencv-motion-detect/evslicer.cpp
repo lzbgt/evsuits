@@ -636,6 +636,10 @@ protected:
                 try {
                     auto baseName = self->getBaseName(lastFile);
                     auto ts = self->videoFileName2Ts(baseName);
+                    if(ts == -1) {
+                        spdlog::error("evslicer {} fileMonHandler failed to process file: {}", self->selfId, lastFile);
+                        continue;
+                    }
                     auto oldTs = self->vTsActive[self->segHead];
                     self->vTsActive[self->segHead] = ts;
                     self->segHead++;
