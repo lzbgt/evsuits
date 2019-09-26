@@ -801,15 +801,19 @@ public:
                 string evt;
                 // unique_lock<mutex> lk(this->mutEvent);
                 // this->cvEvent.wait(lk, [this] {return !(this->eventQueue.empty());});
-                {
+                
+                if(!this->eventQueue.empty()){
                     lock_guard<mutex> lk(this->mutEvent);
-                    if(this->eventQueue.empty()) {
-                        this_thread::sleep_for(chrono::seconds(5));
-                        continue;
-                    }
-                    evt = this->eventQueue.front();
-                    this->eventQueue.pop();
+                    if(!this->eventQueue.empty()) {
+                        evt = this->eventQueue.front();
+                        this->eventQueue.pop();
+                    }     
                 }
+
+                if(evt.empty()){
+                    this_thread::sleep_for(chrono::seconds(5));
+                    continue;
+                }  
                 
                 json jEvt = json::parse(evt);
 
