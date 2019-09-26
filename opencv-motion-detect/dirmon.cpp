@@ -9,7 +9,7 @@ int CreateDirMon(monitor **m, string path, string ext, vector<string> &&events, 
              fsw_monitor_type::system_default_monitor_type,
              paths,
              cb, pUserData);
-    (*m)->set_latency(1.1);
+    (*m)->set_latency(2);
     (*m)->set_filters(flt);
     (*m)->start();
     return 0;
