@@ -40,12 +40,12 @@ class EvSlicer: public TinyThread {
 private:
 #define URLOUT_DEFAULT "slices"
 #define NUM_HOURS_DEFAULT 2
-#define MINUTES_PER_SLICE_DEFAULT 2
-// 2 hours, 2 minutes per record
+#define SECONDS_PER_SLICE_DEFAULT 30
+// 2 hours, 30 seconds per record
     void *pSubCtx = nullptr, *pDealerCtx = nullptr; // for packets relay
     void *pSub = nullptr, *pDealer = nullptr, *pDaemonCtx = nullptr, *pDaemon = nullptr;
     string urlOut, urlPub, urlRouter, devSn, mgrSn, selfId, pullerGid, ipcSn;
-    int iid, hours, minutes, numSlices, segHead = 0, segHeadP;
+    int iid, hours, seconds, numSlices, segHead = 0, segHeadP;
     bool enablePush = false, bSegFull = false;
     AVFormatContext *pAVFormatRemux = nullptr;
     AVFormatContext *pAVFormatInput = nullptr;
@@ -187,15 +187,15 @@ private:
                 hours = evslicer["hours"].get<int>();
             }
 
-            if(evslicer.count("minutes") == 0) {
-                spdlog::info("evslicer {} no params for minutes, using default: {}", selfId, MINUTES_PER_SLICE_DEFAULT);
-                minutes = MINUTES_PER_SLICE_DEFAULT;
+            if(evslicer.count("seconds") == 0) {
+                spdlog::info("evslicer {} no params for seconds, using default: {}", selfId, SECONDS_PER_SLICE_DEFAULT);
+                seconds = SECONDS_PER_SLICE_DEFAULT;
             }
             else {
-                minutes = evslicer["minutes"].get<int>();
+                seconds = evslicer["seconds"].get<int>();
             }
 
-            numSlices = hours * 60 /minutes;
+            numSlices = hours * 60 * 60 /seconds;
 
             spdlog::info("evslicer mkdir -p {}", selfId, urlOut);
             ret = system((string("mkdir -p ") + urlOut).c_str());
@@ -326,7 +326,7 @@ private:
         av_dict_set(&pOptsRemux, "strftime", "1", 0);
         av_dict_set(&pOptsRemux, "segment_format", "mp4", 0);
         av_dict_set(&pOptsRemux, "f", "segment", 0);
-        av_dict_set(&pOptsRemux, "segment_time", to_string(minutes * 60).data(), 0);
+        av_dict_set(&pOptsRemux, "segment_time", to_string(seconds).data(), 0);
         av_dict_set(&pOptsRemux, "segment_wrap", to_string(numSlices).data(), 0);
 
         return ret;
@@ -793,7 +793,7 @@ public:
                     long offsetS = 0;
                     long offsetE = 0;
                     // TODO: async
-                    this_thread::sleep_for(chrono::seconds(this->minutes*60 + 9));
+                    this_thread::sleep_for(chrono::seconds(this->seconds + 5));
                     auto v = findSlicesByRange(tss, tse, offsetS, offsetE);
                     if(v.size() == 0) {
                         spdlog::error("evslicer {} ignore upload videos in range ({}, {})", this->selfId, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse));
