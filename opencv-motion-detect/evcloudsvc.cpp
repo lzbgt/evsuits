@@ -44,6 +44,39 @@ private:
     mutex eventQLock;
     thread thMsgProcessor;
 
+    void loadConfigMap(){
+        // load configmap
+        json cnfm;
+        int ret = LVDB::getValue(cnfm, KEY_CONFIG_MAP);
+        if(ret < 0 || cnfm.size() == 0) {
+            this->configMap["sn2mods"] = json();
+            this->configMap["mod2mgr"] = json();
+
+            int iret = LVDB::setValue(this->configMap, KEY_CONFIG_MAP);
+            if(iret >= 0) {
+            }
+            else {
+                spdlog::error("evcloudsvc failed to save configmap");
+                exit(1);
+            }
+        }
+        else {
+            this->configMap = cnfm;
+        }
+
+        // populate peerData
+        for(auto &[k,v]: this->configMap["sn2mods"].items()){
+            // load config from database
+            json cfg;
+            if(LVDB::getLocalConfig(cfg, k) < 0) {
+                spdlog::error("evcloudsvc failed to load config for device: {}", k);
+            }else{
+                this->peerData["config"][k] = cfg;
+                spdlog::info("evcloudsvc loaded config for device: {}", k);
+            }
+        }
+    }
+
     int sendConfig(json &config_, string sn) {
         int ret = 0;
         string cfg = config_.dump();
@@ -426,37 +459,6 @@ protected:
 public:
     void run()
     {
-        // load configmap
-        json cnfm;
-        int ret = LVDB::getValue(cnfm, KEY_CONFIG_MAP);
-        if(ret < 0 || cnfm.size() == 0) {
-            this->configMap["sn2mods"] = json();
-            this->configMap["mod2mgr"] = json();
-
-            int iret = LVDB::setValue(this->configMap, KEY_CONFIG_MAP);
-            if(iret >= 0) {
-            }
-            else {
-                spdlog::error("evcloudsvc failed to save configmap");
-                exit(1);
-            }
-        }
-        else {
-            this->configMap = cnfm;
-        }
-
-        // populate peerData
-        for(auto &[k,v]: this->configMap["sn2mods"].items()){
-            // load config from database
-            json cfg;
-            if(LVDB::getLocalConfig(cfg, k) < 0) {
-                spdlog::error("evcloudsvc failed to load config for device: {}", k);
-            }else{
-                this->peerData["config"][k] = cfg;
-                spdlog::info("evcloudsvc loaded config for device: {}", k);
-            }
-        }
-
         svr.Get("/config", [this](const Request& req, Response& res) {
             json ret;
             ret["code"] = 0;
@@ -579,6 +581,7 @@ public:
     {
         int ret = 0;
         spdlog::info("evcloudsvc boot");
+        loadConfigMap();
         char *strEnv = getenv("HTTP_PORT");
         if(strEnv != nullptr) {
             httpPort = strEnv;
