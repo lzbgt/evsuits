@@ -47,6 +47,7 @@ private:
     void *pSub = nullptr, *pDealer = nullptr, *pDaemonCtx = nullptr, *pDaemon = nullptr;
     string urlOut, urlPub, urlRouter, devSn, mgrSn, selfId, pullerGid, ipcSn;
     int iid, hours, seconds, numSlices, segHead = 0, segHeadP;
+    long bootTime = 0;
     bool enablePush = false, bSegFull = false;
     AVFormatContext *pAVFormatRemux = nullptr;
     AVFormatContext *pAVFormatInput = nullptr;
@@ -407,6 +408,7 @@ protected:
                 spdlog::error("evslicer {} error occurred when opening output file", selfId);
             }
 
+            bootTime = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
             spdlog::info("evslicer {} start writing new slices", selfId);
             int pktIgnore = 0;
             while(true) {
@@ -823,7 +825,7 @@ public:
                     long offsetS = 0;
                     long offsetE = 0;
                     // TODO: async
-                    static auto bootTime = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+
                     if(tse < bootTime) {
                         spdlog::warn("evslicer {} discard old msg {}", selfId, evt);
                         continue;
