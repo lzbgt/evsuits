@@ -505,13 +505,14 @@ protected:
         return mktime(&t);
     }
 
-    string videoFileTs2Name(long ts) {
+    string videoFileTs2Name(long ts, bool bLog = false) {
         std::time_t now = ts;
         std::tm * ptm = std::localtime(&now);
         char buffer[20];
         // Format: Mo, 15.06.2009 20:20:00
         std::strftime(buffer, 20, "%Y%m%d_%H%M%S", ptm);
-        spdlog::info("ts: {}, fname: {}", ts, buffer);
+        if(bLog)
+            spdlog::info("ts: {}, fname: {}/{}.mp4", ts, this->urlOut, buffer);
         return string(buffer);
     }
 
@@ -693,8 +694,8 @@ protected:
                 for(int i = idxS; i <= idxE; i++){
                     int idx = segToIdx(i);
                     long ts = vTsActive[idx];
-                    string fname = videoFileTs2Name(ts);
-                    sf += "\t" +fname + ", " + to_string(ts) + ", " + to_string(idx) + "\n";
+                    string fname = videoFileTs2Name(ts, true);
+                    sf += "\n\t" + this->urlOut + "/" + fname + ".mp4, " + to_string(ts) + ", " + to_string(idx);
                     ret.push_back(fname);
                 }
                 spdlog::info("evslicer {} event {} - {} files to upload: {}", selfId, videoFileTs2Name(tss), videoFileTs2Name(tse), sf);
@@ -799,15 +800,19 @@ public:
                     }else{
                         vector<tuple<string, string> > params= {{"startTime", to_string(tss)},{"endTime", to_string(tse)},{"cameraId", ipcSn}, {"headOffset", to_string(offsetS)},{"tailOffset", to_string(offsetE)}};
                         vector<string> fileNames;
+                        string sf;
                         for(auto &i: v) {
                             string fname = this->urlOut + "/" + i + ".mp4";
                             fileNames.push_back(fname);
+                            sf+="\n\t" + fname;
                         }
 
                         spdlog::info("evslicer {} file upload url: {}", selfId, this->videoFileServerApi);
                         // TODO: check result and reschedule it
                         if(netutils::postFiles(std::move(this->videoFileServerApi), std::move(params), std::move(fileNames)) != 0){
-                            spdlog::error("evslicer {} failed to upload files", selfId);
+                            spdlog::error("evslicer {} failed to upload files: {}", selfId, sf);
+                        }else{
+                            spdlog::info("evslicer {} successfull uploaded files: {}", selfId, sf);
                         }
                     }
                 }else{
