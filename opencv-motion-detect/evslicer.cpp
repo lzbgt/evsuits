@@ -653,7 +653,7 @@ protected:
         }
 
         for(int i = 0; i < numSlices; i++){
-            spdlog::info("evslicer {} vector[{}] = {}", selfId, i, vTsActive[i]);
+            spdlog::info("evslicer {} vector[{}] = {}, {}", selfId, i, vTsActive[i], videoFileTs2Name(vTsActive[i]));
             if(vTsActive[i] == 0) {
                 break;
             }
@@ -793,7 +793,7 @@ public:
                     long offsetS = 0;
                     long offsetE = 0;
                     // TODO: async
-                    this_thread::sleep_for(chrono::seconds(25));
+                    this_thread::sleep_for(chrono::seconds(this->minutes*60 + 9));
                     auto v = findSlicesByRange(tss, tse, offsetS, offsetE);
                     if(v.size() == 0) {
                         spdlog::error("evslicer {} ignore upload videos in range ({}, {})", this->selfId, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse));
