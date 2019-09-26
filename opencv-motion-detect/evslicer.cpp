@@ -616,6 +616,13 @@ protected:
 
         auto self = static_cast<EvSlicer*>(pUserData);
         for(auto &i : evts) {
+            string fullPath = i.get_path();
+            string ext = ".mp4";
+            size_t pos = fullPath.find(ext, 0);
+            if(fullPath.size() < ext.size() ||  pos == string::npos || pos != (fullPath.size() - ext.size())){
+                spdlog::debug("evslicer {} invalid file : {}", self->selfId, fullPath);
+                continue;
+            }
             if(lastFile == i.get_path()) {
                 // skip
             }
