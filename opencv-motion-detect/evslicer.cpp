@@ -660,7 +660,7 @@ protected:
         }
 
         if(vTsActive[_itss] >= tse || vTsActive[segHead -1] < tss||(!bSegFull && segHead == 0)) {
-            spdlog::error("evslicer {} findSlicesByRange range ({},{}) is not in ({}, {})", selfId, tss, tse, vTsActive[_itss], vTsActive[segHead -1]);
+            spdlog::error("evslicer {} findSlicesByRange event range ({},{}) is not in recorded range ({}, {})", selfId, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse), this->videoFileTs2Name(vTsActive[_itss]), this->videoFileTs2Name(vTsActive[segHead -1]));
         }else{
             int idxS, idxE;
             int delta = bSegFull? numSlices : 0;
