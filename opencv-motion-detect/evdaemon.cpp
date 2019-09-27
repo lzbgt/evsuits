@@ -108,6 +108,7 @@ private:
                         // nop
                     }
                     this->peerData["enabled"][peerId] = 1;
+                    spdlog::info("evdaemon {} config for submodule {} loaded", devSn, peerId);
                 }
 
                 // startup other submodules
@@ -139,6 +140,9 @@ private:
                             }else{
                                 // nop
                             }
+
+                            spdlog::info("evdaemon {} config for submodule {} loaded", devSn, peerId);
+
                         }
                     }
                 }
@@ -266,13 +270,14 @@ private:
                 peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                 spdlog::info("evdaemon {} peer connected: {}", devSn, selfId);
                 eventConn = true;
-                spdlog::debug("evdaemon {} update status of {} to 1 and send config", devSn, selfId);
                 string cfg = peerData["config"][selfId].dump();
+                spdlog::debug("evdaemon {} peer {} config is: {}", devSn, selfId, cfg);
                 json j;
                 j["type"] = EV_MSG_META_CONFIG;
                 string meta = j.dump();
                 vector<vector<uint8_t> > v = {str2body(selfId), str2body(this->daemonId), str2body(meta), str2body(cfg)};
                 z_send_multiple(pRouter, v);
+                spdlog::info("evdaemon {} peer {} config sent: {}", devSn ,selfId, cfg);
             }
             else {
                 peerData["status"][selfId] = 0;
@@ -535,6 +540,10 @@ public:
 
     EvDaemon()
     {
+         /// peerId -> value
+        peerData["status"] = json();
+        peerData["pids"] = json();
+        peerData["config"] = json();
         int ret = 0;
         string dir_ = string("mkdir -p ") + EV_FILE_LVDB_DAEMON;
         system(dir_.c_str());
@@ -571,8 +580,8 @@ public:
         else {
             this->config = cfg;
             // load localconfig
-            this->reloadCfg();
             spdlog::info("evdaemon {} local config: {}", devSn, cfg.dump());
+            this->reloadCfg();
         }
 
         // zmq router port
@@ -636,11 +645,6 @@ public:
         ping(pDealer);
 
         this->thIdMain = this_thread::get_id();
-
-        /// peerId -> value
-        peerData["status"] = json();
-        peerData["pids"] = json();
-        peerData["config"] = json();
     };
     ~EvDaemon() {};
 };
