@@ -46,7 +46,7 @@ private:
     void *pSubCtx = nullptr, *pDealerCtx = nullptr; // for packets relay
     void *pSub = nullptr, *pDealer = nullptr, *pDaemonCtx = nullptr, *pDaemon = nullptr;
     string urlOut, urlPub, urlRouter, devSn, mgrSn, selfId, pullerGid, ipcSn;
-    int iid, hours, seconds, numSlices, segHead = 0, segHeadP;
+    int iid, hours, seconds, numSlices, segHead = 0, segHeadP = 0;
     long bootTime = 0;
     bool enablePush = false, bSegFull = false;
     AVFormatContext *pAVFormatRemux = nullptr;
