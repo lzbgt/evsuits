@@ -582,6 +582,7 @@ public:
             // load localconfig
             spdlog::info("evdaemon {} local config: {}", devSn, cfg.dump());
             this->reloadCfg();
+            this->startSubSystems();
         }
 
         // zmq router port
