@@ -90,8 +90,8 @@ private:
             }
         }
         catch(exception &e) {
-            spdlog::error("evmgr {} exception on init() for: {}, retrying load configuration...", devSn, e.what());
-            this_thread::sleep_for(chrono::seconds(3));
+            spdlog::error("evmgr {} exception on init() for: {}. abort booting up.", devSn, e.what());
+            exit(1);
         }
         
         spdlog::info("evmgr {} successfuly inited", devSn);
