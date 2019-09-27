@@ -215,8 +215,20 @@ private:
     {
         int ret = 0;
         AVDictionary *pOptsRemux = nullptr;
-
-        ret = avformat_alloc_output_context2(&pAVFormatRemux, NULL, "rtsp", urlOut.c_str());
+        string proto = urlOut.substr(0, 4);
+        if(proto == "rtsp") {
+            // rtsp tcp
+            if(av_dict_set(&pOptsRemux, "rtsp_transport", "tcp", 0) < 0) {
+                spdlog::error("evpusher {} {} failed set output pOptsRemux", devSn, iid);
+                ret = AVERROR_UNKNOWN;
+            }
+            ret = avformat_alloc_output_context2(&pAVFormatRemux, nullptr, "rtsp", urlOut.c_str());
+        }else if(proto == "rtmp"){
+            ret = avformat_alloc_output_context2(&pAVFormatRemux, nullptr, "rtmp", urlOut.c_str());
+        }else{
+            ret = avformat_alloc_output_context2(&pAVFormatRemux, nullptr, nullptr, urlOut.c_str());
+        }
+        
         if (ret < 0) {
             spdlog::error("evpusher {} {} failed create avformatcontext for output: %s", devSn, iid, av_err2str(ret));
             exit(1);
@@ -268,12 +280,6 @@ private:
                 spdlog::error("evpusher {} {} could not open output file '%s'", devSn, iid, urlOut);
                 exit(1);
             }
-        }
-
-        // rtsp tcp
-        if(av_dict_set(&pOptsRemux, "rtsp_transport", "tcp", 0) < 0) {
-            spdlog::error("evpusher {} {} failed set output pOptsRemux", devSn, iid);
-            ret = AVERROR_UNKNOWN;
         }
 
         ret = avformat_write_header(pAVFormatRemux, &pOptsRemux);
