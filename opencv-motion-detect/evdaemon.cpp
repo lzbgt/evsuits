@@ -175,7 +175,7 @@ private:
         }
     }
 
-    int startSubSystems()
+    int startSubSystems(vector<string> v = {})
     {
         // check status and startup
         std::lock_guard<std::mutex> lock(mutSubsystem);
