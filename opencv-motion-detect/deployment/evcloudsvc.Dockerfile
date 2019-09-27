@@ -10,6 +10,8 @@ curl -OL https://github.com/lzbgt/opencv-pocs/releases/download/v0.9.9-1/libstdc
 chmod +x ./evcloudsvc && tar xf docker-centos7_libs.tar --strip-components=1 -C ./ && \
 tar xf libstdcxx-centos7.tar --strip-components=1 -C ./lib64 && \
 rm -fr *.tar
+RUN yum install -y --nogpgcheck libatomic && yum clean all && \
+    rm -rf /var/cache/yum
 EXPOSE 8089 5548
 
 CMD ["/apps/evcloudsvc"]
