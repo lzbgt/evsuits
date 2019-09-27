@@ -244,11 +244,13 @@ protected:
         spdlog::info("evpuller {} openning stream: {}", selfId, urlIn);
         if ((ret = avformat_open_input(&pAVFormatInput, urlIn.c_str(), NULL, &optsIn)) < 0) {
             spdlog::error("evpuller {} Could not open input stream {}", selfId, urlIn);
+            exit(1);
         }
 
         spdlog::info("evpuller {} finding stream info: {}", selfId, urlIn);
         if ((ret = avformat_find_stream_info(pAVFormatInput, NULL)) < 0) {
             spdlog::error("evpuller {} Failed to retrieve input stream information", selfId);
+            exit(1);
         }
 
         //pAVFormatInput->flags = AVFMT_FLAG_NOBUFFER | AVFMT_FLAG_FLUSH_PACKETS;
