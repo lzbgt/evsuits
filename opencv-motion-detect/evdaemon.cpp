@@ -570,6 +570,8 @@ public:
         }
         else {
             this->config = cfg;
+            // load localconfig
+            this->reloadCfg();
             spdlog::info("evdaemon {} local config: {}", devSn, cfg.dump());
         }
 
