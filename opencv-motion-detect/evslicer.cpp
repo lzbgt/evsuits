@@ -533,8 +533,8 @@ protected:
 
     vector<long> LoadVideoFiles(string path, int hours, int maxSlices, vector<long> &tsNeedUpload)
     {
-        vector<long> v = vector<long>(maxSlices);
-        tsNeedUpload = vector<long>(maxSlices);
+        vector<long> v = vector<long>(maxSlices, 0);
+        tsNeedUpload = vector<long>(maxSlices, 0);
         // get current timestamp
         list<long> tsRing;
         list<long>tsToProcess;
@@ -595,6 +595,10 @@ protected:
             if(idx < skip) {
                 idx++;
                 pos++;
+                // remove
+                fs::path fname(this->urlOut + "/" +  videoFileTs2Name(i) + ".mp4");
+                fs::remove(fname);
+
                 continue;
             }
             tsNeedUpload[segHeadP] = i;
@@ -648,6 +652,10 @@ protected:
                         continue;
                     }
                     auto oldTs = self->vTsActive[self->segHead];
+                    if(oldTs != 0) {
+                        fs::path fname(self->urlOut + "/" +  self->videoFileTs2Name(oldTs) + ".mp4");
+                        fs::remove(fname);
+                    }
                     self->vTsActive[self->segHead] = ts;
                     self->segHead++;
                     //spdlog::info("evslicer {} fileMonHandler video seg done: {}/{}.mp4, ts:{}", self->selfId, self->urlOut, baseName, ts);
