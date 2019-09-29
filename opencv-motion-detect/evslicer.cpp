@@ -592,7 +592,7 @@ protected:
         idx = 0;
         pos = tsToProcess.begin();
         for(auto &i:tsToProcess) {
-                           // remove
+            // remove
             fs::path fname(this->urlOut + "/" +  videoFileTs2Name(i) + ".mp4");
             fs::remove(fname);
             if(idx < skip) {
