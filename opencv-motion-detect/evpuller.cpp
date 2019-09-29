@@ -55,7 +55,8 @@ private:
                 ret = z_send_multiple(pDealer, rep);
                 if(ret < 0) {
                     spdlog::error("evpuller {} failed to send avformatctx data to requester {}: {}", selfId, peerId, zmq_strerror(zmq_errno()));
-                }else{
+                }
+                else {
                     spdlog::info("evpuller {} success to send avformatctx data to requester {}", selfId, peerId);
                 }
             }
@@ -103,9 +104,10 @@ public:
     RepSrv(RepSrv&&) = delete;
     RepSrv(string mgrSn, string devSn, int iid, const char* formatBytes,
            int len, void *pDealer):mgrSn(mgrSn),devSn(devSn), iid(iid), bytes(formatBytes),
-        len(len), pDealer(pDealer) {
-            selfId = devSn+":evpuller:" + to_string(iid);
-        };
+        len(len), pDealer(pDealer)
+    {
+        selfId = devSn+":evpuller:" + to_string(iid);
+    };
 
     ~RepSrv() {};
 };
@@ -126,13 +128,14 @@ private:
     string drport = "5549";
 
 
-    bool isIpStr(string ip) {
+    bool isIpStr(string ip)
+    {
         int cnt = 3*4 + 3;
         if(ip.size() == 0 || ip.size() > cnt) {
             return false;
         }
         auto v = strutils::split(ip, '.');
-        if(v.size() == 0 || v.size () != 4){
+        if(v.size() == 0 || v.size () != 4) {
             return false;
         }
 
@@ -154,7 +157,7 @@ private:
     int init()
     {
         bool inited = false;
-        int ret = 0;   
+        int ret = 0;
         bool found = false;
         string user, passwd, addr;
         try {
@@ -180,7 +183,7 @@ private:
             if(ipc.size()!=0 && evpuller.size()!=0) {
                 found = true;
             }
-           
+
 
             if(!found) {
                 spdlog::error("evpuller {} no valid config found", devSn);
@@ -194,27 +197,29 @@ private:
             // default stream port
             if(ipc.count("port") == 0) {
                 ipcPort = "554";
-            }else{
+            }
+            else {
                 ipcPort = to_string(ipc["port"]);
             }
 
             string ipcAddr = ipc["addr"].get<string>();
-            if(isIpStr(ipcAddr)){
+            if(isIpStr(ipcAddr)) {
                 string chan = "ch1";
                 string streamName = "main";
-                if(ipc.count("channel") != 0 && !ipc["channel"].get<string>().empty()){
+                if(ipc.count("channel") != 0 && !ipc["channel"].get<string>().empty()) {
                     chan = ipc["channel"].get<string>();
                 }
-                if(ipc.count("streamName") != 0 && !ipc["streamName"].get<string>().empty()){
+                if(ipc.count("streamName") != 0 && !ipc["streamName"].get<string>().empty()) {
                     streamName = ipc["streamName"].get<string>();
                 }
 
-                if(ipc.count("proto") != 0 && !ipc["proto"].get<string>().empty()){
+                if(ipc.count("proto") != 0 && !ipc["proto"].get<string>().empty()) {
                     proto = ipc["proto"];
                 }
-                
+
                 urlIn = proto + "://" + user + ":" + passwd + "@" + ipc["addr"].get<string>() + ":" + ipcPort + "/h264/" + chan + "/" + streamName + "/av_stream";
-            }else{
+            }
+            else {
                 urlIn = ipcAddr;
             }
 
@@ -249,7 +254,7 @@ private:
                 exit(1);
             }
             ret = zmq_connect(pDealer, urlDealer.c_str());
-            if(ret < 0) {    
+            if(ret < 0) {
                 spdlog::error("evpuller {} failed to connect to router {}", selfId, urlDealer);
                 exit(1);
             }
@@ -277,10 +282,11 @@ protected:
         string proto = urlIn.substr(0,4);
         if(proto == "rtsp") {
             av_dict_set(&optsIn, "rtsp_transport", "tcp", 0);
-        }else{
+        }
+        else {
             //
         }
-        
+
         spdlog::info("evpuller {} openning stream: {}", selfId, urlIn);
         if ((ret = avformat_open_input(&pAVFormatInput, urlIn.c_str(), NULL, &optsIn)) < 0) {
             spdlog::error("evpuller {} Could not open input stream {}", selfId, urlIn);
@@ -396,7 +402,8 @@ public:
             }
             devSn = v[0];
             iid = stoi(v[2]);
-        }else{
+        }
+        else {
             spdlog::error("evpuller {} failed to start. no SN set", selfId);
             exit(1);
         }
@@ -411,7 +418,7 @@ public:
 
         ret = zmqhelper::recvConfigMsg(pDaemon, config, addr, selfId);
         if(ret != 0) {
-            spdlog::error("evpuller {} failed to receive configration message {}", selfId , addr);
+            spdlog::error("evpuller {} failed to receive configration message {}", selfId, addr);
         }
         init();
     }

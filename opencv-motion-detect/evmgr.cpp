@@ -83,9 +83,10 @@ private:
             }
             spdlog::info("evmgr {} bind success to {}", devSn, addr);
             inited = true;
-        error_exit:
+error_exit:
             if(inited) {
-            }else{
+            }
+            else {
                 exit(1);
             }
         }
@@ -93,7 +94,7 @@ private:
             spdlog::error("evmgr {} exception on init() for: {}. abort booting up.", devSn, e.what());
             exit(1);
         }
-        
+
         spdlog::info("evmgr {} successfuly inited", devSn);
     }
 
@@ -285,7 +286,8 @@ public:
             }
 
             devSn = v[0];
-        }else{
+        }
+        else {
             spdlog::error("evmgr failed to start. no SN set");
             exit(1);
         }
@@ -301,9 +303,9 @@ public:
 
         ret = zmqhelper::recvConfigMsg(pDealer, config, addr, ident);
         if(ret != 0) {
-            spdlog::error("evmgr {} failed to receive configration message {}", devSn , addr);
+            spdlog::error("evmgr {} failed to receive configration message {}", devSn, addr);
         }
-        
+
         init();
     }
     ~EvMgr()

@@ -44,7 +44,8 @@ private:
     mutex eventQLock;
     thread thMsgProcessor;
 
-    void loadConfigMap(){
+    void loadConfigMap()
+    {
         // load configmap
         json cnfm;
         int ret = LVDB::getValue(cnfm, KEY_CONFIG_MAP);
@@ -65,19 +66,21 @@ private:
         }
 
         // populate peerData
-        for(auto &[k,v]: this->configMap["sn2mods"].items()){
+        for(auto &[k,v]: this->configMap["sn2mods"].items()) {
             // load config from database
             json cfg;
             if(LVDB::getLocalConfig(cfg, k) < 0) {
                 spdlog::error("evcloudsvc failed to load config for device: {}", k);
-            }else{
+            }
+            else {
                 this->peerData["config"][k] = cfg;
                 spdlog::info("evcloudsvc loaded config for device: {}", k);
             }
         }
     }
 
-    int sendConfig(json &config_, string sn) {
+    int sendConfig(json &config_, string sn)
+    {
         int ret = 0;
         string cfg = config_.dump();
         json j;
@@ -93,10 +96,10 @@ private:
         //         cachedMsg[sn].pop();
         //     }
         // }else{
-            ret = z_send_multiple(pRouter, v);
-            spdlog::info("evcloudsvc config sent to {}: {}", sn, cfg);
+        ret = z_send_multiple(pRouter, v);
+        spdlog::info("evcloudsvc config sent to {}: {}", sn, cfg);
         //}
-        
+
         return ret;
     }
 
@@ -169,19 +172,20 @@ private:
                                                 }
                                                 // check exist
                                                 bool hasModKey =false;
-                                                for(auto &modKey_:this->configMap["sn2mods"][sn]){
+                                                for(auto &modKey_:this->configMap["sn2mods"][sn]) {
                                                     if(modKey_ == modKey) {
                                                         hasModKey = true;
                                                         break;
                                                     }
                                                 }
 
-                                                if(hasModKey){
+                                                if(hasModKey) {
                                                     //nop
-                                                }else{
+                                                }
+                                                else {
                                                     this->configMap["sn2mods"][sn].push_back(modKey);
                                                 }
-                                                
+
                                                 // modkey -> sn_of_evmgr
                                                 this->configMap["mod2mgr"][modKey] = k;
                                             }
@@ -221,16 +225,18 @@ private:
                     // update in memory peerData
                     if(this->peerData["config"].count(k) != 0) {
                         json diff = json::diff(this->peerData["config"][k], v);
-                        
+
                         if(diff.size()!=0) {
                             // send config
                             deltaCfg[k] = 1;
                             this->peerData["config"][k] = v;
                             spdlog::info("evcloudsvc peer {} config diff:\n{}\norigin:\n{}", k, diff.dump(), this->peerData["config"][k].dump());
-                        }else{
+                        }
+                        else {
                             spdlog::info("evcloudsvc peer {} config no diff. ignored:\n{}", k, this->peerData["config"][k].dump());
                         }
-                    }else{
+                    }
+                    else {
                         this->peerData["config"][k] = v;
                     }
                     // TODO: important! always send config in case edge config is corrupted.
@@ -255,7 +261,7 @@ private:
                 }
 
                 // update config
-                for(auto &[x,y]: deltaCfg.items()){
+                for(auto &[x,y]: deltaCfg.items()) {
                     json j = getConfigForDevice(x);
                     if(j["code"] == 0) {
                         sendConfig(j["data"], x);
@@ -275,26 +281,28 @@ private:
         return ret;
     }
 
-    // 
-    bool handleConnection(string selfId) {
+    //
+    bool handleConnection(string selfId)
+    {
         bool ret = false;
         int state = zmq_socket_get_peer_state(pRouter, selfId.data(), selfId.size());
         spdlog::info("evcloudsvc peer {} state: {}", selfId, state);
         if(peerData["status"].count(selfId) == 0 || peerData["status"][selfId] == 0) {
-                peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
-                spdlog::info("evcloudsvc peer connected: {}", selfId);
-                ret = true;
-                spdlog::debug("evcloudsvc update status of {} to 1 and send config", selfId);
-                json data = getConfigForDevice(selfId);
-                if(data["code"] != 0) {
-                    //
-                }else{
-                    sendConfig(data["data"], selfId);
-                }
+            peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+            spdlog::info("evcloudsvc peer connected: {}", selfId);
+            ret = true;
+            spdlog::debug("evcloudsvc update status of {} to 1 and send config", selfId);
+            json data = getConfigForDevice(selfId);
+            if(data["code"] != 0) {
+                //
             }
             else {
-                peerData["status"][selfId] = 0;
-                spdlog::warn("evcloudsvc {} peer disconnected: {}", devSn, selfId);
+                sendConfig(data["data"], selfId);
+            }
+        }
+        else {
+            peerData["status"][selfId] = 0;
+            spdlog::warn("evcloudsvc {} peer disconnected: {}", devSn, selfId);
         }
         return ret;
     }
@@ -405,14 +413,15 @@ private:
         return ret;
     }
 
-    json getConfigForDevice(string sn) {
+    json getConfigForDevice(string sn)
+    {
         json ret;
         ret["code"] = 0;
         ret["msg"] = "ok";
         ret["data"] = json();
         json &data = ret["data"];
         spdlog::info("evcloudsvc get config for sn {}", sn);
-        try{
+        try {
             if(this->configMap["sn2mods"].count(sn) != 0) {
                 auto mods = this->configMap["sn2mods"][sn];
                 set<string> s;
@@ -424,7 +433,8 @@ private:
                 for(auto &key : s) {
                     if(this->peerData["config"].count(key) == 0) {
                         spdlog::error("evcloudsvc no peerData config for device {}", key);
-                    }else{
+                    }
+                    else {
                         if(data.count(key) != 0) {
                             json diff = json::diff(data[key], this->peerData["config"][key]);
                             if(diff.size() != 0) {
@@ -433,25 +443,28 @@ private:
                                 ret["msg"] = msg;
                                 break;
                             }
-                        }else{
+                        }
+                        else {
                             data[key] = this->peerData["config"][key];
                         }
-                    } 
+                    }
                 } // for keys of mgr
                 ret["data"] = data;
-            }else{
+            }
+            else {
                 ret["code"] = 1;
                 string msg = "no such sn: " + sn;
                 ret["msg"] = msg;
                 spdlog::warn("evcloudsvc no config for sn: {}", sn);
             }
-        }catch(exception &e) {
+        }
+        catch(exception &e) {
             string msg = "evcloudsvc exception in file" + string(__FILE__) + ":" + to_string(__LINE__) + " for: " + e.what();
             spdlog::error(msg);
             ret["code"] = -1;
             ret["msg"] = msg;
         }
-        
+
         return ret;
     }
 
@@ -506,7 +519,8 @@ public:
                 }
                 else if(!sn.empty() && module.empty()) {
                     ret = getConfigForDevice(sn);
-                }else{
+                }
+                else {
                     ret["code"] = 2;
                     ret["msg"] = "invalid request. no param for sn/module";
                 }
@@ -525,7 +539,7 @@ public:
             string msg;
             try {
                 json cfg = json::parse(req.body);
-                if(req.has_param("sn") && req.has_param("patch")){
+                if(req.has_param("sn") && req.has_param("patch")) {
                     string _sn = req.get_param_value("sn");
                     string _patch = req.get_param_value("patch");
                     if(!_sn.empty() && _patch == "true") {
@@ -533,11 +547,13 @@ public:
                         ret = getConfigForDevice(_sn);
                         if(ret["code"]!= 0) {
                             //
-                        }else{
-                           ret["data"].merge_patch(cfg);
+                        }
+                        else {
+                            ret["data"].merge_patch(cfg);
                         }
                     }
-                }else{
+                }
+                else {
                     ret = this->config(cfg);
                 }
             }
@@ -599,12 +615,13 @@ public:
             exit(1);
         }
         // setup edge msg processor
-        thMsgProcessor = thread([this](){
-            while(true){
+        thMsgProcessor = thread([this]() {
+            while(true) {
                 auto v = zmqhelper::z_recv_multiple(this->pRouter);
                 if(v.size() == 0) {
                     spdlog::error("evdaemon {} failed to receive msg {}", this->devSn, zmq_strerror(zmq_errno()));
-                }else{
+                }
+                else {
                     handleMsg(v);
                 }
             }

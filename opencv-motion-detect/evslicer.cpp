@@ -112,7 +112,8 @@ private:
                                 eventQueue.pop();
                             }
                             cvEvent.notify_one();
-                        }else{
+                        }
+                        else {
                             spdlog::error("evslicer {} msg not supported from {}: {}", selfId, peerId, msg);
                         }
                     }
@@ -597,7 +598,7 @@ protected:
             // remove
             fs::path fname(this->urlOut + "/" +  videoFileTs2Name(i) + ".mp4");
             fs::remove(fname);
-            // TODO: currently we don't cache event videos. lost on reboot. 
+            // TODO: currently we don't cache event videos. lost on reboot.
             // TODO: this behavior will be enhenced later.
             continue;
 
@@ -628,7 +629,7 @@ protected:
         for(auto &i : evts) {
             string fullPath = i.get_path();
             size_t pos = fullPath.find(ext, 0);
-            if(fullPath.size() < ext.size() ||  pos == string::npos || pos != (fullPath.size() - ext.size())){
+            if(fullPath.size() < ext.size() ||  pos == string::npos || pos != (fullPath.size() - ext.size())) {
                 spdlog::debug("evslicer {} invalid file : {}", self->selfId, fullPath);
                 continue;
             }
@@ -681,18 +682,21 @@ protected:
     {
         if(seg >= numSlices) {
             seg -= numSlices;
-        }else if(seg <=-1) {
+        }
+        else if(seg <=-1) {
             seg = numSlices + seg;
         }
         return seg;
     }
 
 
-    int incSegHead(int seg) {
+    int incSegHead(int seg)
+    {
         return segToIdx(++seg);
     }
 
-    int decSegHead(int seg) {
+    int decSegHead(int seg)
+    {
         return segToIdx(--seg);
     }
 
@@ -704,11 +708,12 @@ protected:
         int _itss = 0;
         if(bSegFull) {
             _itss = segHead;
-        }else{
+        }
+        else {
             _itss = 1;
         }
 
-        if(segHead == -1){
+        if(segHead == -1) {
             spdlog::error("evslicer {} no local records.");
             return ret;
         }
@@ -756,7 +761,8 @@ protected:
         return ret;
     }
 
-    void printSlices(){
+    void printSlices()
+    {
         for(int i = 0; i < numSlices; i++) {
             spdlog::info("evslicer {} vector[{}] = {}, {}", selfId, i, vTsActive[i], videoFileTs2Name(vTsActive[i]));
             if(vTsActive[i] == 0) {
@@ -842,16 +848,16 @@ public:
                 string evt;
                 unique_lock<mutex> lk(this->mutEvent);
                 this->cvEvent.wait(lk, [this] {return !(this->eventQueue.empty());});
-                
+
                 if(!this->eventQueue.empty()) {
                     evt = this->eventQueue.front();
                     this->eventQueue.pop();
                 }
 
-                if(evt.empty()){
+                if(evt.empty()) {
                     continue;
-                }  
-                
+                }
+
                 json jEvt = json::parse(evt);
 
                 if(jEvt["type"] == "event") {

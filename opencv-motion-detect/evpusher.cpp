@@ -93,13 +93,13 @@ private:
             spdlog::info("evpusher {} connect to {} for sub, {} for router", selfId, urlPub, urlDealer);
             // TODO: multiple protocols support
             urlOut = evpusher["urlDest"].get<string>();
-                    // setup sub
+            // setup sub
             pSubCtx = zmq_ctx_new();
             pSub = zmq_socket(pSubCtx, ZMQ_SUB);
             ret = zmq_setsockopt(pSub, ZMQ_SUBSCRIBE, "", 0);
             if(ret != 0) {
                 spdlog::error("evpusher {} {} failed set setsockopt: {}", devSn, iid, urlPub);
-                
+
             }
             ret = zmq_connect(pSub, urlPub.c_str());
             if(ret != 0) {
@@ -223,12 +223,14 @@ private:
                 ret = AVERROR_UNKNOWN;
             }
             ret = avformat_alloc_output_context2(&pAVFormatRemux, nullptr, "rtsp", urlOut.c_str());
-        }else if(proto == "rtmp"){
+        }
+        else if(proto == "rtmp") {
             ret = avformat_alloc_output_context2(&pAVFormatRemux, nullptr, "rtmp", urlOut.c_str());
-        }else{
+        }
+        else {
             ret = avformat_alloc_output_context2(&pAVFormatRemux, nullptr, nullptr, urlOut.c_str());
         }
-        
+
         if (ret < 0) {
             spdlog::error("evpusher {} {} failed create avformatcontext for output: %s", devSn, iid, av_err2str(ret));
             exit(1);
@@ -406,7 +408,8 @@ public:
             }
             devSn = v[0];
             iid = stoi(v[2]);
-        }else{
+        }
+        else {
             spdlog::error("evpusher failed to start. no SN set");
             exit(1);
         }
@@ -421,7 +424,7 @@ public:
 
         ret = zmqhelper::recvConfigMsg(pDaemon, config, addr, selfId);
         if(ret != 0) {
-            spdlog::error("evpusher {} failed to receive configration message {}", devSn , addr);
+            spdlog::error("evpusher {} failed to receive configration message {}", devSn, addr);
         }
 
         init();

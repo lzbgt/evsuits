@@ -70,7 +70,7 @@ private:
     AVFormatContext *pAVFormatInput = nullptr;
     AVCodecContext *pCodecCtx = nullptr;
     AVDictionary *pOptsRemux = nullptr;
-    DetectParam detPara = {25,500,-1,10,3,30, 2};
+    DetectParam detPara = {25, 500, -1, 10, 3, 30, 0.3};
     EventState evtState = EventState::NONE;
     chrono::system_clock::time_point evtStartTm, evtStartTmLast;
     queue<string> *evtQueue;
@@ -81,7 +81,7 @@ private:
     thread thEvent;
     string drport = "5549";
     //
-    
+
     int init()
     {
         int ret = 0;
@@ -577,13 +577,14 @@ protected:
                     string evt = this->evtQueue->front();
                     json jevt = json::parse(evt);
                     this->evtQueue->pop();
-                    if(jevt["event"] == EV_MSG_EVENT_MOTION_START){
+                    if(jevt["event"] == EV_MSG_EVENT_MOTION_START) {
                         eventToSlicer["type"] = "event";
                         eventToSlicer["start"] = jevt["ts"];
                         eventToSlicer["extraInfo"] = json(); //array
                         eventToSlicer["extraInfo"].push_back(jevt);
                         // TODO: save and load saved evt on crash
-                    }else if(jevt["event"] == EV_MSG_EVENT_MOTION_END){
+                    }
+                    else if(jevt["event"] == EV_MSG_EVENT_MOTION_END) {
                         eventToSlicer["end"] = jevt["ts"];
                         eventToSlicer["extraInfo"].push_back(jevt);
                         v[2] = str2body(eventToSlicer.dump());
@@ -595,7 +596,8 @@ protected:
                             spdlog::info("evmlmotion {} sent event to {}: {}", this->selfId, this->slicerGid, eventToSlicer.dump());
                         }
                         eventToSlicer.clear();
-                    }else{
+                    }
+                    else {
                         spdlog::error("evmlmotion {} unknown event to {}: {}", this->selfId, this->slicerGid, eventToSlicer.dump());
                     }
 

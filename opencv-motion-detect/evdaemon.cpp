@@ -104,7 +104,8 @@ private:
                     this->peerData["config"][peerId] = v;
                     if(this->peerData["status"].count(peerId) == 0) {
                         this->peerData["status"][peerId] = -1; // unkown
-                    }else{
+                    }
+                    else {
                         // nop
                     }
                     this->peerData["enabled"][peerId] = 1;
@@ -119,8 +120,8 @@ private:
                         for(auto &m : ml) {
                             if(m["sn"] != this->devSn) {
                                 continue;
-                            } 
-                            
+                            }
+
                             string peerName;
                             ret = cfgutils::getPeerId(mn, m, peerId, peerName);
                             if(ret != 0) {
@@ -130,14 +131,16 @@ private:
                             if(m.count("enabled") == 0 || m["enabled"] == 0) {
                                 spdlog::warn("evdaemon {} {} was disabled", this->devSn, mn);
                                 this->peerData["enabled"][peerId] = 0;
-                            }else{
+                            }
+                            else {
                                 this->peerData["enabled"][peerId] = 1;
                             }
 
                             this->peerData["config"][peerId] = v;
                             if(this->peerData["status"].count(peerId) == 0) {
                                 this->peerData["status"][peerId] = -1; // unkown
-                            }else{
+                            }
+                            else {
                                 // nop
                             }
 
@@ -186,18 +189,20 @@ private:
         int cnt = 0;
         for(auto &[k,v]: this->peerData["config"].items()) {
             if(this->peerData["enabled"].count(k) != 0 && this->peerData["enabled"][k] != 0) {
-                if((this->peerData["status"].count(k) == 0 || this->peerData["status"][k] == 0)){
+                if((this->peerData["status"].count(k) == 0 || this->peerData["status"][k] == 0)) {
                     tmp.push_back(k);
                     info += (cnt == 0? "" : string(", ")) + k;
-                }else if(this->peerData["status"][k] == -1) {
+                }
+                else if(this->peerData["status"][k] == -1) {
                     unkown[k] = -1;
-                }                
-            }else{
-               terms.push_back(k); 
+                }
+            }
+            else {
+                terms.push_back(k);
             }
             cnt++;
         }
-        
+
         spdlog::info("evdaemon {} will start following subsystems: {}", devSn, info);
         //
         for(string &e : tmp) {
@@ -276,7 +281,7 @@ private:
                 string meta = j.dump();
                 vector<vector<uint8_t> > v = {str2body(selfId), str2body(this->daemonId), str2body(meta), str2body(cfg)};
                 z_send_multiple(pRouter, v);
-                spdlog::info("evdaemon {} peer {} config sent: {}", devSn ,selfId, cfg);
+                spdlog::info("evdaemon {} peer {} config sent: {}", devSn,selfId, cfg);
             }
             else {
                 peerData["status"][selfId] = 0;
@@ -416,7 +421,8 @@ private:
                     if(meta == EV_MSG_META_CONFIG) {
                         if(data.size() == 0) {
                             spdlog::error("evdaemon {} received invalid empty config", devSn);
-                        } else {
+                        }
+                        else {
                             this->deltaCfg = json::diff(this->config, data);
                             spdlog::info("evdaemon {} received cloud config diff: {}\nnew: {}", devSn, this->deltaCfg.dump(4), data.dump());
                             if(this->deltaCfg.size() != 0 || this->bColdStart) {
@@ -440,9 +446,10 @@ private:
                             if(bBootstrap) {
                                 // TODO: wait for previous started modules to connecting
                                 startSubSystems();
-                            }else{
+                            }
+                            else {
                                 spdlog::info("evdaemon {} skip startup subsystems since BOOTSTRAP is set to false", devSn);
-                            }      
+                            }
                         }
                     }
                 }
@@ -539,7 +546,7 @@ public:
 
     EvDaemon()
     {
-         /// peerId -> value
+        /// peerId -> value
         peerData["status"] = json();
         peerData["pids"] = json();
         peerData["config"] = json();
