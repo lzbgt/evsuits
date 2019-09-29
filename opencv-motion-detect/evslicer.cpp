@@ -167,11 +167,17 @@ private:
             }
 
             selfId = devSn + ":evslicer:" + to_string(iid);
+            
+            //
             if(ipc.count("sn") == 0) {
                 ipcSn = "unkown";
             }
             else {
                 ipcSn = ipc["sn"];
+            }
+
+            if(evslicer.count("video-server-addr") != 0  && !evslicer["video-server-addr"].get<string>().empty()) {
+                videoFileServerApi = evslicer["video-server-addr"].get<string>();
             }
 
             this->videoFileServerApi += this->ipcSn;
@@ -205,10 +211,6 @@ private:
             }
 
             numSlices = hours * 60 * 60 /seconds;
-
-            if(evslicer.count("video-server-addr") != 0  && !evslicer["video-server-addr"].get<string>().empty()) {
-                videoFileServerApi = evslicer["video-server-addr"].get<string>();
-            }
 
             spdlog::info("evslicer mkdir -p {}", selfId, urlOut);
             ret = system((string("mkdir -p ") + urlOut).c_str());

@@ -183,7 +183,21 @@ private:
                 ipcPort = to_string(ipc["port"]);
             }
 
-            urlIn = "rtsp://" + user + ":" + passwd + "@" + ipc["addr"].get<string>() + ":" + ipcPort + "/h264/ch1/main/av_stream";
+            //
+            if(1){
+                string chan = "ch1";
+                string streamName = "main";
+                if(evslicer.count("channel") != 0 && !evslicer["channel"].get<string>().empty()){
+                    chan = evslicer["channel"].get<string>();
+                }
+                if(evslicer.count("streamName") != 0 && !evslicer["streamName"].get<string>().empty()){
+                    streamName = evslicer["streamName"].get<string>();
+                }
+                urlIn = "rtsp://" + user + ":" + passwd + "@" + ipc["addr"].get<string>() + ":" + ipcPort + "/h264/" + chan + "/" + streamName + "/av_stream";
+            }else{
+                urlIn = ipc["addr"].get<string>();
+            }
+
             addr = evpuller["addr"].get<string>();
             spdlog::info("evpuller {} connecting to IPC {}", selfId, urlIn);
             if(addr == "*" || addr == "0.0.0.0") {
@@ -239,8 +253,14 @@ protected:
     void run()
     {
         int ret = 0;
-        AVDictionary * optsIn;
-        av_dict_set(&optsIn, "rtsp_transport", "tcp", 0);
+        AVDictionary * optsIn = nullptr;
+        string proto = urlIn.substr(0,4);
+        if(proto == "rtsp") {
+            av_dict_set(&optsIn, "rtsp_transport", "tcp", 0);
+        }else{
+            //
+        }
+        
         spdlog::info("evpuller {} openning stream: {}", selfId, urlIn);
         if ((ret = avformat_open_input(&pAVFormatInput, urlIn.c_str(), NULL, &optsIn)) < 0) {
             spdlog::error("evpuller {} Could not open input stream {}", selfId, urlIn);
