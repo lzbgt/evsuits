@@ -122,7 +122,22 @@ private:
     int *streamList = nullptr, numStreams = 0, iid;
     time_t tsLastBoot, tsUpdateTime;
     json config;
+    string proto = "rtsp";
     string drport = "5549";
+
+
+    bool isIpStr(string ip) {
+        int cnt = 3*4 + 3;
+        if(ip.size() == 0 || ip.size() > cnt) {
+            return false;
+        }
+        auto v = strutils::split(ip, '.');
+        if(v.size() == 0 || v.size () != 4){
+            return false;
+        }
+
+        return true;
+    }
 
     int ping()
     {
@@ -183,19 +198,24 @@ private:
                 ipcPort = to_string(ipc["port"]);
             }
 
-            //
-            if(1){
+            string ipcAddr = ipc["addr"].get<string>();
+            if(isIpStr(ipcAddr)){
                 string chan = "ch1";
                 string streamName = "main";
-                if(evslicer.count("channel") != 0 && !evslicer["channel"].get<string>().empty()){
-                    chan = evslicer["channel"].get<string>();
+                if(ipc.count("channel") != 0 && !ipc["channel"].get<string>().empty()){
+                    chan = ipc["channel"].get<string>();
                 }
-                if(evslicer.count("streamName") != 0 && !evslicer["streamName"].get<string>().empty()){
-                    streamName = evslicer["streamName"].get<string>();
+                if(ipc.count("streamName") != 0 && !ipc["streamName"].get<string>().empty()){
+                    streamName = ipc["streamName"].get<string>();
                 }
-                urlIn = "rtsp://" + user + ":" + passwd + "@" + ipc["addr"].get<string>() + ":" + ipcPort + "/h264/" + chan + "/" + streamName + "/av_stream";
+
+                if(ipc.count("proto") != 0 && !ipc["proto"].get<string>().empty()){
+                    proto = ipc["proto"];
+                }
+                
+                urlIn = proto + "://" + user + ":" + passwd + "@" + ipc["addr"].get<string>() + ":" + ipcPort + "/h264/" + chan + "/" + streamName + "/av_stream";
             }else{
-                urlIn = ipc["addr"].get<string>();
+                urlIn = ipcAddr;
             }
 
             addr = evpuller["addr"].get<string>();
