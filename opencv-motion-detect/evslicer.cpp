@@ -206,12 +206,12 @@ private:
 
             numSlices = hours * 60 * 60 /seconds;
 
+            if(evslicer.count("video-server-addr") != 0  && !evslicer["video-server-addr"].get<string>().empty()) {
+                videoFileServerApi = evslicer["video-server-addr"].get<string>();
+            }
+
             spdlog::info("evslicer mkdir -p {}", selfId, urlOut);
             ret = system((string("mkdir -p ") + urlOut).c_str());
-            // if(ret == -1) {
-            //     spdlog::error("failed to create {} dir", urlOut);
-            //     exit(1);
-            // }
 
             urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(evpuller["port-pub"]);
             urlRouter = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(evmgr["port-router"]);
