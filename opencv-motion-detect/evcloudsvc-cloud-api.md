@@ -7,82 +7,77 @@ query configuration for edge device with specified sn
 - sn: string. device serial
 ##### return
 - type: json
-- field "code": 0 - success;
-otherwise failed.
+- field "code": 0 - success; otherwise failed.
 - field "msg": string, readable string for "code"
-    - field "data": configuration for sn.
-        - example
-        ```
+- field "data": configuration for sn.
+- example
+```
 {
     "code": 0,
-"data": {
-"NMXH73Y2": {
-"addr": "127.0.0.1"
-            ,
-"api-cloud": "http://127.0.0.1:8089"
-            ,
-"ipcs":
-            [ {
-"addr": "172.31.0.51",
-"modules": {
-"evml": [
-                    {
-                        "area": 300,
-                        "enabled": 1,
-                        "iid": 1,
-                        "post": 30,
-                        "pre": 3,
-"sn": "NMXH73Y2",
-                        "thresh": 80,
-"type": "motion"
-                    }
-                    ],
-"evpuller": [
-                         {
- "addr": "127.0.0.1",
-                             "enabled": 1,
-                             "iid": 1,
-                             "port-pub": 5556,
- "sn": "NMXH73Y2"
-                         }
-                         ],
-"evpusher": [
-                         {
-                             "enabled": 1,
-                             "iid": 1,
- "password": "",
- "sn": "NMXH73Y2",
- "token": "",
- "urlDest": "rtsp://40.73.41.176:554/test1",
- "user": ""
-                         }
-                         ],
-"evslicer": [
-                         {
-                             "enabled": 1,
-                             "iid": 1,
- "path": "slices",
- "sn": "NMXH73Y2"
-                         }
-                         ]
+    "data": {
+        "NMXH73Y2": {
+            "addr": "127.0.0.1",
+            "api-cloud": "http://127.0.0.1:8089",
+            "ipcs": [
+                {
+                    "addr": "172.31.0.51",
+                    "modules": {
+                        "evml": [
+                            {
+                                "area": 300,
+                                "enabled": 1,
+                                "iid": 1,
+                                "post": 30,
+                                "pre": 3,
+                                "sn": "NMXH73Y2",
+                                "thresh": 80,
+                                "type": "motion"
+                            }
+                        ],
+                        "evpuller": [
+                            {
+                                "addr": "127.0.0.1",
+                                "enabled": 1,
+                                "iid": 1,
+                                "port-pub": 5556,
+                                "sn": "NMXH73Y2"
+                            }
+                        ],
+                        "evpusher": [
+                            {
+                                "enabled": 1,
+                                "iid": 1,
+                                "password": "",
+                                "sn": "NMXH73Y2",
+                                "token": "",
+                                "urlDest": "rtsp://40.73.41.176:554/test1",
+                                "user": ""
+                            }
+                        ],
+                        "evslicer": [
+                            {
+                                "enabled": 1,
+                                "iid": 1,
+                                "path": "slices",
+                                "sn": "NMXH73Y2"
+                            }
+                        ]
                     },
-"password": "FWBWTU",
+                    "password": "FWBWTU",
                     "port": 554,
-"proto": "rtsp",
-"user": "admin"
+                    "proto": "rtsp",
+                    "user": "admin"
                 }
-                ],
-"mqtt-cloud": "<cloud_addr>"
-                ,
-                "port-cloud": 5556,
-                "port-router": 5550,
-"proto": "zmq"
-                ,
-"sn": "NMXH73Y2"
-            }
-        },
-"msg": "ok"
-    }
+            ],
+            "mqtt-cloud": "<cloud_addr>",
+            "port-cloud": 5556,
+            "port-router": 5550,
+            "proto": "zmq",
+            "sn": "NMXH73Y2"
+        }
+    },
+    "msg": "ok"
+}
 ```
 
 
@@ -94,91 +89,84 @@ set or change configuration for edge device
 - sn: string, only used when patch is set as true
 ##### body
 - type: json
-        - example
-        1. full configure
-        ```
+- example
+1. full configure
+```
 {
-"data": {
-"NMXH73Y2": {
-"addr":"127.0.0.1"
-            ,
-"api-cloud":"http://127.0.0.1:8089"
-            ,
-"ipcs":
-            [ {
-"addr":"172.31.0.51",
-"modules":{
-"evml":[
-                    {
+   "data":{
+      "NMXH73Y2":{
+         "addr":"127.0.0.1",
+         "api-cloud":"http://127.0.0.1:8089",
+         "ipcs":[
+            {
+               "addr":"172.31.0.51",
+               "modules":{
+                  "evml":[
+                     {
                         "area":300,
                         "enabled":1,
                         "iid":1,
                         "post":30,
                         "pre":3,
-"sn":"NMXH73Y2",
+                        "sn":"NMXH73Y2",
                         "thresh":80,
-"type":"motion"
-                    }
-                    ],
-"evpuller":[
-                     {
- "addr":"127.0.0.1",
-                         "iid":1,
-                         "enabled": 1,
-                         "port-pub":5556,
- "sn":"NMXH73Y2"
+                        "type":"motion"
                      }
-                     ],
-"evpusher":[
+                  ],
+                  "evpuller":[
                      {
-                         "enabled":1,
-                         "iid":1,
- "password":"",
- "sn":"NMXH73Y2",
- "token":"",
- "urlDest":"rtsp://40.73.41.176:554/test1",
- "user":""
+                        "addr":"127.0.0.1",
+                        "iid":1,
+                        "enabled": 1,
+                        "port-pub":5556,
+                        "sn":"NMXH73Y2"
                      }
-                     ],
-"evslicer":[
+                  ],
+                  "evpusher":[
                      {
-                         "enabled":1,
-                         "iid":1,
- "path":"slices",
- "sn":"NMXH73Y2"
+                        "enabled":1,
+                        "iid":1,
+                        "password":"",
+                        "sn":"NMXH73Y2",
+                        "token":"",
+                        "urlDest":"rtsp://40.73.41.176:554/test1",
+                        "user":""
                      }
-                     ]
-                },
-"password":"FWBWTU",
-                "port":554,
-"proto":"rtsp",
-"user":"admin"
+                  ],
+                  "evslicer":[
+                     {
+                        "enabled":1,
+                        "iid":1,
+                        "path":"slices",
+                        "sn":"NMXH73Y2"
+                     }
+                  ]
+               },
+               "password":"FWBWTU",
+               "port":554,
+               "proto":"rtsp",
+               "user":"admin"
             }
-            ],
-"mqtt-cloud":"<cloud_addr>"
-            ,
-            "port-cloud":5556,
-            "port-router":5550,
-"proto":"zmq"
-            ,
-"sn":"NMXH73Y2"
-        }
-    },
-    "lastupdated":1567669674
+         ],
+         "mqtt-cloud":"<cloud_addr>",
+         "port-cloud":5556,
+         "port-router":5550,
+         "proto":"zmq",
+         "sn":"NMXH73Y2"
+      }
+   },
+   "lastupdated":1567669674
 }
 ```
 2. patch configure (POST /config?patch=true&sn=NMXH73Y2)
 ```
-[ {"op":"add","path":"/ipcs/0/modules/evpuller/0/enabled","value":1}]
+[{"op":"add","path":"/ipcs/0/modules/evpuller/0/enabled","value":1}]
 ```
 ##### return
 - type: json
-    - example:
-    ```
-{"code": 0, "msg":"ok"
-, "data":
-    JSON
-}
+- example:
+```
+{"code": 0, "msg":"ok", "data":JSON}
 ```
 
 #### GET /keys
@@ -187,48 +175,43 @@ query all keys in cloud db
 ##### params
 - none
 ##### return
-    - type: json array
-    - example
-    ```
-    [
-     "NMXH73Y2",
-     "NMXH73Y2_bak",
-     "SN",
-     "configmap",
-     "configmap_bak"
-     ]
-    ```
+- type: json array
+- example
+```
+[
+    "NMXH73Y2",
+    "NMXH73Y2_bak",
+    "SN",
+    "configmap",
+    "configmap_bak"
+]
+```
 #### GET /value
 ##### description
-    get value for specified key in cloud db. keys list is queried by /keys api
+get value for specified key in cloud db. keys list is queried by /keys api
 ##### params
-    - key: string
+- key: string
 ##### return
-    - type: json
-    - example
-    ```
+- type: json
+- example
+```
 # GET /value?key=configmap
 {
-"NMXH73Y2": "NMXH73Y2"
-,
-"code": 0,
-"mod2mgr": {
-"NMXH73Y2:evml:motion": "NMXH73Y2"
-    ,
-"NMXH73Y2:evpuller": "NMXH73Y2"
-    ,
-"NMXH73Y2:evpusher": "NMXH73Y2"
-    ,
-"NMXH73Y2:evslicer": "NMXH73Y2"
-},
-"sn2mods": {
-"NMXH73Y2":
-    [
-        "NMXH73Y2:evml:motion",
-        "NMXH73Y2:evpuller",
-        "NMXH73Y2:evpusher",
-        "NMXH73Y2:evslicer"
-    ]
+    "NMXH73Y2": "NMXH73Y2",
+    "code": 0,
+    "mod2mgr": {
+        "NMXH73Y2:evml:motion": "NMXH73Y2",
+        "NMXH73Y2:evpuller": "NMXH73Y2",
+        "NMXH73Y2:evpusher": "NMXH73Y2",
+        "NMXH73Y2:evslicer": "NMXH73Y2"
+    },
+    "sn2mods": {
+        "NMXH73Y2": [
+            "NMXH73Y2:evml:motion",
+            "NMXH73Y2:evpuller",
+            "NMXH73Y2:evpusher",
+            "NMXH73Y2:evslicer"
+        ]
     }
 }
 ```
@@ -238,12 +221,10 @@ query all keys in cloud db
 ##### params
 - sn: string
 ##### return
-    - type: json
-    - example
-    ```
-{"code": 0, "msg":"ok"
-    , ...
-}
+- type: json
+- example
+```
+{"code": 0, "msg":"ok", ...}
 ```
 
 #### GET /sysinfo
@@ -255,18 +236,15 @@ query all keys in cloud db
 *[NOT IMPLEMENTED]* turn on/off debug tunnel
 ##### params
 - sn: string
-    - op: on|off
-    - ip: string. ip of public accessable host
-    - port(optional): number. ssh port of the public accessable host. default 22.
-        - port_tun(optional): number. tunnuel port of the public accessable host. default 11222.
-    - user: ssh user of the public accessable host
-    - password: ssh password of the public accessable host
+- op: on|off
+- ip: string. ip of public accessable host
+- port(optional): number. ssh port of the public accessable host. default 22.
+- port_tun(optional): number. tunnuel port of the public accessable host. default 11222.
+- user: ssh user of the public accessable host
+- password: ssh password of the public accessable host
 ##### return
-    - type: json
-        - example
-        ```
-{"code":0, "msg":"ok"
-}
+- type: json
+- example
 ```
-
-
+{"code":0, "msg":"ok"}
+```
