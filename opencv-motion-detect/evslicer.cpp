@@ -167,7 +167,7 @@ private:
             }
 
             selfId = devSn + ":evslicer:" + to_string(iid);
-            
+
             //
             if(ipc.count("sn") == 0) {
                 ipcSn = "unkown";
@@ -595,8 +595,8 @@ protected:
         pos = tsToProcess.begin();
         for(auto &i:tsToProcess) {
             // remove
-            fs::path fname(this->urlOut + "/" +  videoFileTs2Name(i) + ".mp4");
-            fs::remove(fname);
+            // fs::path fname(this->urlOut + "/" +  videoFileTs2Name(i) + ".mp4");
+            // fs::remove(fname);
             if(idx < skip) {
                 idx++;
                 pos++;
@@ -654,8 +654,9 @@ protected:
                     }
                     auto oldTs = self->vTsActive[self->segHead];
                     if(oldTs != 0) {
-                        fs::path fname(self->urlOut + "/" +  self->videoFileTs2Name(oldTs) + ".mp4");
-                        fs::remove(fname);
+                        // TODO
+                        //fs::path fname(self->urlOut + "/" +  self->videoFileTs2Name(oldTs) + ".mp4");
+                        //fs::remove(fname);
                     }
                     self->vTsActive[self->segHead] = ts;
                     self->segHead++;
