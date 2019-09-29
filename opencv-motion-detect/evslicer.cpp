@@ -592,13 +592,12 @@ protected:
         idx = 0;
         pos = tsToProcess.begin();
         for(auto &i:tsToProcess) {
+                           // remove
+            fs::path fname(this->urlOut + "/" +  videoFileTs2Name(i) + ".mp4");
+            fs::remove(fname);
             if(idx < skip) {
                 idx++;
                 pos++;
-                // remove
-                fs::path fname(this->urlOut + "/" +  videoFileTs2Name(i) + ".mp4");
-                fs::remove(fname);
-
                 continue;
             }
             tsNeedUpload[segHeadP] = i;
