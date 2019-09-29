@@ -142,7 +142,6 @@ private:
                             }
 
                             spdlog::info("evdaemon {} config for submodule {} loaded", devSn, peerId);
-
                         }
                     }
                 }
