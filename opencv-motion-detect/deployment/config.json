@@ -5,17 +5,18 @@
          "api-cloud":"http://127.0.0.1:8089",
          "ipcs":[
             {
-               "addr":"172.31.0.51",
+               "addr":"172.31.0.129",
                "modules":{
                   "evml":[
                      {
-                        "area":300,
+                        "area":200,
                         "enabled":1,
                         "iid":1,
                         "post":30,
                         "pre":3,
                         "sn":"PSBV7GKN",
-                        "thresh":80,
+                        "thresh":30,
+                        "entropy": 0.3,
                         "type":"motion"
                      }
                   ],
@@ -35,7 +36,7 @@
                         "password":"",
                         "sn":"PSBV7GKN",
                         "token":"",
-                        "urlDest":"rtsp://40.73.41.176:554/PSBV7GKN",
+                        "urlDest":"rtsp://40.73.41.176/PSBV7GKN",
                         "user":""
                      }
                   ],
@@ -44,15 +45,16 @@
                         "enabled":1,
                         "iid":1,
                         "path":"slices",
-                        "sn":"PSBV7GKN"
+                        "sn":"PSBV7GKN",
+                        "video-server-addr": "http://40.73.41.176:10009/upload/evtvideos/"
                      }
                   ]
                },
-               "password":"FWBWTU",
+               "password":"iLabService",
                "port":554,
                "proto":"rtsp",
                "user":"admin",
-               "sn": "PSBV7GKN"
+               "sn": "iLabService"
             }
          ],
          "mqtt-cloud":"<cloud_addr>",

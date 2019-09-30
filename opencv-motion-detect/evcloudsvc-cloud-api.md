@@ -1,4 +1,7 @@
 ### evcloudsvc restful api
+RFC 6902 JSON Patch
+- java: https://github.com/flipkart-incubator/zjsonpatch
+- c++: https://github.com/nlohmann/json
 
 #### GET /config
 ##### description
