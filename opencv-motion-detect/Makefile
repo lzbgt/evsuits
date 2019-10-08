@@ -38,7 +38,7 @@ CFLAGS = $(DEBUG) -Wall
 
 LIBOPENCV = `pkg-config opencv --cflags --libs`
 LIBFFMPEG = `pkg-config libavformat libavutil libavcodec libswscale --cflags --libs`
-LIBS +=-Lvendor/lib -lpthread -lleveldb -lfswatch
+LIBS +=-Lvendor/lib -lpthread -lleveldb
 #-static
 HEADERS=-Iinc -Ivendor/include
 
@@ -72,7 +72,7 @@ evpusher: evpusher.cpp inc/common.hpp inc/av_common.hpp objs/utils.o inc/tinythr
 	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evpusher evpusher.cpp objs/database.o objs/utils.o objs/zmqhelper.o $(SQLITE) $(LIBFFMPEG) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
 
 evslicer: evslicer.cpp inc/common.hpp inc/av_common.hpp postfile.cpp objs/utils.o objs/dirmon.o inc/tinythread.hpp objs/database.o objs/zmqhelper.o $(SQLITE_SRC)
-	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evslicer evslicer.cpp postfile.cpp objs/database.o  objs/dirmon.o objs/utils.o objs/zmqhelper.o $(SQLITE) $(LIBFFMPEG) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS) -lcurl
+	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evslicer evslicer.cpp postfile.cpp objs/database.o  objs/dirmon.o objs/utils.o objs/zmqhelper.o $(SQLITE) $(LIBFFMPEG) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS) -lcurl -lfswatch
 
 evmlmotion: evmlmotion.cpp inc/common.hpp inc/av_common.hpp objs/utils.o inc/avcvhelpers.hpp objs/database.o objs/zmqhelper.o  inc/tinythread.hpp $(SQLITE_SRC)
 	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evmlmotion evmlmotion.cpp objs/database.o objs/utils.o objs/zmqhelper.o $(SQLITE) $(LIBFFMPEG) $(HEADERS) $(LIBOPENCV) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)

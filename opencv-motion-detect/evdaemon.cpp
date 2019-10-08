@@ -13,6 +13,9 @@ update: 2019/09/10
 #include <queue>
 #include <cstdlib>
 #include <algorithm>
+#include <regex>
+#include <iterator>
+#include <set>
 #include "inc/tinythread.hpp"
 #include "inc/httplib.h"
 #include "inc/zmqhelper.hpp"
@@ -34,6 +37,7 @@ class EvDaemon {
 private:
     Server svr;
     json config;
+    json lastConfig;
     json deltaCfg;
     json info;
     int port = 8088;
@@ -177,16 +181,16 @@ private:
         }
     }
 
-    int startSubSystems(vector<string> v = {})
+    int startSubSystems(vector<string> subs = {})
     {
-        // check status and startup
-        std::lock_guard<std::mutex> lock(mutSubsystem);
         int ret = 0;
+        std::lock_guard<std::mutex> lock(mutSubsystem);
         vector<string> tmp;
         json unkown;
         vector<string> terms;
-        string info;
         int cnt = 0;
+        string info;
+
         for(auto &[k,v]: this->peerData["config"].items()) {
             if(this->peerData["enabled"].count(k) != 0 && this->peerData["enabled"][k] != 0) {
                 if((this->peerData["status"].count(k) == 0 || this->peerData["status"][k] == 0)) {
@@ -203,52 +207,91 @@ private:
             cnt++;
         }
 
-        spdlog::info("evdaemon {} will start following subsystems: {}", devSn, info);
-        //
-        for(string &e : tmp) {
-            pid_t pid = 0;
-            ret = zmqhelper::forkSubsystem(devSn, e, portRouter, pid);
-            if(0 == ret) {
-                this->peerData["status"][e] = 0;
-                this->peerData["pids"][e] = pid;
-                spdlog::info("evdaemon {} created subsystem {}", devSn, e);
+        if(subs.size() != 0) {
+            for(auto &k: subs) {
+                pid_t pid = 0;
+                if(std::find(terms.begin(), terms.end(), k) != terms.end()) {
+                    // ignore
+                    spdlog::warn("evdaemon {} skip startup {} since it's disabled.", this->devSn, k);
+                }else{
+                    ret = zmqhelper::forkSubsystem(devSn, k, portRouter, pid);
+                    if(0 == ret) {
+                        this->peerData["status"][k] = 0;
+                        this->peerData["pids"][k] = pid;
+                        spdlog::info("evdaemon {} created subsystem {}", devSn, k);
+                    }
+                    else {
+                        spdlog::info("evdaemon {} failed to create subsystem {}", devSn, k);
+                    }
+                }    
             }
-            else {
-                spdlog::info("evdaemon {} failed to create subsystem {}", devSn, e);
-            }
-        }
-
-        for(string &e: terms) {
-            if(this->peerData["pids"].count(e) != 0) {
-                kill(this->peerData["pids"][e], SIGTERM);
-            }
-        }
-
-        while(unkown.size() != 0 && cnt < 3) {
-            this_thread::sleep_for(chrono::seconds(3));
-            for(auto &[k,v]: unkown.items()) {
-                if(this->peerData["status"][k] != -1 && this->peerData["status"][k] != 0) {
-                    // no need to start
-                    unkown.erase(k);
+        }else{
+            // cold startup, ignore diff.
+            if(this->bColdStart) {
+                spdlog::info("evdaemon {} will start following subsystems: {}", devSn, info);
+                for(string &e : tmp) {
+                    pid_t pid = 0;
+                    ret = zmqhelper::forkSubsystem(devSn, e, portRouter, pid);
+                    if(0 == ret) {
+                        this->peerData["status"][e] = 0;
+                        this->peerData["pids"][e] = pid;
+                        spdlog::info("evdaemon {} created subsystem {}", devSn, e);
+                    }
+                    else {
+                        spdlog::info("evdaemon {} failed to create subsystem {}", devSn, e);
+                    }
                 }
-            }
-            cnt++;
-        }
 
-        for(auto &[k,v]: unkown.items()) {
-            pid_t pid = 0;
-            ret = zmqhelper::forkSubsystem(devSn, k, portRouter, pid);
-            if(0 == ret) {
-                this->peerData["status"][k] = 0;
-                this->peerData["pids"][k] = pid;
-                spdlog::info("evdaemon {} created subsystem {}", devSn, k);
-            }
-            else {
-                spdlog::info("evdaemon {} failed to create subsystem {}", devSn, k);
-            }
-        }
+                while(unkown.size() != 0 && cnt < 3) {
+                    this_thread::sleep_for(chrono::seconds(3));
+                    for(auto &[k,v]: unkown.items()) {
+                        if(this->peerData["status"][k] != -1 && this->peerData["status"][k] != 0) {
+                            // no need to start
+                            unkown.erase(k);
+                        }
+                    }
+                    cnt++;
+                }
 
+                for(string &e: terms) {
+                    // if(this->peerData["pids"].count(e) != 0) {
+                    //     kill(this->peerData["pids"][e], SIGTERM);
+                    // }
+                    if(this->peerData["pids"].count(e) != 0 && this->peerData["pids"].count(e) != -1) {
+
+                    }
+                }
+
+                for(auto &[k,v]: unkown.items()) {
+                    pid_t pid = 0;
+                    ret = zmqhelper::forkSubsystem(devSn, k, portRouter, pid);
+                    if(0 == ret) {
+                        this->peerData["status"][k] = 0;
+                        this->peerData["pids"][k] = pid;
+                        spdlog::info("evdaemon {} created subsystem {}", devSn, k);
+                    }
+                    else {
+                        spdlog::info("evdaemon {} failed to create subsystem {}", devSn, k);
+                    }
+                } 
+            }else{
+                // TODO: load delta config
+                json mods;
+                set<int> ipcs;
+                
+        }
+        this->bColdStart = false;
+        this->deltaCfg = json();
         return ret;
+    }
+    
+    void sendMsgToPeer(string peerId, string meta, string msg) {
+        int ret = z_send(pDealer, this->daemonId, peerId, meta, msg);
+        if(ret < 0) {
+            spdlog::error("evcloudsvc {} failed to send msg to peer {}: {} - {}", devSn, peerId, meta, msg);
+        }else{
+            spdlog::info("evcloudsvc {} successfully send msg to peer {}: {} - {}", devSn, peerId, meta, msg);
+        }
     }
 
     int handleEdgeMsg(vector<vector<uint8_t> > &body)
@@ -291,7 +334,7 @@ private:
                 spdlog::warn("evdaemon {} peer {} disconnected. reloading config", devSn, selfId);
 
                 if(this->bBootstrap) {
-                    startSubSystems();
+                    startSubSystems({selfId});
                 }
             }
 
@@ -326,9 +369,8 @@ private:
         this->peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
 
         // msg to peer
-        string myId = devSn + ":evmgr:0";
-        int minLen = std::min(body[1].size(), myId.size());
-        if(memcmp((void*)(body[1].data()), myId.data(), minLen) != 0) {
+        int minLen = std::min(body[1].size(), this->daemonId.size());
+        if(memcmp((void*)(body[1].data()), this->daemonId.data(), minLen) != 0) {
             // message to other peer
             // check peer status
             vector<vector<uint8_t> >v = {body[1], body[0], body[2], body[3]};
@@ -426,6 +468,7 @@ private:
                             this->deltaCfg = json::diff(this->config, data);
                             spdlog::info("evdaemon {} received cloud config diff: {}\nnew: {}", devSn, this->deltaCfg.dump(4), data.dump());
                             if(this->deltaCfg.size() != 0 || this->bColdStart) {
+                                this->lastConfig = this->config;
                                 this->config = data;
                                 spdlog::info("evdaemon {} reloading config from cloud", devSn);
                                 ret = reloadCfg();
@@ -438,7 +481,6 @@ private:
                                     spdlog::error("evdameon {} failed to save new config to local db: {}", devSn, data.dump());
                                     return ret;
                                 }
-                                this->bColdStart = false;
                             }
                             else {
                             }
@@ -550,6 +592,7 @@ public:
         peerData["status"] = json();
         peerData["pids"] = json();
         peerData["config"] = json();
+        deltaCfg = json();
         int ret = 0;
         string dir_ = string("mkdir -p ") + EV_FILE_LVDB_DAEMON;
         system(dir_.c_str());

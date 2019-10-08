@@ -34,7 +34,7 @@ namespace zmqhelper {
 #define EV_MSG_TYPE_AI_MOTION "ai_motion"
 #define EV_MSG_TYPE_CONN_STAT "connstat"
 #define EV_MSG_TYPE_SYS_STAT "sysstat"
-// #define EV_MSG_CMD_RESTART "restart"
+#define EV_MSG_CMD_RESTART "restart"
 // #define EV_MSG_CMD_UPDATE "update"
 
 #define EV_MSG_EVENT_MOTION_START "start"
@@ -63,6 +63,7 @@ int setupDealer(void **ctx, void **s, string addr, string ident);
 /// @return 0 success, otherwise failed.
 int recvConfigMsg(void *s, json &config, string addr, string ident);
 int forkSubsystem(string devSn, string peerId, int drPort, pid_t &pid);
+int z_send(void *s, string peerId, string selfId, string sMeta, string body);
 }
 
 #endif

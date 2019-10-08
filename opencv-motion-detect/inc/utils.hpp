@@ -38,6 +38,7 @@ vector<string> split(const std::string& s, char delimiter);
 namespace cfgutils {
    int getPeerId(string modName, json& modElem, string &peerId, string &peerName);
    json *findModuleConfig(string peerId, json &data);
+   vector<string> getModuleGidsOfIpc(json &config, string sn, int ipcId);
 }
 
 struct StrException : public std::exception

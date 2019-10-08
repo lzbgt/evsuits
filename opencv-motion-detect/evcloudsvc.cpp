@@ -549,7 +549,7 @@ public:
                             //
                         }
                         else {
-                            ret["data"].merge_patch(cfg);
+                            ret["data"].merge_patch(_patch);
                         }
                     }
                 }

@@ -192,4 +192,43 @@ namespace cfgutils {
 
       return ret;
    }
+
+   vector<string> getModuleGidsOfIpc(json &config, string sn, int ipcId) {
+      json tmp;
+      if(config.count(sn) == 0) {
+         //
+         spdlog::error("getModuleGidsOfIpc invalid config for sn {}: {}", sn, config.dump());
+      }else{
+         auto conf = config[sn];
+         if(conf.count("ipcs") == 0 || conf["ipcs"].size() < (ipcId + 1) || conf["ipcs"][ipcId].count("modules") == 0||conf["ipcs"][ipcId]["modules"].size() == 0) {
+            spdlog::error("getModuleGidsOfIpc invalid config having no such ipc {} or modules. {}: {}", ipcId, sn, config.dump());
+         }else{
+            auto modules = conf["ipcs"][ipcId]["modules"];
+            for(auto &[mn, mv]: modules.items()) {
+               for(auto &m:mv) {
+                  if(m.count("sn") == 0 || m.count("iid") == 0||( mn == "evml" && m.count("type") == 0)) {
+                     spdlog::error("getModuleGidsOfIpc invalid module config {} in {}", mv.dump(), config.dump());
+                  }else{
+                     if(m["sn"] == sn) {
+                        string gid;
+                        if(mn == "evml"){
+                           gid = sn + ":evml"+m["type"].get<string>()+":"+ to_string(m["iid"].get<int>());
+                        }else{
+                           gid = sn + ":" + mn + ":"+ to_string(m["iid"].get<int>());
+                        }
+                        tmp[gid] = 1;
+                     }
+                  }
+               }
+            }
+         }
+      }
+
+      vector<string> ret;
+      for(auto &[k,v]: tmp.items()) {
+         ret.push_back(k);
+      }
+
+      return ret;
+   }
 } // cfgutils
