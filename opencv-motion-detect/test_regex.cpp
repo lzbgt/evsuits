@@ -3,6 +3,7 @@
 #include <iterator>
 #include <vector>
 #include <string>
+#include <fstream>
 #include <set>
 #include "json.hpp"
 #include <spdlog/spdlog.h>
@@ -18,8 +19,10 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
     ret["msg"] = "ok";
     ret["data"] = json();
     bool hasError = false;
+    spdlog::info("matching {}", diff.dump());
     try{
-        for(auto &d: diff) {
+        for(auto &d: diff.array()) {
+            spdlog::info("d :{}, {}", d.dump(), d.size());
             if(d.count("path") != 0) {
                 string path_ = d["path"];
                 bool matched = false;
@@ -32,8 +35,10 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                 string ipcRegStr = string("/") + sn + "/ipcs/(\\d+)/(\\w+)";
                 std::smatch results;
                 std::regex ipcRegex(ipcRegStr);
+                spdlog::info("x diff: {}", diff.dump());
                 if (std::regex_match(path_, results, ipcRegex)) {
                     if (results.size() == 3) {
+                        spdlog::info("matched ipc: {}",path_);
                         matched = true;
                         int ipcIdx = stoi(results[1].str());
                         string tag = results[2].str();
@@ -71,7 +76,13 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                                 }
                             }
                         }
+                    }else{
+                        for(auto &i: results) {
+                            spdlog::info("\t{}", i.str());
+                        }
                     }
+                }else{
+                    spdlog::info("no match for ipc", path_);
                 }
 
                 // match module config
@@ -82,6 +93,7 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                     std::smatch results2;
                     if (std::regex_match(path_, results2, moduleRegex)) {
                         if (results2.size() == 5) {
+                            spdlog::info("matched module: {}",path_);
                             int ipcIdx = stoi(results2[1].str());
                             int modIdx = stoi(results[3].str());
                             string modName = results[2].str();
@@ -131,7 +143,13 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                                     }
                                 }
                             }
+                        }else{
+                            for(auto &i: results) {
+                                spdlog::info("\t{}", i.str());
+                            }
                         }
+                    }else{
+                        spdlog::info("no match for module {}", path_);
                     }
                 } 
 
@@ -151,30 +169,15 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
 
 
 int main(){
-    // (?:addr|password|port|user)
-    string ipcPath = "/NMXH73Y2/ipcs/0/addr";
-    string ipcRegStr = string("/NMXH73Y2") + "/ipcs/(\\d+)/(\\w+)";
-    std::smatch results;
-    std::regex ipcRegex(ipcRegStr);
-    if (std::regex_match(ipcPath, results, ipcRegex)) {
-        if (results.size() == 3) {
-            for(auto &v: results) {
-                cout<< v.str() << endl;
-            }
-        }
-    }
-
-    cout << "match2:" << endl;
-    string modulePath = "/NMXH73Y2/ipcs/0/modules/evpusher/0/urlDest";
-    string  moduleRegStr = "/NMXH73Y2/ipcs/(\\d+)/modules/(\\w+)/(\\d+)/(\\w+)";
-    std::regex moduleRegex(moduleRegStr);
-    std::smatch results2;
-    if (std::regex_match(modulePath, results2, moduleRegex)) {
-        if (results2.size() == 5) {
-            for(auto &v: results2) {
-                cout<< v.str() << endl;
-            }
-        }
-    }
-
+    std::ifstream iff("deployment/config.json");
+    std::ifstream iff2("deployment/config_copy.json");
+    json config, config2;
+    iff >> config;
+    config = config["data"];
+    iff2 >> config2;
+    config2 = config2["data"];
+    json dif = json::diff(config2, config).dump();
+    spdlog::info("diff: {}", dif.dump());
+    auto ret = getModulesOperFromConfDiff(config2, config, dif, "PSBV7GKN");
+    spdlog::info("parse: {}", ret.dump());
 }
