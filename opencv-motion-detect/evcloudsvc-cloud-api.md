@@ -162,9 +162,9 @@ set or change configuration for edge device
 }
 ```
 2. patch configure (POST /config?patch=true&sn=NMXH73Y2)
-   - TLDR: SN of the path in patch may not be same with sn in param. since a module on this device may connect to cluster mgr on other deivce. Device configure is a logic view of the edge cluster: 
-     - if a device runs a cluster mgr, then it has full configuration with sn as key and all configurations of releated submodules.
-     - if a device doest not runs a cluster mgr, but only submodules, it will reuse the configuration(s) of the of the cluster mgr(s) that maybe run other device(s) which the submodules connect to.
+   - TLDR: SN of the path in patch may not be same with sn in param. since a module on this device may connect to its cluster mgr on another deivce. Device configure is a logic view of the edge cluster (viewpoint from the cluster mgr): 
+     - if a device runs a cluster mgr, then it has a full configuration with its sn as key and all configurations of releated submodules.
+     - if a device doest not run a cluster mgr, but only submodule(s), it will reuse(refer to) the configuration(s) of the of the cluster mgr(s) that maybe run other device(s) which the submodule(s) shall connect to.
 ```
 [{"op":"add","path":"/RBKJ62Z1/ipcs/0/modules/evpuller/0/enabled","value":1}]
 ```
