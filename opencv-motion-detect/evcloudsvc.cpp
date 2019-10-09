@@ -275,7 +275,7 @@ private:
             ret.clear();
             ret["code"] = -1;
             ret["msg"] = string("evcloudsvc exception: ") + e.what();
-            splog::error("evcloudsvc exception: {}", e.what());
+            spdlog::error("evcloudsvc exception: {}", e.what());
         }
 
 
@@ -552,7 +552,7 @@ public:
                         }
                         else {
                             if(ret.count("data") == 0 || ret["data"].size() == 0) {
-                                spdlog::error("evcloudsvc no existing valid configuration for {}. abort patching", sn);
+                                spdlog::error("evcloudsvc no existing valid configuration for {}. abort patching", _sn);
                             }else{
                                 ret["data"] = ret["data"].patch(cfg);
                                 spdlog::info("evcloudsvc merged {}: {} \n\t{}", _sn, cfg.dump(), ret["data"].dump());
