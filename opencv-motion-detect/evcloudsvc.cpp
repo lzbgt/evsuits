@@ -553,12 +553,12 @@ public:
                         else {
                             if(ret.count("data") == 0 || ret["data"].size() == 0) {
                                 spdlog::error("evcloudsvc no existing valid configuration for {}. abort patching", _sn);
+                                ret["msg"] = string("evcloudsvc no existing valid configuration,abort patching for ") + _sn;
                             }else{
                                 ret["data"] = ret["data"].patch(cfg);
                                 spdlog::info("evcloudsvc merged {}: {} \n\t{}", _sn, cfg.dump(), ret["data"].dump());
                                 ret = this->config(ret);
                             }
-                            
                         }
                     }
                 }
