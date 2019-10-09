@@ -32,19 +32,21 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                 set<string> oprations{"add", "replace", "remove"};
                 set<string> pullerTag{"addr", "user", "password", "proto", "port" /*, "sn"*/};
 
-                string ipcRegStr = string("/") + sn + "/ipcs/(\\d+)/(\\w+)";
+                string ipcRegStr = "/(\\w+)/ipcs/(\\d+)/(\\w+)";
                 std::smatch results;
                 std::regex ipcRegex(ipcRegStr);
                 if (std::regex_match(path_, results, ipcRegex)) {
-                    if (results.size() == 3) {
+                    if (results.size() == 4) {
                         matched = true;
-                        int ipcIdx = stoi(results[1].str());
-                        string tag = results[2].str();
+                        string mgrSn = results[1].str();
+                        int ipcIdx = stoi(results[2].str());
+                        string tag = results[3].str();
                         if(pullerTag.find(tag) != pullerTag.end()) {
                             // TODO: op = remove
                             if(d["op"] == "add" || d["op"] == "replace") {
                                 // start
-                                auto ipc = newConfig[sn]["ipcs"][ipcIdx];
+                                auto ipc = newConfig[mgrSn]["ipcs"][ipcIdx];
+                                auto ipcOld = oldConfig[mgrSn]["ipcs"][ipcIdx];
                                 if(ipc.count("modules") == 0 || ipc["modules"].size() == 0 || ipc["moudles"].count("evpuller") ==0 || ipc["modules"]["evpuller"].size() == 0 ) {
                                     string msg = fmt::format("invalid config for ipc[{}]['modules']['evpuller']: {}", ipcIdx, newConfig.dump());
                                     spdlog::error(msg);
@@ -56,6 +58,19 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                                     int idx = 0;
                                     for(auto &puller:evpullers) {
                                         // strutil
+                                        if(puller.count("sn") == 0) {
+                                            string msg = fmt::format("invalid config for ipc[{}]['modules']['evpuller'][{}] no sn field: {}", ipcIdx, idx, newConfig.dump());
+                                            ret["msg"] = msg;
+                                            spdlog::error(msg);
+                                            hasError = true;
+                                            break;
+                                        }
+
+                                        if(puller["sn"].get<string>() != sn) {
+                                            spdlog::debug("skip {} for expecting sn: {}", puller.dump(), sn);
+                                            continue;
+                                        }
+
                                         if(puller.count("iid") == 0 || puller.count("addr") == 0) {
                                             string msg = fmt::format("invliad config as of having no iid/addr/enabled field in ipc[{}]['modules']['evpuller'][{}]: {}", ipcIdx, idx, newConfig.dump());
                                             spdlog::error(msg);
@@ -83,18 +98,20 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                 // match module config
                 if(!matched && !hasError) {
                     // /NMXH73Y2/ipcs/0/modules/evpusher/0/urlDest
-                    string  moduleRegStr = string("/") + sn + "/ipcs/(\\d+)/modules/(\\w+)/(\\d+)/(\\w+)";
+                    string  moduleRegStr = "/(\\w+)/ipcs/(\\d+)/modules/(\\w+)/(\\d+)/(\\w+)";
                     std::regex moduleRegex(moduleRegStr);
-                    std::smatch results2;
-                    if (std::regex_match(path_, results2, moduleRegex)) {
-                        if (results2.size() == 5) {
-                            int ipcIdx = stoi(results2[1].str());
-                            int modIdx = stoi(results2[3].str());
-                            string modName = results2[2].str();
-                            string propName = results2[4].str();
-                            if(d["op"] == "replace"||d["op"] == "add") {   
-                                auto &oldMod = oldConfig[sn]["ipcs"][ipcIdx]["modules"][modName][modIdx];
-                                auto &newMod = newConfig[sn]["ipcs"][ipcIdx]["modules"][modName][modIdx];
+                    std::smatch results;
+                    if (std::regex_match(path_, results, moduleRegex)) {
+                        if (results.size() == 6) {
+                            matched = true;
+                            string mgrSn = results[1].str();
+                            int ipcIdx = stoi(results[2].str());
+                            int modIdx = stoi(results[4].str());
+                            string modName = results[3].str();
+                            string propName = results[5].str();
+                            if(d["op"] == "replace"||d["op"] == "add" || d["op"] == "remove") {   
+                                auto &oldMod = oldConfig[mgrSn]["ipcs"][ipcIdx]["modules"][modName][modIdx];
+                                auto &newMod = newConfig[mgrSn]["ipcs"][ipcIdx]["modules"][modName][modIdx];
                                 if(oldMod.count("iid") == 0 || newMod.count("iid") == 0) {
                                     string msg = fmt::format("invalid module config ipcs[{}]['modules'][{}][{}] having no iid field", ipcIdx, modName, modIdx);
                                     spdlog::error(msg);
@@ -113,6 +130,24 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                                         }
                                     }
 
+                                    if(newMod.count("sn") == 0) {
+                                        string msg = fmt::format("invalid module config ipcs[{}]['modules'][{}][{}] having no sn field", ipcIdx, modName, modIdx);
+                                        spdlog::error(msg);
+                                        hasError = true;
+                                        break;
+                                    }
+
+                                    if(newMod["sn"].get<string>() != sn && oldMod.count("sn") != 0 && oldMod["sn"].get<string>() == sn) {
+                                        string oldGid = sn + ":" + modName + ":" + to_string(oldMod["iid"].get<int>());
+                                        ret["data"][oldGid] = 0;
+                                        continue;
+                                    }else if(newMod["sn"].get<string>() != sn && (oldMod.count("sn") == 0 ||(oldMod.count("sn") != 0 && oldMod["sn"].get<string>() != sn))){
+                                        // ignore
+                                        continue;
+                                    }else{
+                                        // oldSn == newSn == sn, below
+                                    }
+
                                     string oldGid = sn + ":" + modName + ":" + to_string(oldMod["iid"].get<int>());
                                     string newGid = sn + ":" + modName + ":" + to_string(newMod["iid"].get<int>());
 
@@ -121,7 +156,7 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                                     }
 
                                     if(propName == "enabled") {
-                                        if(newMod["enabled"].get<int>() == 0) {
+                                        if(newMod.count("enabled") == 0||newMod["enabled"].get<int>() == 0) {
                                             ret["data"][newGid] = 0;
                                         }else{
                                             ret["data"][newGid] = 1;
@@ -142,10 +177,35 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                     // else{
                     //     spdlog::info("no match for module {}", path_);
                     // }
-                } 
+                }
+
+                // whole submodule
+                if(!matched && !hasError) {
+                    // /PSBV7GKN/ipcs/0/modules/evpusher/0
+                    // {"enabled":0,"iid":1,"password":"","sn":"PSBV7GKN","token":"","urlDest":"rtsp://40.73.41.176/PSBV7GKN","user":""}
+                    string  moduleRegStr = "/(\\w+)/ipcs/(\\d+)/modules/(\\w+)/(\\d+)";
+                    std::regex moduleRegex(moduleRegStr);
+                    std::smatch results;
+                    if (std::regex_match(path_, results, moduleRegex)) {
+                        if (results.size() == 5) {
+                            matched = true;
+                            string mgrSn = results[1].str();
+                            int ipcIdx = stoi(results[2].str());
+                            int modIdx = stoi(results[4].str());
+                            string modName = results[3].str();
+                            auto &modObj = d["value"];
+                            if(modObj.count("sn") == 0 && d["op"] != "remove") {
+                                string msg = fmt::format("invalid modue config having no sn /{}/ipcs/{}/modules/{}/{}", mgrSn, ipcIdx, modName, modIdx);
+                                // /spdlog
+                            }
+                        }
+                        
+                    }
+                }
 
                 if(hasError){
                     ret["code"] = 1;
+                    break;
                 }       
             }
         }
