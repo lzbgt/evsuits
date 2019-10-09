@@ -272,11 +272,43 @@ private:
                 this->bColdStart = false;
             }else{
                 // calc diff
-                auto mods = cfgutils::getModulesOperFromConfDiff(this->oldConfig, this->config, this->deltaCfg, this->devSn);
+                auto jret = cfgutils::getModulesOperFromConfDiff(this->oldConfig, this->config, this->deltaCfg, this->devSn);
                 this->deltaCfg = json();
+                if(jret["code"] != 0) {
+                    spdlog::error("evdaemon {} invalid config received. will revert to old config and restart. {}: {}", this->devSn, this->config.dump(), jret["msg"].get<string>());
+                    // revert config and restart
+                    ret = LVDB::setLocalConfig(this->oldConfig, "", EV_FILE_LVDB_DAEMON);
+                    kill(getpid(), SIGTERM);
+                }
+
+                json &mods = jret["data"];
                 for(auto &[k,v]: mods.items()) {
                     if(v == 0) {
                         // send stop msg
+                        this->peerData["config"].erase(k);
+                        this->peerData["status"].erase(k);
+                        this->peerData["pids"].erase(k);
+                        this->peerData["enabled"].erase(k);
+                        sendCmd2Peer(k, EV_MSG_META_VALUE_CMD_STOP, "");
+                    }else if(v == 1 || v == 2){
+                        if(this->peerData["status"].count(k) == 0 || this->peerData["status"] == 0) {
+                            pid_t pid;
+                            ret = zmqhelper::forkSubsystem(devSn, k, portRouter, pid);
+                            if(0 == ret) {
+                                this->peerData["status"][k] = 0;
+                                this->peerData["pids"][k] = pid;
+                                spdlog::info("evdaemon {} created subsystem {}", this->devSn, k);
+                            }
+                            else {
+                                spdlog::info("evdaemon {} failed to create subsystem {}", this->devSn, k);
+                            }
+                        }else{
+                            // restart
+                            sendCmd2Peer(k, EV_MSG_META_VALUE_CMD_STOP, "");
+                        }
+                    }else{
+                        //
+                        spdlog::warn("evdaemon {} unkown action {} for module {}", this->devSn, int(v), string(k));
                     }
                 }
             }
