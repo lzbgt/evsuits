@@ -31,7 +31,7 @@
                   ],
                   "evpusher":[
                      {
-                        "enabled":1,
+                        "enabled":0,
                         "iid":1,
                         "password":"",
                         "sn":"PSBV7GKN",

@@ -542,18 +542,22 @@ public:
                 if(req.has_param("sn") && req.has_param("patch")) {
                     string _sn = req.get_param_value("sn");
                     string _patch = req.get_param_value("patch");
+                    spdlog::info("evcloudsvc patch cfg for {}: {}", _sn, cfg.dump());
                     if(!_sn.empty() && _patch == "true") {
                         // verify sn
                         ret = getConfigForDevice(_sn);
-                        if(ret["code"]!= 0) {
-                            //
+                        if(ret["code"] != 0) {
+                            spdlog::error("evcloudsvc failed to get confg for {}: {}", _sn, ret["msg"].get<string>());
                         }
                         else {
-                            ret["data"].merge_patch(cfg);
+                            ret["data"] = ret["data"].patch(cfg);
+                            spdlog::info("evcloudsvc merged {}: {} \n\t{}", _sn, cfg.dump(), ret["data"].dump());
+                            ret = this->config(ret);
                         }
                     }
                 }
                 else {
+                    spdlog::info("full config: {}", cfg.dump());
                     ret = this->config(cfg);
                 }
             }
