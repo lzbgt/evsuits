@@ -10,3 +10,6 @@
 [submodule "opencv-motion-detect/vendor/fswatch"]
 	path = opencv-motion-detect/vendor/fswatch
 	url = https://github.com/emcrisostomo/fswatch
+[submodule "opencv-motion-detect/vendor/fmt"]
+	path = opencv-motion-detect/vendor/fmt
+	url = https://github.com/fmtlib/fmt
