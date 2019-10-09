@@ -1,0 +1,22 @@
+[
+    {
+        "op": "replace",
+        "path": "/NMXH73Y2/ipcs/0/addr",
+        "value": "172.31.0.129"
+    },
+    {
+        "op": "replace",
+        "path": "/NMXH73Y2/ipcs/0/modules/evpusher/0/urlDest",
+        "value": "rtsp://40.73.41.176/NMXH73Y2"
+    },
+    {
+        "op": "replace",
+        "path": "/NMXH73Y2/ipcs/0/password",
+        "value": "iLabService"
+    },
+    {
+        "op": "replace",
+        "path": "/NMXH73Y2/ipcs/0/sn",
+        "value": "iLabService"
+    }
+]
