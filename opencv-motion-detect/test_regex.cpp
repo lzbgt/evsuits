@@ -76,6 +76,7 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                                             spdlog::error(msg);
                                             ret["msg"] = msg;
                                             hasError = true;
+                                            break;
                                         }else{
                                             string gid = sn + ":evpuller:" + to_string(puller["iid"].get<int>());
                                             if(puller.count("enabled") == 0 || puller["enabled"].get<int>() == 0) {
@@ -193,10 +194,51 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                             int ipcIdx = stoi(results[2].str());
                             int modIdx = stoi(results[4].str());
                             string modName = results[3].str();
-                            auto &modObj = d["value"];
-                            if(modObj.count("sn") == 0 && d["op"] != "remove") {
-                                string msg = fmt::format("invalid modue config having no sn /{}/ipcs/{}/modules/{}/{}", mgrSn, ipcIdx, modName, modIdx);
-                                // /spdlog
+                            json modObj;
+                            if(d["op"] == "remove") {
+                                modObj = oldConfig[mgrSn]["ipcs"][ipcIdx]["modules"][modName][modIdx];
+                            }else{
+                                modObj = newConfig[mgrSn]["ipcs"][ipcIdx]["modules"][modName][modIdx];
+                            }
+                            if(modObj.count("sn") == 0) {
+                                if(d["op"] != "remove"){
+                                    string msg = fmt::format("invalid modue config having no sn /{}/ipcs/{}/modules/{}/{}", mgrSn, ipcIdx, modName, modIdx);
+                                    spdlog::error(msg);
+                                    hasError = true;
+                                    ret["msg"] = msg;
+                                    break;
+                                }else{
+                                    // nop
+                                }
+                            }else{
+                                if(modObj["sn"].get<string>() == sn){
+                                    if(modName == "evml") {
+                                        if(modObj.count("type") == 0) {
+                                            string msg = fmt::format("invalid evml module config ipcs[{}]['modules'][{}][{}] having no type field", ipcIdx, modName, modIdx);
+                                            spdlog::error(msg);
+                                            hasError = true;
+                                            break;
+                                        }else{
+                                            modName = modName + modObj["type"].get<string>();
+                                        }
+                                    }
+
+                                    if(modObj.count("iid") == 0) {
+                                        string msg = fmt::format("invalid evml module config ipcs[{}]['modules'][{}][{}] having no iid field", ipcIdx, modName, modIdx);
+                                        spdlog::error(msg);
+                                        hasError = true;
+                                        break;
+                                    }
+
+                                    string modGid = sn + ":" + modName + ":" + to_string(modObj["iid"].get<int>());
+                                    if(d["op"] == "remove") {
+                                        ret["data"][modGid] = 0;
+                                    }else{
+                                        ret["data"][modGid] = 1;
+                                    }
+                                }else{
+                                    // nop
+                                }
                             }
                         }
                         
