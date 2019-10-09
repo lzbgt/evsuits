@@ -9,6 +9,13 @@
 #include "json.hpp"
 #include "spdlog/spdlog.h"
 #include "httplib.h"
+#include <set>
+#include <regex>
+#include <iterator>
+#include <vector>
+#include <string>
+#include <fstream>
+#include <fmt/format.h>
 
 #define EVCLOUD_REQ_E_CONN -2
 #define EVCLOUD_REQ_E_DATA -3
@@ -38,7 +45,7 @@ vector<string> split(const std::string& s, char delimiter);
 namespace cfgutils {
    int getPeerId(string modName, json& modElem, string &peerId, string &peerName);
    json *findModuleConfig(string peerId, json &data);
-   vector<string> getModuleGidsOfIpc(json &config, string sn, int ipcId);
+   json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, string sn);
 }
 
 struct StrException : public std::exception

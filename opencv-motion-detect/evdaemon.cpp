@@ -278,6 +278,7 @@ private:
                 // TODO: load delta config
                 json mods;
                 set<int> ipcs;
+            }
                 
         }
         this->bColdStart = false;
