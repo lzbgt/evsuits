@@ -571,6 +571,7 @@ public:
                 msg = string("evcloudsvc exception on POST /config: ") +  e.what();
                 ret["msg"] = msg;
                 ret["code"]= -1;
+                spdlog::error(msg);
             }
             res.set_content(ret.dump(), "text/json");
         });
