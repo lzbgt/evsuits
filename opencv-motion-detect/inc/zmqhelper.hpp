@@ -27,15 +27,18 @@ namespace zmqhelper {
 #define EV_MSG_META_PING "ping"
 #define EV_MSG_META_PONG "pong"
 #define EV_MSG_META_EVENT "event"
-#define EV_MSG_META_CMD "cmd"
+
+#define EV_MSG_META_TYPE_CMD "cmd"
+#define EV_MSG_META_VALUE_CMD_RESTART "restart"
+#define EV_MSG_META_VALUE_CMD_UPDATE "update"
+#define EV_MSG_META_VALUE_CMD_STOP "stop"
+
 #define EV_MSG_META_CONFIG "config"
 #define EV_MSG_META_AVFORMATCTX "afctx"
 
 #define EV_MSG_TYPE_AI_MOTION "ai_motion"
 #define EV_MSG_TYPE_CONN_STAT "connstat"
 #define EV_MSG_TYPE_SYS_STAT "sysstat"
-#define EV_MSG_CMD_RESTART "restart"
-// #define EV_MSG_CMD_UPDATE "update"
 
 #define EV_MSG_EVENT_MOTION_START "start"
 #define EV_MSG_EVENT_MOTION_END "end"
@@ -63,7 +66,7 @@ int setupDealer(void **ctx, void **s, string addr, string ident);
 /// @return 0 success, otherwise failed.
 int recvConfigMsg(void *s, json &config, string addr, string ident);
 int forkSubsystem(string devSn, string peerId, int drPort, pid_t &pid);
-int z_send(void *s, string peerId, string selfId, string sMeta, string body);
+int z_send(void *s, string peerId, string selfId, const json &meta, string body);
 }
 
 #endif

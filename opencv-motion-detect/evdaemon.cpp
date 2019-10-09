@@ -37,7 +37,7 @@ class EvDaemon {
 private:
     Server svr;
     json config;
-    json lastConfig;
+    json oldConfig;
     json deltaCfg;
     json info;
     int port = 8088;
@@ -185,50 +185,48 @@ private:
     {
         int ret = 0;
         std::lock_guard<std::mutex> lock(mutSubsystem);
-        vector<string> tmp;
-        json unkown;
-        vector<string> terms;
-        int cnt = 0;
-        string info;
-
-        for(auto &[k,v]: this->peerData["config"].items()) {
-            if(this->peerData["enabled"].count(k) != 0 && this->peerData["enabled"][k] != 0) {
-                if((this->peerData["status"].count(k) == 0 || this->peerData["status"][k] == 0)) {
-                    tmp.push_back(k);
-                    info += (cnt == 0? "" : string(", ")) + k;
-                }
-                else if(this->peerData["status"][k] == -1) {
-                    unkown[k] = -1;
-                }
-            }
-            else {
-                terms.push_back(k);
-            }
-            cnt++;
-        }
-
         if(subs.size() != 0) {
             for(auto &k: subs) {
-                pid_t pid = 0;
-                if(std::find(terms.begin(), terms.end(), k) != terms.end()) {
-                    // ignore
-                    spdlog::warn("evdaemon {} skip startup {} since it's disabled.", this->devSn, k);
-                }else{
+                if((this->peerData["status"].count(k) == 0 || this->peerData["status"][k] == 0) && this->peerData["config"].count(k) != 0 &&  this->peerData["enabled"].count(k) != 0 && this->peerData["enabled"][k] != 0){
+                    pid_t pid;
                     ret = zmqhelper::forkSubsystem(devSn, k, portRouter, pid);
                     if(0 == ret) {
                         this->peerData["status"][k] = 0;
                         this->peerData["pids"][k] = pid;
-                        spdlog::info("evdaemon {} created subsystem {}", devSn, k);
+                        spdlog::info("evdaemon {} created subsystem {}", this->devSn, k);
                     }
                     else {
-                        spdlog::info("evdaemon {} failed to create subsystem {}", devSn, k);
+                        spdlog::info("evdaemon {} failed to create subsystem {}", this->devSn, k);
                     }
-                }    
+                }else{
+                    spdlog::warn("evdaemon {} refuse to start subsystem {}, maybe it's disabled", this->devSn, k);
+                }
             }
         }else{
-            // cold startup, ignore diff.
             if(this->bColdStart) {
+                vector<string> tmp;
+                json unkown;
+                vector<string> terms;
+                string info;
+                int cnt = 0;
+                for(auto &[k,v]: this->peerData["config"].items()) {
+                    if(this->peerData["enabled"].count(k) != 0 && this->peerData["enabled"][k] != 0) {
+                        if((this->peerData["status"].count(k) == 0 || this->peerData["status"][k] == 0)) {
+                            tmp.push_back(k);
+                            info += (cnt == 0? "" : string(", ")) + k;
+                        }
+                        else if(this->peerData["status"][k] == -1) {
+                            unkown[k] = -1;
+                        }
+                    }
+                    else {
+                        terms.push_back(k);
+                    }
+                    cnt++;
+                }
+
                 spdlog::info("evdaemon {} will start following subsystems: {}", devSn, info);
+                //
                 for(string &e : tmp) {
                     pid_t pid = 0;
                     ret = zmqhelper::forkSubsystem(devSn, e, portRouter, pid);
@@ -239,6 +237,12 @@ private:
                     }
                     else {
                         spdlog::info("evdaemon {} failed to create subsystem {}", devSn, e);
+                    }
+                }
+
+                for(string &e: terms) {
+                    if(this->peerData["pids"].count(e) != 0) {
+                        kill(this->peerData["pids"][e], SIGTERM);
                     }
                 }
 
@@ -253,15 +257,6 @@ private:
                     cnt++;
                 }
 
-                for(string &e: terms) {
-                    // if(this->peerData["pids"].count(e) != 0) {
-                    //     kill(this->peerData["pids"][e], SIGTERM);
-                    // }
-                    if(this->peerData["pids"].count(e) != 0 && this->peerData["pids"].count(e) != -1) {
-
-                    }
-                }
-
                 for(auto &[k,v]: unkown.items()) {
                     pid_t pid = 0;
                     ret = zmqhelper::forkSubsystem(devSn, k, portRouter, pid);
@@ -273,25 +268,31 @@ private:
                     else {
                         spdlog::info("evdaemon {} failed to create subsystem {}", devSn, k);
                     }
-                } 
+                }
+                this->bColdStart = false;
             }else{
-                // TODO: load delta config
-                json mods;
-                set<int> ipcs;
+                // calc diff
+                auto mods = cfgutils::getModulesOperFromConfDiff(this->oldConfig, this->config, this->deltaCfg, this->devSn);
+                this->deltaCfg = json();
+                for(auto &[k,v]: mods.items()) {
+                    if(v == 0) {
+                        // send stop msg
+                    }
+                }
             }
-                
         }
-        this->bColdStart = false;
-        this->deltaCfg = json();
         return ret;
     }
     
-    void sendMsgToPeer(string peerId, string meta, string msg) {
+    void sendCmd2Peer(string peerId, string cmdVal, string msg) {
+        json meta;
+        meta["type"] = EV_MSG_META_TYPE_CMD;
+        meta["value"] = cmdVal;
         int ret = z_send(pDealer, this->daemonId, peerId, meta, msg);
         if(ret < 0) {
-            spdlog::error("evcloudsvc {} failed to send msg to peer {}: {} - {}", devSn, peerId, meta, msg);
+            spdlog::error("evcloudsvc {} failed to send msg to peer {}: {} - {}", devSn, peerId, meta.dump(), msg);
         }else{
-            spdlog::info("evcloudsvc {} successfully send msg to peer {}: {} - {}", devSn, peerId, meta, msg);
+            spdlog::info("evcloudsvc {} successfully send msg to peer {}: {} - {}", devSn, peerId, meta.dump(), msg);
         }
     }
 
@@ -469,7 +470,7 @@ private:
                             this->deltaCfg = json::diff(this->config, data);
                             spdlog::info("evdaemon {} received cloud config diff: {}\nnew: {}", devSn, this->deltaCfg.dump(4), data.dump());
                             if(this->deltaCfg.size() != 0 || this->bColdStart) {
-                                this->lastConfig = this->config;
+                                this->oldConfig = this->config;
                                 this->config = data;
                                 spdlog::info("evdaemon {} reloading config from cloud", devSn);
                                 ret = reloadCfg();
