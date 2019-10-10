@@ -40,6 +40,7 @@ json reqConfig(json &info);
 ///
 namespace strutils{
 vector<string> split(const std::string& s, char delimiter);
+bool isIpStr(string ip);
 }//namespace strutils
 
 namespace cfgutils {

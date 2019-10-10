@@ -95,6 +95,7 @@ json reqConfig(json &info)
 
 ///
 namespace strutils {
+
 vector<string> split(const std::string& s, char delimiter)
 {
     std::vector<std::string> tokens;
@@ -104,6 +105,20 @@ vector<string> split(const std::string& s, char delimiter)
         tokens.push_back(token);
     }
     return tokens;
+}
+
+bool isIpStr(string ip)
+{
+    int cnt = 3*4 + 3;
+    if(ip.size() == 0 || ip.size() > cnt) {
+        return false;
+    }
+    auto v = strutils::split(ip, '.');
+    if(v.size() == 0 || v.size () != 4) {
+        return false;
+    }
+
+    return true;
 }
 
 }//namespace strutils
