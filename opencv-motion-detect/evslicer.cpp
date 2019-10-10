@@ -224,9 +224,12 @@ private:
 
             if(evslicer.count("video-server-addr") != 0  && !evslicer["video-server-addr"].get<string>().empty()) {
                 videoFileServerApi = evslicer["video-server-addr"].get<string>();
+                if(videoFileServerApi.at(videoFileServerApi.size()-1) != '/') {
+                    videoFileServerApi += string("/");
+                }
             }
 
-            this->videoFileServerApi += this->ipcSn;
+            this->videoFileServerApi += this->ipcSn;            
 
             json evpuller = ipc["modules"]["evpuller"][0];
             pullerGid = evpuller["sn"].get<string>() + ":evpuller:" + to_string(evpuller["iid"]);
@@ -579,6 +582,18 @@ protected:
         return string(buffer);
     }
 
+    void debugFilesRing(){
+        spdlog::info("evslicer {} debug files ring. segHead: {}, isFull: {}", this->segHead, this->bSegFull);
+        int idx = 0;
+        for(auto &i: this->vTsActive) {
+            spdlog::info("\t\t vTsActive[{}]: {}, {}", idx, i, videoFileTs2Name(i));
+            idx++;
+            if(i == 0) {
+                break;
+            }
+        }
+    }
+
     vector<long> LoadVideoFiles(string path, int hours, int maxSlices, vector<long> &tsNeedUpload)
     {
         vector<long> v = vector<long>(maxSlices, 0);
@@ -748,6 +763,8 @@ protected:
     // find video files
     vector<string> findSlicesByRange(long tss, long tse, int offsetS, int offsetE)
     {
+
+        debugFilesRing();
         vector<string> ret;
         int found = 0;
         int _itss = 0;
