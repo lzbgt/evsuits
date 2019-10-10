@@ -583,7 +583,7 @@ protected:
     }
 
     void debugFilesRing(){
-        spdlog::info("evslicer {} debug files ring. segHead: {}, isFull: {}", this->segHead, this->bSegFull);
+        spdlog::info("evslicer {} debug files ring. segHead: {}, isFull: {}, max: {}", this->segHead, this->bSegFull, this->numSlices);
         int idx = 0;
         for(auto &i: this->vTsActive) {
             spdlog::info("\t\t vTsActive[{}]: {}, {}", idx, i, videoFileTs2Name(i));
@@ -825,9 +825,9 @@ protected:
 
     void printSlices()
     {
-        for(int i = 0; i < numSlices; i++) {
+        for(int i = 1; i <= numSlices; i++) {
             spdlog::info("evslicer {} vector[{}] = {}, {}", selfId, i, vTsActive[i], videoFileTs2Name(vTsActive[i]));
-            if(vTsActive[i] == 0) {
+            if(vTsActive[segToIdx(i)] == 0) {
                 break;
             }
         }
@@ -954,7 +954,7 @@ public:
                         spdlog::error("evslicer {} ignore upload videos in range ({}, {})", this->selfId, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse));
                     }
                     else {
-                        printSlices();
+                        debugFilesRing();
                         vector<tuple<string, string> > params= {{"startTime", to_string(tss)},{"endTime", to_string(tse)},{"cameraId", ipcSn}, {"headOffset", to_string(offsetS)},{"tailOffset", to_string(offsetE)}};
                         vector<string> fileNames;
                         string sf;
