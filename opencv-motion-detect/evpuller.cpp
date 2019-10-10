@@ -300,6 +300,7 @@ protected:
         }
 
         // serialize formatctx to bytes
+        // be attention to the scope of lock guard!
         {
             lock_guard<mutex> lock(this->mutMsg);
             lenAVFmtCtxBytes = AVFormatCtxSerializer::encode(pAVFormatInput, &pAVFmtCtxBytes);
