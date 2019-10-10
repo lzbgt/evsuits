@@ -33,69 +33,107 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                 set<string> oprations{"add", "replace", "remove"};
                 set<string> pullerTag{"addr", "user", "password", "proto", "port" /*, "sn"*/};
 
-                string ipcRegStr = "/(\\w+)/ipcs/(\\d+)/(\\w+)";
-                std::smatch results;
-                std::regex ipcRegex(ipcRegStr);
-                if (std::regex_match(path_, results, ipcRegex)) {
-                    if (results.size() == 4) {
-                        matched = true;
-                        string mgrSn = results[1].str();
-                        int ipcIdx = stoi(results[2].str());
-                        string tag = results[3].str();
-                        if(pullerTag.find(tag) != pullerTag.end()) {
-                            // TODO: op = remove
-                            if(d["op"] == "add" || d["op"] == "replace") {
-                                // start
-                                auto ipc = newConfig[mgrSn]["ipcs"][ipcIdx];
-                                auto ipcOld = oldConfig[mgrSn]["ipcs"][ipcIdx];
-                                if(ipc.count("modules") == 0 || ipc["modules"].size() == 0 || ipc["moudles"].count("evpuller") ==0 || ipc["modules"]["evpuller"].size() == 0 ) {
-                                    string msg = fmt::format("invalid config for ipc[{}]['modules']['evpuller']: {}", ipcIdx, newConfig.dump());
-                                    spdlog::error(msg);
-                                    ret["msg"] = msg;
-                                    hasError = true;
-                                    break;
-                                }else{
-                                    auto &evpullers = ipc["module"]["evpuller"];
-                                    int idx = 0;
-                                    for(auto &puller:evpullers) {
-                                        // strutil
-                                        if(puller.count("sn") == 0) {
-                                            string msg = fmt::format("invalid config for ipc[{}]['modules']['evpuller'][{}] no sn field: {}", ipcIdx, idx, newConfig.dump());
-                                            ret["msg"] = msg;
-                                            spdlog::error(msg);
-                                            hasError = true;
-                                            break;
-                                        }
+                // string ipcRegStr = "/(\\w+)/ipcs/(\\d+)/(\\w+)";
+                // std::smatch results;
+                // std::regex ipcRegex(ipcRegStr);
+                // if (std::regex_match(path_, results, ipcRegex)) {
+                //     if (results.size() == 4) {
+                //         matched = true;
+                //         string mgrSn = results[1].str();
+                //         int ipcIdx = stoi(results[2].str());
+                //         string tag = results[3].str();
+                //         if(pullerTag.find(tag) != pullerTag.end()) {
+                //             // TODO: op = remove
+                //             if(d["op"] == "add" || d["op"] == "replace") {
+                //                 // start
+                //                 auto ipc = newConfig[mgrSn]["ipcs"][ipcIdx];
+                //                 auto ipcOld = oldConfig[mgrSn]["ipcs"][ipcIdx];
+                //                 if(ipc.count("modules") == 0 || ipc["modules"].size() == 0 || ipc["moudles"].count("evpuller") ==0 || ipc["modules"]["evpuller"].size() == 0 ) {
+                //                     string msg = fmt::format("invalid config for ipc[{}]['modules']['evpuller']: {}", ipcIdx, newConfig.dump());
+                //                     spdlog::error(msg);
+                //                     ret["msg"] = msg;
+                //                     hasError = true;
+                //                     break;
+                //                 }else{
+                //                     auto &evpullers = ipc["module"]["evpuller"];
+                //                     int idx = 0;
+                //                     for(auto &puller:evpullers) {
+                //                         // strutil
+                //                         if(puller.count("sn") == 0) {
+                //                             string msg = fmt::format("invalid config for ipc[{}]['modules']['evpuller'][{}] no sn field: {}", ipcIdx, idx, newConfig.dump());
+                //                             ret["msg"] = msg;
+                //                             spdlog::error(msg);
+                //                             hasError = true;
+                //                             break;
+                //                         }
 
-                                        if(puller["sn"].get<string>() != sn) {
-                                            spdlog::debug("skip {} for expecting sn: {}", puller.dump(), sn);
-                                            continue;
-                                        }
+                //                         if(puller["sn"].get<string>() != sn) {
+                //                             spdlog::debug("skip {} for expecting sn: {}", puller.dump(), sn);
+                //                             continue;
+                //                         }
 
-                                        if(puller.count("iid") == 0 || puller.count("addr") == 0) {
-                                            string msg = fmt::format("invliad config as of having no iid/addr/enabled field in ipc[{}]['modules']['evpuller'][{}]: {}", ipcIdx, idx, newConfig.dump());
-                                            spdlog::error(msg);
-                                            ret["msg"] = msg;
-                                            hasError = true;
-                                            break;
-                                        }else{
-                                            string gid = sn + ":evpuller:" + to_string(puller["iid"].get<int>());
-                                            if(puller.count("enabled") == 0 || puller["enabled"].get<int>() == 0) {
-                                                ret["data"][gid] = 0; // stop
-                                            }else{
-                                                ret["data"][gid] = 2;
-                                            }
-                                        }
-                                        idx++;
+                //                         if(puller.count("iid") == 0 || puller.count("addr") == 0) {
+                //                             string msg = fmt::format("invliad config as of having no iid/addr/enabled field in ipc[{}]['modules']['evpuller'][{}]: {}", ipcIdx, idx, newConfig.dump());
+                //                             spdlog::error(msg);
+                //                             ret["msg"] = msg;
+                //                             hasError = true;
+                //                             break;
+                //                         }else{
+                //                             string gid = sn + ":evpuller:" + to_string(puller["iid"].get<int>());
+                //                             if(puller.count("enabled") == 0 || puller["enabled"].get<int>() == 0) {
+                //                                 ret["data"][gid] = 0; // stop
+                //                             }else{
+                //                                 ret["data"][gid] = 2;
+                //                             }
+                //                         }
+                //                         idx++;
+                //                     }
+                //                 }
+                //             }
+                //         }
+                //     }
+                // }
+                // // else{
+                // //     spdlog::info("no match for ipc", path_);
+                // // }
+
+                // one ipc
+                if(!matched && !hasError) {
+                    // /PSBV7GKN/ipcs/0"
+                    // {"addr":"172.31.0.129","modules":{"evml":[{"area":200,"enabled":1,"entropy":0.3,"iid":1,"post":30,"pre":3,"sn":"PSBV7GKN","thresh":30,"type":"motion"}],"evpuller":[{"addr":"127.0.0.1","enabled":1,"iid":1,"port-pub":5556,"sn":"PSBV7GKN"}],"evpusher":[{"enabled":0,"iid":1,"password":"","sn":"PSBV7GKN","token":"","urlDest":"rtsp://40.73.41.176/PSBV7GKN","user":""}],"evslicer":[{"enabled":1,"iid":1,"path":"slices","sn":"PSBV7GKN","video-server-addr":"http://40.73.41.176:10009/upload/evtvideos/"}]},"password":"iLabService","port":554,"proto":"rtsp","sn":"iLabService","user":"admin"}
+                    string  clusterRegStr = "/(\\w+)/ipcs/(\\d+).*";
+                    std::regex clusterRegex(clusterRegStr);
+                    std::smatch results;
+                    if (std::regex_match(path_, results, clusterRegex)) {
+                        if (results.size() == 3) {
+                            matched = true;
+                            string mgrSn = results[1].str();
+                            int ipcIdx = stoi(results[2].str());
+                            json mgr;
+                            if(d["op"] == "remove"){
+                                mgr[mgrSn] = oldConfig[mgrSn];
+                            }else{
+                                mgr[mgrSn] = newConfig[mgrSn];
+                            }
+
+                            json jret = cfgutils::getModuleGidsFromCfg(sn, mgr, "getModulesOperFromConfDiff", ipcIdx);
+                            spdlog::info("jret: {}", jret.dump());
+                            if(jret["code"] != 0) {
+                                ret["msg"] = jret["msg"];
+                                hasError = true;
+                                break;
+                            }else{
+                                for(auto &k: jret["data"]) {
+                                    if(d["op"] == "remove"){
+                                        ret["data"][string(k)] = 0;
+                                    }else{
+                                        ret["data"][string(k)] = 2;
                                     }
                                 }
                             }
                         }
                     }
                 }
-                // else{
-                //     spdlog::info("no match for ipc", path_);
-                // }
 
                 // match module config
                 if(!matched && !hasError) {
@@ -264,44 +302,6 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                             }
 
                             json jret = cfgutils::getModuleGidsFromCfg(sn, mgr, "getModulesOperFromConfDiff");
-                            spdlog::info("jret: {}", jret.dump());
-                            if(jret["code"] != 0) {
-                                ret["msg"] = jret["msg"];
-                                hasError = true;
-                                break;
-                            }else{
-                                for(auto &k: jret["data"]) {
-                                    if(d["op"] == "remove"){
-                                        ret["data"][string(k)] = 0;
-                                    }else{
-                                        ret["data"][string(k)] = 2;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // one ipc
-                if(!matched && !hasError) {
-                    // /PSBV7GKN/ipcs/0"
-                    // {"addr":"172.31.0.129","modules":{"evml":[{"area":200,"enabled":1,"entropy":0.3,"iid":1,"post":30,"pre":3,"sn":"PSBV7GKN","thresh":30,"type":"motion"}],"evpuller":[{"addr":"127.0.0.1","enabled":1,"iid":1,"port-pub":5556,"sn":"PSBV7GKN"}],"evpusher":[{"enabled":0,"iid":1,"password":"","sn":"PSBV7GKN","token":"","urlDest":"rtsp://40.73.41.176/PSBV7GKN","user":""}],"evslicer":[{"enabled":1,"iid":1,"path":"slices","sn":"PSBV7GKN","video-server-addr":"http://40.73.41.176:10009/upload/evtvideos/"}]},"password":"iLabService","port":554,"proto":"rtsp","sn":"iLabService","user":"admin"}
-                    string  clusterRegStr = "/(\\w+)/ipcs/(\\d+)";
-                    std::regex clusterRegex(clusterRegStr);
-                    std::smatch results;
-                    if (std::regex_match(path_, results, clusterRegex)) {
-                        if (results.size() == 3) {
-                            matched = true;
-                            string mgrSn = results[1].str();
-                            int ipcIdx = stoi(results[2].str());
-                            json mgr;
-                            if(d["op"] == "remove"){
-                                mgr[mgrSn] = oldConfig[mgrSn];
-                            }else{
-                                mgr[mgrSn] = newConfig[mgrSn];
-                            }
-
-                            json jret = cfgutils::getModuleGidsFromCfg(sn, mgr, "getModulesOperFromConfDiff", ipcIdx);
                             spdlog::info("jret: {}", jret.dump());
                             if(jret["code"] != 0) {
                                 ret["msg"] = jret["msg"];
