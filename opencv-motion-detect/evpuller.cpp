@@ -98,6 +98,8 @@ private:
             unique_lock<mutex> lk(this->mutMsg);
             this->cvMsg.wait(lk, [this] {return this->gotFormat;});
         }
+
+        spdlog::info("evpuller {} got inputformat", selfId);
         auto msgBody = data2body(const_cast<char*>(pAVFmtCtxBytes), lenAVFmtCtxBytes);
         try {
             // rep framectx
@@ -298,32 +300,16 @@ protected:
         }
 
         // serialize formatctx to bytes
-        lock_guard<mutex> lock(this->mutMsg);
-        lenAVFmtCtxBytes = AVFormatCtxSerializer::encode(pAVFormatInput, &pAVFmtCtxBytes);
-        if(lenAVFmtCtxBytes <= 0 || pAVFmtCtxBytes == nullptr) {
-            spdlog::error("evpuller {} failed to pull packet from {}. exiting...", selfId, urlIn);
-            exit(1);
+        {
+            lock_guard<mutex> lock(this->mutMsg);
+            lenAVFmtCtxBytes = AVFormatCtxSerializer::encode(pAVFormatInput, &pAVFmtCtxBytes);
+            if(lenAVFmtCtxBytes <= 0 || pAVFmtCtxBytes == nullptr) {
+                spdlog::error("evpuller {} failed to pull packet from {}. exiting...", selfId, urlIn);
+                exit(1);
+            }
+            gotFormat = true;
+            cvMsg.notify_one();
         }
-        gotFormat = true;
-        cvMsg.notify_one();
-
-        thEdgeMsgHandler = thread([this]{
-            while(true) {
-                auto body = z_recv_multiple(pDealer,false);
-                if(body.size() == 0) {
-                    spdlog::error("evslicer {} failed to receive multiple msg: {}", selfId, zmq_strerror(zmq_errno()));
-                    continue;
-                }
-                // full proto msg received.
-                string msg;
-                for(auto &v: body) {
-                    msg += body2str(v);
-                }
-                spdlog::info("evpuller {} received edge msg: {}", selfId, msg);
-                this->handleEdgeMsg(body);
-            } 
-        });
-        thEdgeMsgHandler.detach();
 
         // find all video & audio streams for remuxing
         int i = 0, streamIdx = 0;
@@ -435,6 +421,25 @@ public:
             spdlog::error("evpuller {} failed to receive configration message {}", selfId, addr);
         }
         init();
+
+        thEdgeMsgHandler = thread([this]{
+            while(true) {
+                auto body = z_recv_multiple(pDealer,false);
+                if(body.size() == 0) {
+                    spdlog::error("evslicer {} failed to receive multiple msg: {}", selfId, zmq_strerror(zmq_errno()));
+                    continue;
+                }
+                // full proto msg received.
+                string msg;
+                for(auto &v: body) {
+                    msg += body2str(v) + ",";
+                }
+                spdlog::info("evpuller {} received edge msg: {}", selfId, msg);
+                this->handleEdgeMsg(body);
+            } 
+        });
+        thEdgeMsgHandler.detach();
+        
 
         thCloudMsgHandler = thread([this]{
             while(true) {
