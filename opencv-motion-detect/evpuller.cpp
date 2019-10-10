@@ -73,19 +73,19 @@ private:
                 string daemonId = this->devSn + ":evdaemon:0";
                 if(peerId == daemonId) {
                     if(metaValue == EV_MSG_META_VALUE_CMD_STOP || metaValue == EV_MSG_META_VALUE_CMD_RESTART) {
-                        spdlog::info("evpusher {} received {} cmd from cluster mgr {}", selfId, metaValue, daemonId);
+                        spdlog::info("evpuller {} received {} cmd from cluster mgr {}", selfId, metaValue, daemonId);
                         bProcessed = true;
                         exit(0);
                     }
                 }
             }
             catch(exception &e) {
-                spdlog::error("evpusher {} exception to process msg {}: {}", selfId, msg, e.what());
+                spdlog::error("evpuller {} exception to process msg {}: {}", selfId, msg, e.what());
             }
         }
 
         if(!bProcessed) {
-            spdlog::error("evpusher {} received msg having no implementation from peer: {}", selfId, msg);
+            spdlog::error("evpuller {} received msg having no implementation from peer: {}", selfId, msg);
         }
 
         return ret;
@@ -94,8 +94,10 @@ private:
     int handleEdgeMsg(vector<vector<uint8_t> > v)
     {
         int ret = 0;
-        unique_lock<mutex> lk(this->mutMsg);
-        this->cvMsg.wait(lk, [this] {return this->gotFormat;});
+        {
+            unique_lock<mutex> lk(this->mutMsg);
+            this->cvMsg.wait(lk, [this] {return this->gotFormat;});
+        }
         auto msgBody = data2body(const_cast<char*>(pAVFmtCtxBytes), lenAVFmtCtxBytes);
         try {
             // rep framectx
@@ -313,6 +315,11 @@ protected:
                     continue;
                 }
                 // full proto msg received.
+                string msg;
+                for(auto &v: body) {
+                    msg += body2str(v);
+                }
+                spdlog::info("evpuller {} received edge msg: {}", selfId, msg);
                 this->handleEdgeMsg(body);
             } 
         });
