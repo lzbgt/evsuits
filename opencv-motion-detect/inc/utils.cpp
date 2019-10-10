@@ -378,11 +378,12 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                 if(!matched && !hasError) {
                     // /PSBV7GKN/ipcs/0"
                     // {"addr":"172.31.0.129","modules":{"evml":[{"area":200,"enabled":1,"entropy":0.3,"iid":1,"post":30,"pre":3,"sn":"PSBV7GKN","thresh":30,"type":"motion"}],"evpuller":[{"addr":"127.0.0.1","enabled":1,"iid":1,"port-pub":5556,"sn":"PSBV7GKN"}],"evpusher":[{"enabled":0,"iid":1,"password":"","sn":"PSBV7GKN","token":"","urlDest":"rtsp://40.73.41.176/PSBV7GKN","user":""}],"evslicer":[{"enabled":1,"iid":1,"path":"slices","sn":"PSBV7GKN","video-server-addr":"http://40.73.41.176:10009/upload/evtvideos/"}]},"password":"iLabService","port":554,"proto":"rtsp","sn":"iLabService","user":"admin"}
-                    string  clusterRegStr = "/(\\w+)/ipcs/(\\d+).*";
+                    string  clusterRegStr = "/(\\w+)/ipcs/(\\d+)(?:/[^/]+)?";
                     std::regex clusterRegex(clusterRegStr);
                     std::smatch results;
                     if (std::regex_match(path_, results, clusterRegex)) {
                         if (results.size() == 3) {
+                            spdlog::info("getModulesOperFromConfDiff path matched ipc or ipc prop", path_);
                             matched = true;
                             string mgrSn = results[1].str();
                             int ipcIdx = stoi(results[2].str());
@@ -414,13 +415,15 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
 
                 // match module config
                 if(!matched && !hasError) {
+                    // /PSBV7GKN/ipcs/0/modules/evslicer/0/video-server-addr
                     // /NMXH73Y2/ipcs/0/modules/evpusher/0/urlDest
-                    string  moduleRegStr = "/(\\w+)/ipcs/(\\d+)/modules/(\\w+)/(\\d+)/(\\w+)";
+                    string  moduleRegStr = "/(\\w+)/ipcs/(\\d+)/modules/(\\w+)/(\\d+)/([^/]+)";
                     std::regex moduleRegex(moduleRegStr);
                     std::smatch results;
                     if (std::regex_match(path_, results, moduleRegex)) {
                         if (results.size() == 6) {
                             matched = true;
+                            spdlog::info("getModulesOperFromConfDiff path matched module prop", path_);
                             string mgrSn = results[1].str();
                             int ipcIdx = stoi(results[2].str());
                             int modIdx = stoi(results[4].str());
@@ -506,6 +509,7 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                     if (std::regex_match(path_, results, moduleRegex)) {
                         if (results.size() == 5) {
                             matched = true;
+                            spdlog::info("getModulesOperFromConfDiff path matched whole module", path_);
                             string mgrSn = results[1].str();
                             int ipcIdx = stoi(results[2].str());
                             int modIdx = stoi(results[4].str());
@@ -570,6 +574,7 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                     if (std::regex_match(path_, results, clusterRegex)) {
                         if (results.size() == 2) {
                             matched = true;
+                            spdlog::info("getModulesOperFromConfDiff path matched whole cluster", path_);
                             string mgrSn = results[1].str();
                             json mgr;
                             if(d["op"] == "remove"){

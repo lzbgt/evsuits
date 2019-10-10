@@ -282,6 +282,9 @@ private:
                 }
 
                 json &mods = jret["data"];
+                if(mods.size() == 0) {
+                    spdlog::info("evdaemon {} startSubSystems: no module to operate", this->devSn);
+                }
                 for(auto &[k,v]: mods.items()) {
                     spdlog::info("evdaemon {} startSubSystems config diff to module action: {} -> {}", this->devSn, string(k), int(v));
                     if(v == 0) {
