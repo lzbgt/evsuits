@@ -55,9 +55,11 @@ private:
     int *streamList = nullptr;
     time_t tsLastBoot, tsUpdateTime;
     json config;
-    thread thMsgProcessor, thSliceMgr;
+    thread thEdgeMsgHandler, thCloudMsgHandler, thSliceMgr;
     string drport = "5549";
     json slices;
+    condition_variable cvMsg;
+    mutex mutMsg;
     bool gotFormat = false;
     vector<long> vTsOld;
     mutex mutTsOld;
@@ -73,7 +75,7 @@ private:
     {
         return true;
     }
-    int handleMsg(vector<vector<uint8_t> > v)
+    int handleEdgeMsg(vector<vector<uint8_t> > v)
     {
         int ret = 0;
         string peerId, meta;
@@ -88,9 +90,11 @@ private:
                 peerId = body2str(v[0]);
                 meta = json::parse(body2str(v[1]))["type"];
                 if(meta == EV_MSG_META_AVFORMATCTX) {
+                    lock_guard<mutex> lock(this->mutMsg);
                     pAVFormatInput = (AVFormatContext *)malloc(sizeof(AVFormatContext));
                     AVFormatCtxSerializer::decode((char *)(v[2].data()), v[2].size(), pAVFormatInput);
                     gotFormat = true;
+                    cvMsg.notify_one();
                     spdlog::info("evslicer {} got avformat from {}", selfId, peerId);
                 }
                 else if(meta == EV_MSG_META_EVENT) {
@@ -128,6 +132,47 @@ private:
         }
         else {
             spdlog::error("evslicer {} get invalid msg with size {}: {}", selfId, v.size(), msg);
+        }
+
+        return ret;
+    }
+
+    int handleCloudMsg(vector<vector<uint8_t> > v)
+    {
+        int ret = 0;
+        string peerId, metaType, metaValue, msg;
+        json data;
+        for(auto &b:v) {
+            msg +=body2str(b) + ";";
+        }
+
+        bool bProcessed = false;
+        if(v.size() == 3) {
+            try {
+                peerId = body2str(v[0]);
+                json meta = json::parse(body2str(v[1]));
+                metaType = meta["type"];
+                if(meta.count("value") != 0) {
+                    metaValue = meta["value"];
+                }
+
+                // msg from cluster mgr
+                string daemonId = this->devSn + ":evdaemon:0";
+                if(peerId == daemonId) {
+                    if(metaValue == EV_MSG_META_VALUE_CMD_STOP || metaValue == EV_MSG_META_VALUE_CMD_RESTART) {
+                        spdlog::info("evslicer {} received {} cmd from cluster mgr {}", selfId, metaValue, daemonId);
+                        bProcessed = true;
+                        exit(0);
+                    }
+                }
+            }
+            catch(exception &e) {
+                spdlog::error("evslicer {} exception to process msg {}: {}", selfId, msg, e.what());
+            }
+        }
+
+        if(!bProcessed) {
+            spdlog::error("evslicer {} received msg having no implementation from peer: {}", selfId, msg);
         }
 
         return ret;
@@ -242,7 +287,7 @@ private:
             ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());
             ret += zmq_setsockopt (pDealer, ZMQ_ROUTING_ID, selfId.c_str(), selfId.size());
             if(ret < 0) {
-                spdlog::error("evpusher {} {} failed setsockopts router: {}", selfId, urlRouter);
+                spdlog::error("evslicer {} {} failed setsockopts router: {}", selfId, urlRouter);
                 exit(1);
             }
             if(ret < 0) {
@@ -296,16 +341,16 @@ private:
         body.push_back(str2body(meta.dump()));
         body.push_back(str2body(MSG_HELLO));
 
-        uint64_t failedCnt = 0;
-        // TODO: change to notification style
-        while(!gotFormat) {
-            ret = z_send_multiple(pDealer, body);
-            if(ret < 0) {
-                spdlog::error("evslicer {}, failed to send hello to puller: {}", selfId, zmq_strerror(zmq_errno()));
-                continue;
-            }
-            this_thread::sleep_for(chrono::seconds(20));
+        this->gotFormat = false;
+
+        ret = z_send_multiple(pDealer, body);
+        if(ret < 0) {
+            spdlog::error("evslicer {}, failed to send hello to puller: {}. exiting ...", selfId, zmq_strerror(zmq_errno()));
+            exit(1);
         }
+        unique_lock<mutex> lk(this->mutMsg);
+        this->cvMsg.wait(lk, [this] {return this->gotFormat;});
+
         return ret;
     }
 
@@ -813,7 +858,7 @@ public:
         init();
 
         // thread for msg
-        thMsgProcessor = thread([this]() {
+        thEdgeMsgHandler = thread([this]() {
             while(true) {
                 auto body = z_recv_multiple(pDealer,false);
                 if(body.size() == 0) {
@@ -821,10 +866,25 @@ public:
                     continue;
                 }
                 // full proto msg received.
-                handleMsg(body);
+                handleEdgeMsg(body);
             }
         });
-        thMsgProcessor.detach();
+        thEdgeMsgHandler.detach();
+
+        thCloudMsgHandler = thread([this]{
+            while(true) {
+                auto body = z_recv_multiple(pDaemon,false);
+                if(body.size() == 0) {
+                    spdlog::error("evslicer {} failed to receive multiple msg: {}", selfId, zmq_strerror(zmq_errno()));
+                    continue;
+                }
+                // full proto msg received.
+                this->handleCloudMsg(body);
+            }
+        });
+        thCloudMsgHandler.detach();
+
+
 
         // thread for slicer maintenace
         thSliceMgr = thread([this]() {

@@ -303,7 +303,7 @@ private:
         }
         else {
             peerData["status"][selfId] = 0;
-            spdlog::warn("evcloudsvc {} peer disconnected: {}", devSn, selfId);
+            spdlog::warn("{} peer disconnected: {}", devSn, selfId);
         }
         return ret;
     }

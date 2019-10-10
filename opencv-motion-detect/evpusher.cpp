@@ -258,12 +258,11 @@ private:
         body.push_back(str2body(meta.dump()));
         body.push_back(str2body(MSG_HELLO));
         this->gotFormat = false;
-        uint64_t failedCnt = 0;
-        // TODO: notification
-        
+
         ret = z_send_multiple(pDealer, body);
         if(ret < 0) {
-            spdlog::error("evpusher {} {}, failed to send hello to puller: {}", devSn, iid, zmq_strerror(zmq_errno()));
+            spdlog::error("evpusher {} {}, failed to send hello to puller: {}. exiting...", devSn, iid, zmq_strerror(zmq_errno()));
+            exit(1);
         }
         unique_lock<mutex> lk(this->mutMsg);
         this->cvMsg.wait(lk, [this] {return this->gotFormat;});
@@ -497,7 +496,6 @@ public:
                     continue;
                 }
                 // full proto msg received.
-                spdlog::info("evpusher {} received cloud msg: {}", this->selfId, "aaa");
                 this->handleCloudMsg(body);
             }
         });

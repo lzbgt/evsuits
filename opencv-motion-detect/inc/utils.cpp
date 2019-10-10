@@ -282,6 +282,9 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
     ret["msg"] = "ok";
     ret["data"] = json();
     bool hasError = false;
+    if(diff.size() == 0) {
+        return ret;
+    }
     spdlog::info("getModulesOperFromConfDiff for sn {}. diff: {}, newConfig: {}", sn, diff.dump(), newConfig.dump());
     try {
         for(auto &d: diff) {

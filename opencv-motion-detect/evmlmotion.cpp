@@ -77,10 +77,102 @@ private:
     int streamIdx = -1;
     time_t tsLastBoot, tsUpdateTime;
     json config;
-    thread thPing;
+    thread thEdgeMsgHandler, thCloudMsgHandler;
     thread thEvent;
     string drport = "5549";
+    condition_variable cvMsg;
+    mutex mutMsg;
+    bool gotFormat = false;
+
     //
+
+    int handleCloudMsg(vector<vector<uint8_t> > v)
+    {
+        int ret = 0;
+        string peerId, metaType, metaValue, msg;
+        json data;
+        for(auto &b:v) {
+            msg +=body2str(b) + ";";
+        }
+
+        bool bProcessed = false;
+        if(v.size() == 3) {
+            try {
+                peerId = body2str(v[0]);
+                json meta = json::parse(body2str(v[1]));
+                metaType = meta["type"];
+                if(meta.count("value") != 0) {
+                    metaValue = meta["value"];
+                }
+
+                // msg from cluster mgr
+                string daemonId = this->devSn + ":evdaemon:0";
+                if(peerId == daemonId) {
+                    if(metaValue == EV_MSG_META_VALUE_CMD_STOP || metaValue == EV_MSG_META_VALUE_CMD_RESTART) {
+                        spdlog::info("evmlmotion {} received {} cmd from cluster mgr {}", selfId, metaValue, daemonId);
+                        bProcessed = true;
+                        exit(0);
+                    }
+                }
+            }
+            catch(exception &e) {
+                spdlog::error("evmlmotion {} exception to process msg {}: {}", selfId, msg, e.what());
+            }
+        }
+
+        if(!bProcessed) {
+            spdlog::error("evmlmotion {} received msg having no implementation from peer: {}", selfId, msg);
+        }
+
+        return ret;
+    }
+
+    int handleEdgeMsg(vector<vector<uint8_t> > v)
+    {
+        int ret = 0;
+        string peerId, metaType, metaValue, msg;
+        json data;
+        for(auto &b:v) {
+            msg +=body2str(b) + ";";
+        }
+
+        bool bProcessed = false;
+        if(v.size() == 3) {
+            try {
+                peerId = body2str(v[0]);
+                json meta = json::parse(body2str(v[1]));
+                metaType = meta["type"];
+                if(meta.count("value") != 0) {
+                    metaValue = meta["value"];
+                }
+
+                // msg from cluster mgr
+                string clusterMgrId = this->mgrSn + ":evmgr:0";
+                if(peerId == clusterMgrId) {
+                    //
+                }
+                else if(peerId == pullerGid) {
+                    if(metaType == EV_MSG_META_AVFORMATCTX) {
+                        lock_guard<mutex> lock(this->mutMsg);
+                        pAVFormatInput = (AVFormatContext *)malloc(sizeof(AVFormatContext));
+                        AVFormatCtxSerializer::decode((char *)(v[2].data()), v[2].size(), pAVFormatInput);
+                        gotFormat = true;
+                        bProcessed = true;
+                        cvMsg.notify_one();
+                    }
+                }           
+            }
+            catch(exception &e) {
+                spdlog::error("evmlmotion {} exception to process msg {}: {}", selfId, msg, e.what());
+            }
+        }
+
+        if(!bProcessed) {
+            spdlog::error("evmlmotion {} received msg having no implementation from peer: {}", selfId, msg);
+        }
+
+        return ret;
+    }
 
     int init()
     {
@@ -259,48 +351,14 @@ private:
         meta["type"] = EV_MSG_META_AVFORMATCTX;
         body.push_back(str2body(meta.dump()));
         body.push_back(str2body(MSG_HELLO));
-        bool gotFormat = false;
-        uint64_t failedCnt = 0;
-        while(!gotFormat) {
-            ret = z_send_multiple(pDealer, body);
-            if(ret < 0) {
-                spdlog::error("evmlmotion {}, failed to send hello to puller: {}", selfId, zmq_strerror(zmq_errno()));
-                continue;
-            }
-
-            // expect response with avformatctx
-            auto v = z_recv_multiple(pDealer);
-            if(v.size() != 3) {
-                ret = zmq_errno();
-                if(ret != 0) {
-                    if(failedCnt % 100 == 0) {
-                        spdlog::error("evmlmotion {}, error receive avformatctx: {}, {}", selfId, v.size(), zmq_strerror(ret));
-                        spdlog::info("evmlmotion {} retry connect to peers", selfId);
-                    }
-                    this_thread::sleep_for(chrono::seconds(5));
-                    failedCnt++;
-                }
-                else {
-                    spdlog::error("evmlmotion {}, received bad size zmq msg for avformatctx: {}", selfId, v.size());
-                }
-            }
-            else if(body2str(v[0]) != pullerGid) {
-                spdlog::error("evmlmotion {}, invalid sender for avformatctx: {}, should be: {}", selfId, body2str(v[0]), pullerGid);
-            }
-            else {
-                try {
-                    auto cmd = json::parse(body2str(v[1]));
-                    if(cmd["type"].get<string>() == EV_MSG_META_AVFORMATCTX) {
-                        pAVFormatInput = (AVFormatContext *)malloc(sizeof(AVFormatContext));
-                        AVFormatCtxSerializer::decode((char *)(v[2].data()), v[2].size(), pAVFormatInput);
-                        gotFormat = true;
-                    }
-                }
-                catch(exception &e) {
-                    spdlog::error("evmlmotion {}, exception in parsing avformatctx packet: {}", selfId, e.what());
-                }
-            }
+        gotFormat = false;
+        ret = z_send_multiple(pDealer, body);
+        if(ret < 0) {
+            spdlog::error("evpusher {} {}, failed to send hello to puller: {}. exiting...", devSn, iid, zmq_strerror(zmq_errno()));
+            exit(1);
         }
+        unique_lock<mutex> lk(this->mutMsg);
+        this->cvMsg.wait(lk, [this] {return this->gotFormat;});
         return ret;
     }
 
@@ -715,6 +773,33 @@ public:
         }
 
         init();
+        
+        thCloudMsgHandler = thread([this]{
+            while(true) {
+                auto body = z_recv_multiple(pDaemon,false);
+                if(body.size() == 0) {
+                    spdlog::error("evslicer {} failed to receive multiple msg: {}", selfId, zmq_strerror(zmq_errno()));
+                    continue;
+                }
+                // full proto msg received.
+                this->handleCloudMsg(body);
+            }
+        });
+        thCloudMsgHandler.detach();
+
+        thEdgeMsgHandler = thread([this]{
+            while(true) {
+                auto body = z_recv_multiple(pDealer,false);
+                if(body.size() == 0) {
+                    spdlog::error("evslicer {} failed to receive multiple msg: {}", selfId, zmq_strerror(zmq_errno()));
+                    continue;
+                }
+                // full proto msg received.
+                this->handleEdgeMsg(body);
+            } 
+        });
+        thEdgeMsgHandler.detach();
+
         getInputFormat();
         setupStream();
     };
