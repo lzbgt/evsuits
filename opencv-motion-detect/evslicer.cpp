@@ -584,11 +584,9 @@ protected:
 
     void debugFilesRing(){
         spdlog::info("evslicer {} debug files ring. segHead: {}, isFull: {}, max: {}",this->selfId, this->segHead, this->bSegFull, this->numSlices);
-        int idx = 0;
-        for(auto &i: this->vTsActive) {
-            spdlog::info("\t\t vTsActive[{}]: {}, {}", idx, i, videoFileTs2Name(i));
-            idx++;
-            if(i == 0) {
+        for(int i = 1; i <= numSlices; i++) {
+            spdlog::info("\tevslicer {} vector[{}] = {}, {}", selfId, i, vTsActive[i], videoFileTs2Name(vTsActive[i]));
+            if(vTsActive[segToIdx(i)] == 0) {
                 break;
             }
         }
@@ -821,18 +819,6 @@ protected:
         }
 
         return ret;
-    }
-
-    void printSlices()
-    {
-        for(int i = 1; i <= numSlices; i++) {
-            spdlog::info("evslicer {} vector[{}] = {}, {}", selfId, i, vTsActive[i], videoFileTs2Name(vTsActive[i]));
-            if(vTsActive[segToIdx(i)] == 0) {
-                break;
-            }
-        }
-
-        spdlog::info("evslicer {} segHead: {}, full: {}", selfId, segHead, bSegFull);
     }
 
 public:
