@@ -583,7 +583,7 @@ protected:
     }
 
     void debugFilesRing(){
-        spdlog::info("evslicer {} debug files ring. segHead: {}, isFull: {}, max: {}", this->segHead, this->bSegFull, this->numSlices);
+        spdlog::info("evslicer {} debug files ring. segHead: {}, isFull: {}, max: {}",this->selfId, this->segHead, this->bSegFull, this->numSlices);
         int idx = 0;
         for(auto &i: this->vTsActive) {
             spdlog::info("\t\t vTsActive[{}]: {}, {}", idx, i, videoFileTs2Name(i));
