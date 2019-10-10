@@ -8,6 +8,7 @@
 #include "json.hpp"
 #include <spdlog/spdlog.h>
 #include <fmt/format.h>
+#include "utils.hpp"
 
 using namespace std;
 using namespace nlohmann;
@@ -241,16 +242,88 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                                 }
                             }
                         }
-                        
                     }
                 }
 
-                if(hasError){
-                    ret["code"] = 1;
-                    break;
-                }       
+                // whole cluster
+                if(!matched && !hasError) {
+                    // /PSBV7GKN
+                    // "value":{"addr":"127.0.0.1","api-cloud":"http://127.0.0.1:8089","ipcs":[{"addr":"172.31.0.129","modules":{"evml":[{"area":200,"enabled":1,"entropy":0.3,"iid":1,"post":30,"pre":3,"sn":"PSBV7GKN","thresh":30,"type":"motion"}],"evpuller":[{"addr":"127.0.0.1","enabled":1,"iid":1,"port-pub":5556,"sn":"PSBV7GKN"}],"evpusher":[{"enabled":0,"iid":1,"password":"","sn":"PSBV7GKN","token":"","urlDest":"rtsp://40.73.41.176/PSBV7GKN","user":""}],"evslicer":[{"enabled":1,"iid":1,"path":"slices","sn":"PSBV7GKN","video-server-addr":"http://40.73.41.176:10009/upload/evtvideos/"}]},"password":"iLabService","port":554,"proto":"rtsp","sn":"iLabService","user":"admin"}],"mqtt-cloud":"<cloud_addr>","port-cloud":5556,"port-router":5550,"proto":"zmq","sn":"PSBV7GKN"}
+                    string  clusterRegStr = "/(\\w+)";
+                    std::regex clusterRegex(clusterRegStr);
+                    std::smatch results;
+                    if (std::regex_match(path_, results, clusterRegex)) {
+                        if (results.size() == 2) {
+                            matched = true;
+                            string mgrSn = results[1].str();
+                            json mgr;
+                            if(d["op"] == "remove"){
+                                mgr[mgrSn] = oldConfig[mgrSn];
+                            }else{
+                                mgr[mgrSn] = newConfig[mgrSn];
+                            }
+
+                            json jret = cfgutils::getModuleGidsFromCfg(sn, mgr, "getModulesOperFromConfDiff");
+                            spdlog::info("jret: {}", jret.dump());
+                            if(jret["code"] != 0) {
+                                ret["msg"] = jret["msg"];
+                                hasError = true;
+                                break;
+                            }else{
+                                for(auto &k: jret["data"]) {
+                                    if(d["op"] == "remove"){
+                                        ret["data"][string(k)] = 0;
+                                    }else{
+                                        ret["data"][string(k)] = 2;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // one ipc
+                if(!matched && !hasError) {
+                    // /PSBV7GKN/ipcs/0"
+                    // {"addr":"172.31.0.129","modules":{"evml":[{"area":200,"enabled":1,"entropy":0.3,"iid":1,"post":30,"pre":3,"sn":"PSBV7GKN","thresh":30,"type":"motion"}],"evpuller":[{"addr":"127.0.0.1","enabled":1,"iid":1,"port-pub":5556,"sn":"PSBV7GKN"}],"evpusher":[{"enabled":0,"iid":1,"password":"","sn":"PSBV7GKN","token":"","urlDest":"rtsp://40.73.41.176/PSBV7GKN","user":""}],"evslicer":[{"enabled":1,"iid":1,"path":"slices","sn":"PSBV7GKN","video-server-addr":"http://40.73.41.176:10009/upload/evtvideos/"}]},"password":"iLabService","port":554,"proto":"rtsp","sn":"iLabService","user":"admin"}
+                    string  clusterRegStr = "/(\\w+)/ipcs/(\\d+)";
+                    std::regex clusterRegex(clusterRegStr);
+                    std::smatch results;
+                    if (std::regex_match(path_, results, clusterRegex)) {
+                        if (results.size() == 3) {
+                            matched = true;
+                            string mgrSn = results[1].str();
+                            int ipcIdx = stoi(results[2].str());
+                            json mgr;
+                            if(d["op"] == "remove"){
+                                mgr[mgrSn] = oldConfig[mgrSn];
+                            }else{
+                                mgr[mgrSn] = newConfig[mgrSn];
+                            }
+
+                            json jret = cfgutils::getModuleGidsFromCfg(sn, mgr, "getModulesOperFromConfDiff", ipcIdx);
+                            spdlog::info("jret: {}", jret.dump());
+                            if(jret["code"] != 0) {
+                                ret["msg"] = jret["msg"];
+                                hasError = true;
+                                break;
+                            }else{
+                                for(auto &k: jret["data"]) {
+                                    if(d["op"] == "remove"){
+                                        ret["data"][string(k)] = 0;
+                                    }else{
+                                        ret["data"][string(k)] = 2;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } 
             }
         }
+        if(hasError){
+            ret["code"] = 1;
+        }   
     }catch(exception &e) {
         spdlog::error("getModulesOperFromConfDiff exception: {}", e.what());
         ret["code"] = -1;
