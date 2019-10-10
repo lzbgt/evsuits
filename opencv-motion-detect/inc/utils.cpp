@@ -300,7 +300,7 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
     spdlog::info("matching {}, size:{}, type:{}", diff.dump(), diff.size(), diff.type_name());
     try{
         for(auto &d: diff) {
-            spdlog::info("d :{}, {}", d.dump(), d.size());
+            spdlog::info("getModulesOperFromConfDiff path: {}", d.dump());
             if(d.count("path") != 0) {
                 string path_ = d["path"];
                 bool matched = false;
