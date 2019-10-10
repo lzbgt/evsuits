@@ -497,9 +497,9 @@ public:
                     continue;
                 }
                 // full proto msg received.
+                spdlog::info("evpusher {} received cloud msg: {}", this->selfId, "aaa");
                 this->handleCloudMsg(body);
             }
-            
         });
         thCloudMsgHandler.detach();
 
@@ -512,8 +512,7 @@ public:
                 }
                 // full proto msg received.
                 this->handleEdgeMsg(body);
-            }
-            
+            } 
         });
         thEdgeMsgHandler.detach();
 

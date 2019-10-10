@@ -133,7 +133,7 @@ private:
                             }
 
                             if(m.count("enabled") == 0 || m["enabled"] == 0) {
-                                spdlog::warn("evdaemon {} {} was disabled", this->devSn, mn);
+                                spdlog::warn("evdaemon {} {} was disabled", this->devSn, peerId);
                                 this->peerData["enabled"][peerId] = 0;
                             }
                             else {
@@ -283,16 +283,15 @@ private:
 
                 json &mods = jret["data"];
                 for(auto &[k,v]: mods.items()) {
+                    spdlog::info("evdaemon {} startSubSystems config diff to module action: {} -> {}", this->devSn, string(k), int(v));
                     if(v == 0) {
-                        // send stop msg
-                        this->peerData["config"].erase(k);
-                        this->peerData["status"].erase(k);
-                        this->peerData["pids"].erase(k);
-                        this->peerData["enabled"].erase(k);
-                        sendCmd2Peer(k, EV_MSG_META_VALUE_CMD_STOP, "");
-                    }else if(v == 1 || v == 2){
-                        if(this->peerData["status"].count(k) == 0 || this->peerData["status"] == 0) {
+                        sendCmd2Peer(k, EV_MSG_META_VALUE_CMD_STOP, "0");
+                    }else if(int(v) == 1 || int(v) == 2){
+                        int status = (this->peerData["status"].count(k) == 0) ? -1:this->peerData["status"][k].get<int>();
+                        spdlog::info("{} status {}", k, status);
+                        if(this->peerData["status"].count(k) == 0 || this->peerData["status"][k] == 0||this->peerData["status"][k] == -1) {
                             pid_t pid;
+                            spdlog::info("evdaemon {} starting subsystem {}", this->devSn, k);
                             ret = zmqhelper::forkSubsystem(devSn, k, portRouter, pid);
                             if(0 == ret) {
                                 this->peerData["status"][k] = 0;
@@ -304,7 +303,7 @@ private:
                             }
                         }else{
                             // restart
-                            sendCmd2Peer(k, EV_MSG_META_VALUE_CMD_STOP, "");
+                            sendCmd2Peer(k, EV_MSG_META_VALUE_CMD_STOP, to_string(v));
                         }
                     }else{
                         //
@@ -320,11 +319,11 @@ private:
         json meta;
         meta["type"] = EV_MSG_META_TYPE_CMD;
         meta["value"] = cmdVal;
-        int ret = z_send(pDealer, this->daemonId, peerId, meta, msg);
+        int ret = z_send(pRouter, peerId, this->daemonId, meta, msg);
         if(ret < 0) {
-            spdlog::error("evcloudsvc {} failed to send msg to peer {}: {} - {}", devSn, peerId, meta.dump(), msg);
+            spdlog::error("evdaemon {} failed to send msg to peer {}: {} - {}", devSn, peerId, meta.dump(), msg);
         }else{
-            spdlog::info("evcloudsvc {} successfully send msg to peer {}: {} - {}", devSn, peerId, meta.dump(), msg);
+            spdlog::info("evdaemon {} successfully send msg to peer {}: {} - {}", devSn, peerId, meta.dump(), msg);
         }
     }
 

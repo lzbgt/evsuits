@@ -548,7 +548,7 @@ protected:
             for (const auto & entry : fs::directory_iterator(path)) {
                 fname = entry.path().c_str();
                 if(entry.file_size() == 0 || !entry.is_regular_file()||entry.path().extension() != ".mp4") {
-                    spdlog::warn("evslicer {} LoasdVideoFiles skipped {} (empty/directory/!mp4)", selfId, entry.path().c_str());
+                    spdlog::warn("evslicer {} LoadVideoFiles skipped {} (empty/directory/!mp4)", selfId, entry.path().c_str());
                     continue;
                 }
 
