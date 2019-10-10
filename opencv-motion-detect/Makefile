@@ -106,3 +106,7 @@ zmq:
 .PHONY: leveldb
 leveldb:
 	cd vendor/leveldb && mkdir -p build && cd build && cmake -DCMAKE_INSTALL_PREFIX=$(CURDIR)/vendor .. && make -j && make install
+
+.PHONY: fmt
+fmt:
+	cd vendor/fmt && mkdir -p build && cd build && cmake -DCMAKE_INSTALL_PREFIX=$(CURDIR)/vendor -DFMT_TEST=OFF .. && make -j && make install
