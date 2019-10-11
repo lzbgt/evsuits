@@ -489,7 +489,7 @@ private:
             }
         }
         catch(exception &e) {
-            string msg = "evcloudsvc exception in file" + string(__FILE__) + ":" + to_string(__LINE__) + " for: " + e.what();
+            string msg = "evcloudsvc exception in file " + string(__FILE__) + ":" + to_string(__LINE__) + " for: " + e.what();
             spdlog::error(msg);
             ret["code"] = -1;
             ret["msg"] = msg;
