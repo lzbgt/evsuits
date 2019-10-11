@@ -237,13 +237,23 @@ private:
                         }
                         
                         // both exist, calc diff
-                        json diff = json::diff(this->peerData["config"][k], v);
+                        json srcJson, targetJson;
+                        srcJson[k] = this->peerData["config"][k];
+                        targetJson[k] = v;
+                        json diff = json::diff(srcJson, targetJson);
                         if(diff.size() == 0) {
                             spdlog::info("evcloudsvc no diffrence for cluster {}, ignore it.", k);
                         }
                         else {
-                            auto gids = cfgutils::getModulesOperFromConfDiff(this->peerData["config"][k], v, diff, "");
-                            for(auto &[a,b]: gids.items()) {
+                            auto gids = cfgutils::getModulesOperFromConfDiff(srcJson, targetJson, diff, "");
+                            spdlog::info("dump gids: {}", gids.dump());
+                            if(gids["code"] != 0) {
+                                hasError = true;
+                                msg = gids["msg"];
+                                break;
+                            }
+
+                            for(auto &[a,b]: gids["data"].items()) {
                                 string devSn = strutils::split(a, ':')[0];
                                 deltaCfg[devSn] = 1;
                             }
