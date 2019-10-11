@@ -164,7 +164,7 @@ json getModuleGidsFromCfg(string sn, json &data, string caller, int ipcIdx)
         pid_t pid;
         for(auto &[k,v]:data.items()) {
             if(ipcIdx == -1) {
-                if(k == sn) {
+                if(k == sn || sn.empty()) {
                     peerId = v["sn"].get<string>() + ":evmgr:0";
                     ret["data"].push_back(peerId);
                 }
@@ -182,7 +182,7 @@ json getModuleGidsFromCfg(string sn, json &data, string caller, int ipcIdx)
                 json &modules = ipc["modules"];
                 for(auto &[mn, ml] : modules.items()) {
                     for(auto &m : ml) {
-                        if(m["sn"] != sn) {
+                        if(m["sn"] != sn && !sn.empty()) {
                             continue;
                         }
 
@@ -310,70 +310,6 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                 set<string> oprations{"add", "replace", "remove"};
                 set<string> pullerTag{"addr", "user", "password", "proto", "port" /*, "sn"*/};
 
-                // string ipcRegStr = "/(\\w+)/ipcs/(\\d+)/(\\w+)";
-                // std::smatch results;
-                // std::regex ipcRegex(ipcRegStr);
-                // if (std::regex_match(path_, results, ipcRegex)) {
-                //     if (results.size() == 4) {
-                //         matched = true;
-                //         string mgrSn = results[1].str();
-                //         int ipcIdx = stoi(results[2].str());
-                //         string tag = results[3].str();
-                //         if(pullerTag.find(tag) != pullerTag.end()) {
-                //             // TODO: op = remove
-                //             if(d["op"] == "add" || d["op"] == "replace") {
-                //                 // start
-                //                 auto ipc = newConfig[mgrSn]["ipcs"][ipcIdx];
-                //                 auto ipcOld = oldConfig[mgrSn]["ipcs"][ipcIdx];
-                //                 if(ipc.count("modules") == 0 || ipc["modules"].size() == 0 || ipc["moudles"].count("evpuller") ==0 || ipc["modules"]["evpuller"].size() == 0 ) {
-                //                     string msg = fmt::format("invalid config for ipc[{}]['modules']['evpuller']: {}", ipcIdx, newConfig.dump());
-                //                     spdlog::error(msg);
-                //                     ret["msg"] = msg;
-                //                     hasError = true;
-                //                     break;
-                //                 }else{
-                //                     auto &evpullers = ipc["module"]["evpuller"];
-                //                     int idx = 0;
-                //                     for(auto &puller:evpullers) {
-                //                         // strutil
-                //                         if(puller.count("sn") == 0) {
-                //                             string msg = fmt::format("invalid config for ipc[{}]['modules']['evpuller'][{}] no sn field: {}", ipcIdx, idx, newConfig.dump());
-                //                             ret["msg"] = msg;
-                //                             spdlog::error(msg);
-                //                             hasError = true;
-                //                             break;
-                //                         }
-
-                //                         if(puller["sn"].get<string>() != sn) {
-                //                             spdlog::debug("skip {} for expecting sn: {}", puller.dump(), sn);
-                //                             continue;
-                //                         }
-
-                //                         if(puller.count("iid") == 0 || puller.count("addr") == 0) {
-                //                             string msg = fmt::format("invliad config as of having no iid/addr/enabled field in ipc[{}]['modules']['evpuller'][{}]: {}", ipcIdx, idx, newConfig.dump());
-                //                             spdlog::error(msg);
-                //                             ret["msg"] = msg;
-                //                             hasError = true;
-                //                             break;
-                //                         }else{
-                //                             string gid = sn + ":evpuller:" + to_string(puller["iid"].get<int>());
-                //                             if(puller.count("enabled") == 0 || puller["enabled"].get<int>() == 0) {
-                //                                 ret["data"][gid] = 0; // stop
-                //                             }else{
-                //                                 ret["data"][gid] = 2;
-                //                             }
-                //                         }
-                //                         idx++;
-                //                     }
-                //                 }
-                //             }
-                //         }
-                //     }
-                // }
-                // // else{
-                // //     spdlog::info("no match for ipc", path_);
-                // // }
-
                 // one ipc
                 if(!matched && !hasError) {
                     // /PSBV7GKN/ipcs/0"
@@ -450,30 +386,27 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                                         }
                                     }
 
-                                    if(newMod.count("sn") == 0) {
+                                    if(newMod.count("sn") == 0||oldMod.count("sn") == 0) {
                                         string msg = fmt::format("invalid module config ipcs[{}]['modules'][{}][{}] having no sn field", ipcIdx, modName, modIdx);
                                         spdlog::error(msg);
                                         hasError = true;
                                         break;
                                     }
 
-                                    if(newMod["sn"].get<string>() != sn && oldMod.count("sn") != 0 && oldMod["sn"].get<string>() == sn) {
+                                    string oldSn = oldMod["sn"];
+                                    string newSn = newMod["sn"];
+
+                                    if(oldSn != newSn) {
                                         string oldGid = sn + ":" + modName + ":" + to_string(oldMod["iid"].get<int>());
                                         ret["data"][oldGid] = 0;
-                                        continue;
-                                    }else if(newMod["sn"].get<string>() != sn && (oldMod.count("sn") == 0 ||(oldMod.count("sn") != 0 && oldMod["sn"].get<string>() != sn))){
-                                        // ignore
-                                        continue;
-                                    }else{
-                                        // oldSn == newSn == sn, below
                                     }
 
-                                    string oldGid = sn + ":" + modName + ":" + to_string(oldMod["iid"].get<int>());
-                                    string newGid = sn + ":" + modName + ":" + to_string(newMod["iid"].get<int>());
-
-                                    if(oldGid != newGid) {
-                                        ret["data"][oldGid] = 0;
-                                    }
+                                    if(!sn.empty() && sn != newSn) {
+                                        continue;
+                                    } 
+                                    
+                                    string oldGid = oldSn + ":" + modName + ":" + to_string(oldMod["iid"].get<int>());
+                                    string newGid = newSn + ":" + modName + ":" + to_string(newMod["iid"].get<int>());
 
                                     if(propName == "enabled") {
                                         if(newMod.count("enabled") == 0||newMod["enabled"].get<int>() == 0) {
@@ -494,9 +427,6 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                             }
                         }
                     }
-                    // else{
-                    //     spdlog::info("no match for module {}", path_);
-                    // }
                 }
 
                 // whole submodule
@@ -527,11 +457,10 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                                     hasError = true;
                                     ret["msg"] = msg;
                                     break;
-                                }else{
-                                    // nop
                                 }
                             }else{
-                                if(modObj["sn"].get<string>() == sn){
+                                string modSn = sn.empty()? modObj["sn"].get<string>(): sn;
+                                if(modObj["sn"].get<string>() == modSn){
                                     if(modName == "evml") {
                                         if(modObj.count("type") == 0) {
                                             string msg = fmt::format("invalid evml module config ipcs[{}]['modules'][{}][{}] having no type field", ipcIdx, modName, modIdx);
@@ -550,14 +479,12 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                                         break;
                                     }
 
-                                    string modGid = sn + ":" + modName + ":" + to_string(modObj["iid"].get<int>());
+                                    string modGid = modSn + ":" + modName + ":" + to_string(modObj["iid"].get<int>());
                                     if(d["op"] == "remove") {
                                         ret["data"][modGid] = 0;
                                     }else{
                                         ret["data"][modGid] = 1;
                                     }
-                                }else{
-                                    // nop
                                 }
                             }
                         }
