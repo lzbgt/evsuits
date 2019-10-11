@@ -465,9 +465,9 @@ private:
             if(this->configMap["sn2mods"].count(sn) != 0) {
                 auto mods = this->configMap["sn2mods"][sn];
                 set<string> s;
-                for(const string & elem : mods) {
-                    s.insert(this->configMap["mod2mgr"][elem].get<string>());
-                    spdlog::info("evcloudsvc {}->{}", elem, this->configMap["mod2mgr"][elem].get<string>());
+                for(auto &[k,v]: mods.items()) {
+                    s.insert(this->configMap["mod2mgr"][k].get<string>());
+                    spdlog::info("evcloudsvc mod2mgr {}->{}", k, this->configMap["mod2mgr"][k].get<string>());
                 }
 
                 for(auto &key : s) {

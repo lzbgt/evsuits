@@ -534,9 +534,10 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
             ret["code"] = 1;
         }   
     }catch(exception &e) {
-        spdlog::error("getModulesOperFromConfDiff exception: {}", e.what());
+        string msg = fmt::format("getModulesOperFromConfDiff exception: {}", e.what());
         ret["code"] = -1;
-        ret["msg"] = e.what();
+        ret["msg"] = msg;
+        spdlog::error("getModulesOperFromConfDiff exception: {}", msg);
     }
 
     return ret;
