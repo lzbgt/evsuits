@@ -11,12 +11,12 @@ configmap:
           "NMXH73Y2:evslicer": "NMXH73Y2"
       },
       "sn2mods": {
-          "NMXH73Y2": [
-              "NMXH73Y2:evml:motion",
-              "NMXH73Y2:evpuller",
-              "NMXH73Y2:evpusher",
-              "NMXH73Y2:evslicer"
-          ]
+          "NMXH73Y2": {
+              "NMXH73Y2:evml:motion": 1,
+              "NMXH73Y2:evpuller": 1,
+              "NMXH73Y2:evpusher": 1,
+              "NMXH73Y2:evslicer": 1
+          }
       }
     }
     ```
