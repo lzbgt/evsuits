@@ -371,11 +371,10 @@ protected:
             av_packet_unref(&packet);
         }
 
-        if(pAVFmtCtxBytes != nullptr)
-        {
+        if(pAVFmtCtxBytes != nullptr) {
             free(pAVFmtCtxBytes);
         }
-        
+
         // TODO:
         if(ret < 0 && !bStopSig) {
             // reconnect
@@ -423,8 +422,9 @@ public:
         }
         init();
 
-        thEdgeMsgHandler = thread([this]{
-            while(true) {
+        thEdgeMsgHandler = thread([this] {
+            while(true)
+            {
                 auto body = z_recv_multiple(pDealer,false);
                 if(body.size() == 0) {
                     spdlog::error("evslicer {} failed to receive multiple msg: {}", selfId, zmq_strerror(zmq_errno()));
@@ -437,13 +437,14 @@ public:
                 }
                 spdlog::info("evpuller {} received edge msg: {}", selfId, msg);
                 this->handleEdgeMsg(body);
-            } 
+            }
         });
         thEdgeMsgHandler.detach();
-        
 
-        thCloudMsgHandler = thread([this]{
-            while(true) {
+
+        thCloudMsgHandler = thread([this] {
+            while(true)
+            {
                 auto body = z_recv_multiple(pDaemon,false);
                 if(body.size() == 0) {
                     spdlog::error("evslicer {} failed to receive multiple msg: {}", selfId, zmq_strerror(zmq_errno()));

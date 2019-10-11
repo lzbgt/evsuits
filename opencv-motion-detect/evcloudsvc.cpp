@@ -115,7 +115,7 @@ private:
         ret["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
         spdlog::info("evcloudsvc config:{}",newConfig.dump());
         string msg;
-        bool bInvalidCfg = false;
+        bool hasError = false;
         try {
             // json deltaCfg = json();
             if(newConfig.count("data") == 0|| newConfig["data"].size() == 0) {
@@ -128,9 +128,11 @@ private:
                 json &data = newConfig["data"];
                 // for edge clusters, those are mgrs
                 for(auto &[k, v]: data.items()) {
+                    if(hasError) {
+                        break;
+                    }
                     if(this->configMap.count(k) != 0 && this->peerData["config"].count(k) != 0) {
                         spdlog::warn("evcloudsvc info: cluster config for {} exists, will do comparison", k);
-
                     }
                     if(this->configMap.count(k) ^ this->peerData["config"].count(k)) {
                         spdlog::error("evcloudsvc inconsistent configuration for cluster {}", k);
@@ -152,19 +154,50 @@ private:
                                     json &ipcs = v["ipcs"];
                                     int ipcIdx = 0;
                                     for(auto &ipc : ipcs) {
+                                        if(hasError) {
+                                            break;
+                                        }
                                         if(ipc.count("modules") == 0||ipc["modules"].size() == 0) {
                                             spdlog::warn("evcloudsvc edge cluster {} has no modules for ipc {}", k, ipcIdx);
                                         }
                                         else {
                                             json &modules = ipc["modules"];
                                             for(auto &[mn, ma]: modules.items()) {
+                                                if(hasError) {
+                                                    break;
+                                                }
+                                                if(ma.size() == 0) {
+                                                    spdlog::warn("evcloudsvc /{}/ipcs/{}/modules/{} empty", k, ipcIdx, mn);
+                                                    continue;
+                                                }
+                                                int modIdx = 0;
                                                 for(auto &m:ma) {
-                                                    if(m.count("sn") != 0 && m["sn"].size() != 0) {
+                                                    if(hasError) {
+                                                        break;
+                                                    }
+                                                    if(m.size() == 0) {
+                                                        spdlog::warn("evcloudsvc /{}/ipcs/{}/modules/{}/{} empty", k, ipcIdx, mn, modIdx);
+                                                        continue;
+                                                    }
+                                                    if(m.count("sn") == 0 || m["sn"].size() == 0 || m.count("iid") == 0 || m["iid"].size() == 0||(mn == "evml" && (m.count("type") == 0||m["type"].size() == 0))) {
+                                                        msg = fmt::format("evcloudsvc received invalid config at /{}/ipcs/{}/modules/{}/{}. check for fields sn, iid, type(evml): {}", k, ipcIdx, mn, modIdx, newConfig.dump());
+                                                        spdlog::error(msg);
+                                                        break;
+                                                    }
+
+                                                    if (1) {
+                                                        string msg = "evcloudsvc invalid config: " + data.dump();;
+                                                        ret["code"] = -1;
+                                                        ret["msg"] = msg;
+                                                        spdlog::error(msg);
+                                                        break;
+                                                    }
+                                                    if(2) {
                                                         string modKey;
                                                         string sn = m["sn"];
                                                         //ml
                                                         if(mn == "evml" && m.count("type") != 0 && m["type"].size() != 0) {
-                                                            modKey = sn +":evml:" + m["type"].get<string>();
+                                                            modKey = sn +":evml" + m["type"].get<string>();
                                                         }
                                                         else {
                                                             modKey = sn + ":" + mn;
@@ -192,13 +225,6 @@ private:
 
                                                         // modkey -> sn_of_evmgr
                                                         this->configMap["mod2mgr"][modKey] = k;
-                                                    }
-                                                    else {
-                                                        string msg = "evcloudsvc invalid config: " + data.dump();;
-                                                        ret["code"] = -1;
-                                                        ret["msg"] = msg;
-                                                        spdlog::error(msg);
-                                                        break;
                                                     }
                                                 }// for mod
                                             } // for modules

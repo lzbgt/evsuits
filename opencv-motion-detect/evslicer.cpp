@@ -229,7 +229,7 @@ private:
                 }
             }
 
-            this->videoFileServerApi += this->ipcSn;            
+            this->videoFileServerApi += this->ipcSn;
 
             json evpuller = ipc["modules"]["evpuller"][0];
             pullerGid = evpuller["sn"].get<string>() + ":evpuller:" + to_string(evpuller["iid"]);
@@ -582,7 +582,8 @@ protected:
         return string(buffer);
     }
 
-    void debugFilesRing(){
+    void debugFilesRing()
+    {
         spdlog::info("evslicer {} debug files ring. segHead: {}, isFull: {}, max: {}",this->selfId, this->segHead, this->bSegFull, this->numSlices);
         for(int i = 1; i <= numSlices; i++) {
             spdlog::info("\tevslicer {} vector[{}] = {}, {}", selfId, i, vTsActive[i], videoFileTs2Name(vTsActive[i]));
@@ -875,8 +876,9 @@ public:
         });
         thEdgeMsgHandler.detach();
 
-        thCloudMsgHandler = thread([this]{
-            while(true) {
+        thCloudMsgHandler = thread([this] {
+            while(true)
+            {
                 auto body = z_recv_multiple(pDaemon,false);
                 if(body.size() == 0) {
                     spdlog::error("evslicer {} failed to receive multiple msg: {}", selfId, zmq_strerror(zmq_errno()));

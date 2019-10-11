@@ -160,7 +160,7 @@ private:
                         bProcessed = true;
                         cvMsg.notify_one();
                     }
-                }           
+                }
             }
             catch(exception &e) {
                 spdlog::error("evmlmotion {} exception to process msg {}: {}", selfId, msg, e.what());
@@ -773,9 +773,10 @@ public:
         }
 
         init();
-        
-        thCloudMsgHandler = thread([this]{
-            while(true) {
+
+        thCloudMsgHandler = thread([this] {
+            while(true)
+            {
                 auto body = z_recv_multiple(pDaemon,false);
                 if(body.size() == 0) {
                     spdlog::error("evslicer {} failed to receive multiple msg: {}", selfId, zmq_strerror(zmq_errno()));
@@ -787,8 +788,9 @@ public:
         });
         thCloudMsgHandler.detach();
 
-        thEdgeMsgHandler = thread([this]{
-            while(true) {
+        thEdgeMsgHandler = thread([this] {
+            while(true)
+            {
                 auto body = z_recv_multiple(pDealer,false);
                 if(body.size() == 0) {
                     spdlog::error("evslicer {} failed to receive multiple msg: {}", selfId, zmq_strerror(zmq_errno()));
@@ -796,7 +798,7 @@ public:
                 }
                 // full proto msg received.
                 this->handleEdgeMsg(body);
-            } 
+            }
         });
         thEdgeMsgHandler.detach();
 
