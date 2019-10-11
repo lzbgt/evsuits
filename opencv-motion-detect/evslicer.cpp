@@ -612,6 +612,7 @@ protected:
 
                 baseName = getBaseName(fname);
                 auto ts = videoFileName2Ts(baseName);
+                spdlog::info("evslicer {} LoadVideoFiles basename: {}, ts: {}", selfId, baseName, ts);
 
                 // check old files
                 if(ts - now > hours * 60 * 60) {

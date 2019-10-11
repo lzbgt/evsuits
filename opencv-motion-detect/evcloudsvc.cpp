@@ -18,6 +18,7 @@ update: 2019/09/10
 #include "inc/spdlog/spdlog.h"
 #include "utils.hpp"
 #include "inc/zmqhelper.hpp"
+#include "fmt/format.h"
 
 using namespace std;
 using namespace httplib;
@@ -114,10 +115,11 @@ private:
         spdlog::info("evcloudsvc POST config:{}",newConfig.dump());
         try {
             json deltaCfg = json();
-            if(newConfig.count("data") == 0 || newConfig["data"].size() == 0) {
+            if(newConfig.count("data") == 0|| newConfig["dsata"].size() == 0) {
+                string msg = fmt::format("evcloudsvc invalid configuratin body received - empty or no data field: {}", newConfig.dump());
                 ret["code"] = 1;
-                ret["msg"] = "evcloudsvc invalid config body received: " + newConfig.dump();
-                spdlog::error(ret["msg"].get<string>());
+                ret["msg"] = msg;
+                spdlog::error(msg);
             }
             else {
                 json &data = newConfig["data"];
@@ -131,8 +133,9 @@ private:
                     // this is one evmgr
                     if(v.count("sn") == 0||v["sn"] != k) {
                         ret["code"] = 2;
-                        ret["msg"] = "evcloudsvc invalid value for key " + k;
-                        spdlog::error(ret["msg"].get<string>());
+                        string msg = fmt::format("evcloudsvc invalid value for cluster mgr with sn {} but key: {}", k, string(v["sn"]));
+                        ret["msg"] = msg;
+                        spdlog::error(msg);
                         break;
                     }
                     else {
