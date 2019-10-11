@@ -1,0 +1,50 @@
+configmap:
+- example: |-
+    ```
+    {
+      "NMXH73Y2": "NMXH73Y2",
+      "code": 0,
+      "mod2mgr": {
+          "NMXH73Y2:evml:motion": "NMXH73Y2",
+          "NMXH73Y2:evpuller": "NMXH73Y2",
+          "NMXH73Y2:evpusher": "NMXH73Y2",
+          "NMXH73Y2:evslicer": "NMXH73Y2"
+      },
+      "sn2mods": {
+          "NMXH73Y2": [
+              "NMXH73Y2:evml:motion",
+              "NMXH73Y2:evpuller",
+              "NMXH73Y2:evpusher",
+              "NMXH73Y2:evslicer"
+          ]
+      }
+    }
+    ```
+  structure:
+  - mgrSn:
+    - description: 
+      key: mgrSn
+      value: mgrSn
+  - sn2mods:
+    - description: device with sn that runs mods.
+      key: sn 
+      value:
+      - key: sn:modName
+        value: 1
+  - mod2mgr:
+    - description: mod connects to mgr
+      key: modid
+      value: mgrSn
+  api:
+  - get:
+    - description: get all cluster configurations that has mod runs on this dev
+      steps:
+      - 1: get all models runs on sn
+        2: for each mod, get mgrSn into set S
+        3: merge cluster configs of S to data
+        4: return data for sn
+    add/update:
+    - description: add, patch
+      steps:
+      - 1: for each cluster config of sn in data
+      - 2: get diff, update sn2mods & md2mgr, mgrSn and send actions to edge
