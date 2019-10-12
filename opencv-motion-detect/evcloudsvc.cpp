@@ -545,6 +545,11 @@ private:
                 meta["type"] = body["metaType"];
                 meta["value"] = body["metaValue"];
                 body["sender"] = devSn;
+                if(peerData["status"].count(v[0]) == 0 || peerData["status"][v[0]] == 0){
+                    spdlog::warn("evcloudsvc sent msg {} to {}, but it was offline", body.dump(), v[0]);
+                }else{
+
+                }
                 int i= z_send(pRouter, v[0], devSn, meta, body.dump());
                 if(i < 0) {
                     msg = fmt::format("evcloudsvc failed to z_zend msg: {} :{}",zmq_strerror(zmq_errno()) ,body.dump());

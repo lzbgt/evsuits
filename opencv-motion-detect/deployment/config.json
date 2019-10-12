@@ -54,7 +54,7 @@
                "port":554,
                "proto":"rtsp",
                "user":"admin",
-               "sn": "iLabService"
+               "sn": "V2I0C7KC"
             }
          ],
          "mqttCloud":"<cloud_addr>",
