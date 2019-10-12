@@ -113,7 +113,7 @@ private:
         string msg = "evcloudsvc may gracefully or strictly handled below issues for you. please correct them:\n";
         bool hasError = false;
 
-        try{
+        try {
             // construct sn2mods, mod2mgr
             if(v.count("ipcs") == 0||v["ipcs"].size() == 0 || v.count("sn") == 0 || v["sn"] != k) {
                 msg += fmt::format("\t\tedge cluster {} has no sn/ipcs: {}.", k, v.dump());
@@ -187,7 +187,8 @@ private:
                     ipcIdx++;
                 }// for ipc
             }
-        }catch(exception &e) {
+        }
+        catch(exception &e) {
             msg = fmt::format("evcloudsvc applyClusterCfg exception: {}", e.what());
             ret["msg"] = msg;
             spdlog::error(msg);
@@ -234,54 +235,54 @@ private:
                         this->configMap.erase(k);
                         this->peerData["config"].erase(k);
                     }
-                    
-                        if(v.size() == 0) {
-                                // ignore
-                                continue;
-                        }
-                        if(this->configMap.count(k) == 0) {
-                            // both not exist, fresh new
-                            this->configMap[k] = k;
-                            this->peerData["config"][k] = json();
-                        }
-                        
-                        // both exist, calc diff
-                        json srcJson, targetJson;
-                        srcJson[k] = this->peerData["config"][k];
-                        targetJson[k] = v;
-                        json diff = json::diff(srcJson, targetJson);
-                        if(diff.size() == 0) {
-                            spdlog::info("evcloudsvc no diffrence for cluster {}, ignore it.", k);
-                        }
-                        else {
-                            auto gids = cfgutils::getModulesOperFromConfDiff(srcJson, targetJson, diff, "");
-                            spdlog::info("dump gids: {}", gids.dump());
-                            if(gids["code"] != 0) {
-                                hasError = true;
-                                msg = gids["msg"];
-                                break;
-                            }
-                            if(gids["msg"] != "ok") {
-                                ret["msg"] = gids["msg"];
-                            }
 
-                            for(auto &[a,b]: gids["data"].items()) {
-                                string devSn = strutils::split(a, ':')[0];
-                                deltaCfg[devSn] = 1;
-                            }
-                        }
+                    if(v.size() == 0) {
+                        // ignore
+                        continue;
+                    }
+                    if(this->configMap.count(k) == 0) {
+                        // both not exist, fresh new
+                        this->configMap[k] = k;
+                        this->peerData["config"][k] = json();
+                    }
 
-                        auto r = applyClusterCfg(k,v);
-                        if(r["code"] != 0) {
+                    // both exist, calc diff
+                    json srcJson, targetJson;
+                    srcJson[k] = this->peerData["config"][k];
+                    targetJson[k] = v;
+                    json diff = json::diff(srcJson, targetJson);
+                    if(diff.size() == 0) {
+                        spdlog::info("evcloudsvc no diffrence for cluster {}, ignore it.", k);
+                    }
+                    else {
+                        auto gids = cfgutils::getModulesOperFromConfDiff(srcJson, targetJson, diff, "");
+                        spdlog::info("dump gids: {}", gids.dump());
+                        if(gids["code"] != 0) {
                             hasError = true;
-                            msg = r["msg"];
+                            msg = gids["msg"];
                             break;
                         }
-
-                        if(r["msg"] != "ok") {
-                            ret["msg"] = r["msg"];
+                        if(gids["msg"] != "ok") {
+                            ret["msg"] = gids["msg"];
                         }
-                    
+
+                        for(auto &[a,b]: gids["data"].items()) {
+                            string devSn = strutils::split(a, ':')[0];
+                            deltaCfg[devSn] = 1;
+                        }
+                    }
+
+                    auto r = applyClusterCfg(k,v);
+                    if(r["code"] != 0) {
+                        hasError = true;
+                        msg = r["msg"];
+                        break;
+                    }
+
+                    if(r["msg"] != "ok") {
+                        ret["msg"] = r["msg"];
+                    }
+
 
                     // update configmap for cluster config
                     this->configMap[k] = k;
@@ -611,12 +612,13 @@ public:
                                 ret["msg"] = string("evcloudsvc no existing valid configuration,abort patching for ") + _sn;
                             }
                             else {
-                                try{
+                                try {
                                     json patched = ret["data"].patch(cfg);
                                     ret["data"] = patched;
                                     spdlog::info("evcloudsvc merged {}: {} \n\t{}", _sn, cfg.dump(), patched["data"].dump());
                                     ret = this->config(ret);
-                                }catch(exception &e){
+                                }
+                                catch(exception &e) {
                                     string msg = fmt::format("evclousvc exception when patching {} with {}: {}", ret["data"].dump(), cfg.dump(), e.what());
                                     spdlog::error(msg);
                                     ret["code"] = 3;

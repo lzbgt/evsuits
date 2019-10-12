@@ -1,6 +1,6 @@
 {
    "data":{
-      "PSBV7GKN":{
+      "W2E0VFN1":{
          "addr":"127.0.0.1",
          "api-cloud":"http://127.0.0.1:8089",
          "ipcs":[
@@ -14,7 +14,7 @@
                         "iid":1,
                         "post":30,
                         "pre":3,
-                        "sn":"PSBV7GKN",
+                        "sn":"W2E0VFN1",
                         "thresh":30,
                         "entropy": 0.3,
                         "type":"motion"
@@ -26,7 +26,7 @@
                         "iid":1,
                         "enabled": 1,
                         "port-pub":5556,
-                        "sn":"PSBV7GKN"
+                        "sn":"W2E0VFN1"
                      }
                   ],
                   "evpusher":[
@@ -34,9 +34,9 @@
                         "enabled":0,
                         "iid":1,
                         "password":"",
-                        "sn":"PSBV7GKN",
+                        "sn":"W2E0VFN1",
                         "token":"",
-                        "urlDest":"rtsp://40.73.41.176/PSBV7GKN",
+                        "urlDest":"rtsp://40.73.41.176/W2E0VFN1",
                         "user":""
                      }
                   ],
@@ -45,7 +45,7 @@
                         "enabled":1,
                         "iid":1,
                         "path":"slices",
-                        "sn":"PSBV7GKN",
+                        "sn":"W2E0VFN1",
                         "video-server-addr": "http://40.73.41.176:10009/upload/evtvideos/"
                      }
                   ]
@@ -61,7 +61,7 @@
          "port-cloud":5556,
          "port-router":5550,
          "proto":"zmq",
-         "sn":"PSBV7GKN"
+         "sn":"W2E0VFN1"
       }
    },
    "lastupdated":1567669674
