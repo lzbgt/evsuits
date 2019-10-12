@@ -163,7 +163,7 @@ private:
                         spdlog::info("evslicer {} received {} cmd from cluster mgr {}", selfId, metaValue, daemonId);
                         bProcessed = true;
                         exit(0);
-                    }else if(metaValue == "record") {
+                    }else if(metaValue == "debug:record") {
                         try{
                             json body = json::parse(body2str(v[2]));
                             if(body.count("data") != 0 && body["data"].is_object() && body["data"].count("start") != 0 && body["data"]["start"].is_number() && body["data"].count("end") != 0 && body["data"]["end"].is_number()) {
@@ -669,6 +669,10 @@ protected:
         int skip = delta < 0? (-delta):0;
         spdlog::info("evslicer {} LoasdVideoFiles max: {}, current: {}, skip: {}", selfId, maxSlices, tsRing.size(), skip);
         int idx = 0;
+        if(skip > 0) {
+            this->bSegFull = true;
+        }
+
         list<long>::iterator pos = tsRing.begin();
         for(auto &i:tsRing) {
             if(idx < skip) {
@@ -974,7 +978,7 @@ public:
                     if(tss < this->bootTime) {
                         spdlog::warn("evslicer {} should we discard old msg?  {} <  bootTime {}", selfId, evt, this->bootTime);
                     }
-                    
+
                     // TODO: scheduled task
                     spdlog::info("evslicer {} wait for {}s to matching event videos", this->selfId, this->seconds + 5);
                     
