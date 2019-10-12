@@ -155,15 +155,22 @@ private:
                 if(meta.count("value") != 0) {
                     metaValue = meta["value"];
                 }
-
                 string daemonId = this->devSn + ":evdaemon:0";
-                
+
                 // msg from cluster mgr
                 if(peerId == daemonId) {
                     if(metaValue == EV_MSG_META_VALUE_CMD_STOP || metaValue == EV_MSG_META_VALUE_CMD_RESTART) {
                         spdlog::info("evslicer {} received {} cmd from cluster mgr {}", selfId, metaValue, daemonId);
                         bProcessed = true;
                         exit(0);
+                    }else if(metaValue == "record") {
+                        try{
+                            
+                        }catch(exception &e) {
+
+                        }
+                    }else{
+
                     }
                 }
             }

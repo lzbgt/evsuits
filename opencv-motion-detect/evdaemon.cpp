@@ -486,13 +486,14 @@ private:
     int handleCloudMsg(vector<vector<uint8_t> > &v)
     {
         int ret = 0;
-        string msg;
         // ID_SENDER, meta ,MSG
+        string msg;
         string peerId, meta;
+        for(auto &s:v) {
+            msg += body2str(s) + ";";
+        }
+    
         if(v.size() != 3) {
-            for(auto &s:v) {
-                msg += body2str(s) + ";";
-            }
             spdlog::error("evdaemon {} received invalid msg from cloud {}", devSn, msg);
         }
 
@@ -540,8 +541,8 @@ private:
                         }
                     }else if(meta == EV_MSG_META_TYPE_CMD){
                         spdlog::info("evdaemon {} received cmd from cloud: {}", devSn, msg);
-                        if(data.count("target") != 0 && data["target"].is_string() && data.count("type") !=0  && data["type"].is_string() &&
-                            data.count("data") != 0 && data["data"].is_object()) {
+                        if(data.count("target") != 0 && data["target"].is_string() && data.count("metaType") !=0  && data["metaType"].is_string() &&
+                            data.count("data") != 0 && data["data"].is_object() && data.count("metaValue") !=0  && data["metaValue"].is_string()) {
                             string target = data["target"];
                             auto v = strutils::split(target, ':');
                             if(v.size() == 1) {
@@ -550,11 +551,11 @@ private:
                                 if(this->peerData["status"].count(target) == 0 || this->peerData["status"][target] == 0 || this->peerData["status"] == -1) {
                                     spdlog::error("evdaemon {} received {} msg from cloud to {}: {}, but its offline", devSn, meta, target, data.dump());
                                 }else{
-                                    ret = sendCmd2Peer(target, "", data.dump());
+                                    ret = sendCmd2Peer(target, data["metaValue"], data.dump());
                                     if(ret < 0) {
                                         spdlog::error("evdaemon {} failed to send msg to peer {}: {}", devSn, data.dump(), zmq_strerror(zmq_errno()));
                                     }else{
-                                        spdlog::error("evdaemon {} successfully relayed {} msg from cloud to {}: {}", devSn, meta, target, data.dump());
+                                        spdlog::info("evdaemon {} successfully relayed {} msg from cloud to {}: {}", devSn, meta, target, data.dump());
                                     }
                                 }
                             }else{

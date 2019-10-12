@@ -542,7 +542,8 @@ private:
             auto v = strutils::split(target, ':');
             if(v.size() == 1 || v.size() == 3) {
                 json meta;
-                meta["type"] = body["type"];
+                meta["type"] = body["metaType"];
+                meta["value"] = body["metaValue"];
                 body["sender"] = devSn;
                 int i= z_send(pRouter, v[0], devSn, meta, body.dump());
                 if(i < 0) {
@@ -568,8 +569,8 @@ private:
         ret["code"] = -1;
         ret["msg"] = "unkown msg";
         spdlog::info("handle cmd");
-        if(body.count("target") != 0 && body["target"].is_string() && body.count("type") !=0  && body["type"].is_string() &&
-            body.count("data") != 0 && body["data"].is_object()) {
+        if(body.count("target") != 0 && body["target"].is_string() && body.count("metaType") !=0  && body["metaType"].is_string() &&
+            body.count("data") != 0 && body["data"].is_object() && body.count("metaValue") !=0  && body["metaValue"].is_string()) {
             // it's msg to edge.
             return sendEdgeMsg(body);
         }else{
