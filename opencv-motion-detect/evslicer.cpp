@@ -171,7 +171,12 @@ private:
                                 evt["type"] = "event";
                                 evt["start"] = body["data"]["start"];
                                 evt["end"] = body["data"]["end"];
-                                eventQueue.push(evt.dump());
+                                {
+                                    lock_guard<mutex> lock(this->mutEvent);
+                                    eventQueue.push(evt.dump());
+                                    cvEvent.notify_one();
+                                }
+                                
                                 bProcessed = true;
                             }
                         }catch(exception &e) {
