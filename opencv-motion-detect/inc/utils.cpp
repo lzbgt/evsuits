@@ -158,11 +158,19 @@ json getModuleGidsFromCfg(string sn, json &data, string caller, int ipcIdx)
     ret["code"] = 0;
     ret["msg"] = "ok";
     ret["data"] = json();
+    string msg = "[warnning] we gracefully handled below errors, please correct them:\n";
     try {
         // lock_guard<mutex> lock(cacheLock);
         string peerId;
         pid_t pid;
         for(auto &[k,v]:data.items()) {
+            if(v.count("sn") == 0|| v["sn"].size() == 0 || v.count("ipcs") == 0 || v["ipcs"].size() == 0) {
+                msg += fmt::format( "\t\tcluster {} has no sn/ipcs field", v.dump());
+                spdlog::warn(msg);
+                ret["msg"] = msg;
+                continue;
+            }
+            
             if(ipcIdx == -1) {
                 if(k == sn || sn.empty()) {
                     peerId = v["sn"].get<string>() + ":evmgr:0";
@@ -179,9 +187,22 @@ json getModuleGidsFromCfg(string sn, json &data, string caller, int ipcIdx)
                     continue;
                 }
 
+                if(ipc.count("modules") == 0|| ipc["modules"].size() == 0) {
+                    msg += fmt::format( "\t\tipc {} has no modules field", ipc.dump());
+                    spdlog::warn(msg);
+                    ret["msg"] = msg;
+                    continue;
+                }
                 json &modules = ipc["modules"];
                 for(auto &[mn, ml] : modules.items()) {
                     for(auto &m : ml) {
+                        if(m.count("sn") == 0 || m["sn"].size() == 0 || m.count("iid") == 0 || (mn=="evml" && (m.count("type") == 0 || m["type"].size() == 0))) {
+                            msg += fmt::format( "\t\tmodule {} has no sn/iid/type(evml only) field", m.dump());
+                            spdlog::warn(msg);
+                            ret["msg"] = msg;
+                            continue;
+                        }
+
                         if(m["sn"] != sn && !sn.empty()) {
                             continue;
                         }
@@ -337,6 +358,9 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                                 hasError = true;
                                 break;
                             }else{
+                                if(jret["msg"] != "ok") {
+                                    ret["msg"] = jret["msg"];
+                                }
                                 for(auto &k: jret["data"]) {
                                     if(d["op"] == "remove"){
                                         ret["data"][string(k)] = 0;
@@ -511,12 +535,15 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                             }
 
                             json jret = cfgutils::getModuleGidsFromCfg(sn, mgr, "getModulesOperFromConfDiff");
-                            spdlog::info("jret: {}", jret.dump());
+                            spdlog::info("getModulesOperFromConfDiff getModuleGidsFromCfg: {}", jret.dump());
                             if(jret["code"] != 0) {
                                 ret["msg"] = jret["msg"];
                                 hasError = true;
                                 break;
                             }else{
+                                if(jret["msg"] != "ok") {
+                                    ret["msg"] = jret["msg"];
+                                }
                                 for(auto &k: jret["data"]) {
                                     if(d["op"] == "remove"){
                                         ret["data"][string(k)] = 0;
