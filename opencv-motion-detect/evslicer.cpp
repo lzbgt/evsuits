@@ -972,9 +972,12 @@ public:
                     // TODO: async
 
                     if(tss < this->bootTime) {
-                        spdlog::warn("evslicer {} discard old msg {}, bootTime {}", selfId, evt, this->bootTime);
-                        continue;
+                        spdlog::warn("evslicer {} should we discard old msg?  {} <  bootTime {}", selfId, evt, this->bootTime);
                     }
+                    
+                    // TODO: scheduled task
+                    spdlog::info("evslicer {} wait for {}s to matching event videos", this->selfId, this->seconds + 5);
+                    
                     this_thread::sleep_for(chrono::seconds(this->seconds + 5));
                     auto v = findSlicesByRange(tss, tse, offsetS, offsetE);
                     if(v.size() == 0) {
@@ -991,13 +994,13 @@ public:
                             sf+="\tfile\t" + fname + "\n";
                         }
 
-                        spdlog::info("evslicer {} file upload url: {}", selfId, this->videoFileServerApi);
+                        spdlog::info("evslicer {} file upload range:{} - {} ({} - {}), url: {}", selfId, tss, tse, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse), this->videoFileServerApi);
                         // TODO: check result and reschedule it
                         if(netutils::postFiles(std::move(this->videoFileServerApi), std::move(params), std::move(fileNames)) != 0) {
                             spdlog::error("evslicer {} failed to upload files:\n{}", selfId, sf);
                         }
                         else {
-                            spdlog::info("evslicer {} successfull uploaded files:\n{}", selfId, sf);
+                            spdlog::info("evslicer {} successfully uploaded {} - {} ({} - {})files:\n{}", selfId, tss, tse, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse), sf);
                         }
                     }
                 }
