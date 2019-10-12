@@ -166,16 +166,16 @@ private:
                     }else if(metaValue == "record") {
                         try{
                             json body = json::parse(body2str(v[2]));
-                            if(body.count("start") != 0 && body["start"].is_number() && body.count("end") != 0 && body["end"].is_number()) {
+                            if(body.count("data") != 0 && body["data"].is_object() && body["data"].count("start") != 0 && body["data"]["start"].is_number() && body["data"].count("end") != 0 && body["data"]["end"].is_number()) {
                                 json evt;
                                 evt["type"] = "event";
-                                evt["start"] = body["start"];
-                                evt["end"] = body["end"];
-                                eventQueue.push(evt);
+                                evt["start"] = body["data"]["start"];
+                                evt["end"] = body["data"]["end"];
+                                eventQueue.push(evt.dump());
                                 bProcessed = true;
                             }
                         }catch(exception &e) {
-                            spdlog::error("evslicer {} exception in handleCloudMsg: {}", e.what());
+                            spdlog::error("evslicer {} exception in handleCloudMsg: {}", selfId, e.what());
                         }
                     }else{
                         //
