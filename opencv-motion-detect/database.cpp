@@ -21,7 +21,7 @@ update: 2019/09/10
 using namespace leveldb;
 using namespace httplib;
 
-string _config_default_tmpl = "{\"time\":0,\"code\":0,\"data\":{\"<SN_MGR>\":{\"sn\":\"<SN_MGR>\",\"addr\":\"127.0.0.1\",\"mqtt-cloud\":\"<cloud_addr>\",\"api-cloud\":\"http://127.0.0.1:8089\",\"proto\":\"zmq\",\"port-cloud\":5556,\"port-router\":5550,\"status\":1,\"ipcs\":[{\"addr\":\"172.31.0.51\",\"proto\":\"rtsp\",\"user\":\"admin\",\"password\":\"FWBWTU\",\"status\":0,\"port\":554,\"modules\":{\"evpuller\":[{\"sn\":\"<SN_PULLER>\",\"addr\":\"127.0.0.1\",\"iid\":1,\"port-pub\":5556,\"status\":0}],\"evpusher\":[{\"sn\":\"<SN_PUSHER>\",\"iid\":1,\"urlDest\":\"rtsp://40.73.41.176:554/test1\",\"user\":\"\",\"password\":\"\",\"token\":\"\",\"enabled\":1,\"status\":0}],\"evslicer\":[{\"sn\":\"<SN_SLICER>\",\"iid\":1,\"path\":\"slices\",\"enabled\":1,\"status\":0}],\"evml\":[{\"type\":\"motion\",\"sn\":\"<SN_ML>\",\"iid\":1,\"pre\":3,\"area\":300,\"post\":30,\"thresh\":80,\"enabled\":1,\"status\":0}]}}]}}}";
+string _config_default_tmpl = "{\"time\":0,\"code\":0,\"data\":{\"<SN_MGR>\":{\"sn\":\"<SN_MGR>\",\"addr\":\"127.0.0.1\",\"mqttCloud\":\"<cloud_addr>\",\"apiCloud\":\"http://127.0.0.1:8089\",\"proto\":\"zmq\",\"portCloud\":5556,\"portRouter\":5550,\"status\":1,\"ipcs\":[{\"addr\":\"172.31.0.51\",\"proto\":\"rtsp\",\"user\":\"admin\",\"password\":\"FWBWTU\",\"status\":0,\"port\":554,\"modules\":{\"evpuller\":[{\"sn\":\"<SN_PULLER>\",\"addr\":\"127.0.0.1\",\"iid\":1,\"portPub\":5556,\"status\":0}],\"evpusher\":[{\"sn\":\"<SN_PUSHER>\",\"iid\":1,\"urlDest\":\"rtsp://40.73.41.176:554/test1\",\"user\":\"\",\"password\":\"\",\"token\":\"\",\"enabled\":1,\"status\":0}],\"evslicer\":[{\"sn\":\"<SN_SLICER>\",\"iid\":1,\"path\":\"slices\",\"enabled\":1,\"status\":0}],\"evml\":[{\"type\":\"motion\",\"sn\":\"<SN_ML>\",\"iid\":1,\"pre\":3,\"area\":300,\"post\":30,\"thresh\":80,\"enabled\":1,\"status\":0}]}}]}}}";
 
 const string _sn_tmpl[] = {"<SN_MGR>", "<SN_PULLER>", "<SN_PUSHER>", "<SN_SLICER>", "<SN_ML>"};
 const string _addr_tmpl[] = {"<ADDR_CAMERA>"};
@@ -381,7 +381,7 @@ togo_end:
             // create default sn.
             string sn = getStrRand(8);
             info["sn"] = sn;
-            info["api-cloud"] = "http://127.0.0.1:8089";
+            info["apiCloud"] = "http://127.0.0.1:8089";
             spdlog::warn("no local sn set. create a new one: {}", sn);
             auto tsNow = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
             info["lastboot"] = tsNow;

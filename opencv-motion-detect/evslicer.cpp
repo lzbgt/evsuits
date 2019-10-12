@@ -259,8 +259,8 @@ private:
                 ipcSn = ipc["sn"];
             }
 
-            if(evslicer.count("video-server-addr") != 0  && !evslicer["video-server-addr"].get<string>().empty()) {
-                videoFileServerApi = evslicer["video-server-addr"].get<string>();
+            if(evslicer.count("videoServerAddr") != 0  && !evslicer["videoServerAddr"].get<string>().empty()) {
+                videoFileServerApi = evslicer["videoServerAddr"].get<string>();
                 if(videoFileServerApi.at(videoFileServerApi.size()-1) != '/') {
                     videoFileServerApi += string("/");
                 }
@@ -301,8 +301,8 @@ private:
             spdlog::info("evslicer mkdir -p {}", selfId, urlOut);
             ret = system((string("mkdir -p ") + urlOut).c_str());
 
-            urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(evpuller["port-pub"]);
-            urlRouter = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(evmgr["port-router"]);
+            urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(evpuller["portPub"]);
+            urlRouter = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(evmgr["portRouter"]);
             spdlog::info("evslicer {} will connect to {} for sub, {} for router", selfId, urlPub, urlRouter);
 
             // setup sub
@@ -613,11 +613,12 @@ protected:
 
     string videoFileTs2Name(long ts, bool bLog = false)
     {
-        std::time_t now = ts;
-        std::tm * ptm = std::localtime(&now);
+        std::tm t;
+        memcpy(&t, localtime(&ts), sizeof(t));
+
         char buffer[20];
         // Format: Mo, 15.06.2009 20:20:00
-        std::strftime(buffer, 20, "%Y%m%d_%H%M%S", ptm);
+        std::strftime(buffer, 20, "%Y%m%d_%H%M%S", &t);
         if(bLog)
             spdlog::info("ts: {}, fname: {}/{}.mp4", ts, this->urlOut, buffer);
         return string(buffer);
@@ -822,8 +823,6 @@ protected:
     // find video files
     vector<string> findSlicesByRange(long tss, long tse, int offsetS, int offsetE)
     {
-
-        debugFilesRing(this->vTsActive);
         vector<string> ret;
         int found = 0;
         int _itss = 0;
@@ -997,9 +996,30 @@ public:
                     }
 
                     // TODO: scheduled task
-                    spdlog::info("evslicer {} wait for {}s to matching event videos", this->selfId, this->seconds + 5);
-                    
-                    this_thread::sleep_for(chrono::seconds(this->seconds + 5));
+                    // check tss, tse
+                    int sIdx = 0, eIdx = 0;
+                    if(this->bSegFull) {
+                        sIdx = this->incSegHead(this->segHead);
+                        eIdx = this->decSegHead(this->segHead);
+                    }else{
+                        sIdx = 1;
+                        eIdx = this->decSegHead(this->segHead);
+                    }
+
+                    if(sIdx > eIdx || tss > this->vTsActive[eIdx] || tse < this->vTsActive[sIdx]) {
+                        spdlog::error("event range ({}, {}) not in local range ({}, {}).", tss, tse, this->vTsActive[sIdx], this->vTsActive[eIdx]);
+                        this->debugFilesRing(this->vTsActive);
+                        continue;
+                    }
+
+                    if(sIdx == eIdx)
+                    {
+                        spdlog::info("evslicer {} wait for {}s to matching event videos", this->selfId, this->seconds + 5);
+                        this_thread::sleep_for(chrono::seconds(this->seconds + 5));
+                    }else{
+                        spdlog::info("event range ({}, {}) is in local range ({}, {}).", tss, tse, this->vTsActive[sIdx], this->vTsActive[eIdx]);
+                    }
+
                     auto v = findSlicesByRange(tss, tse, offsetS, offsetE);
                     if(v.size() == 0) {
                         spdlog::error("evslicer {} ignore upload videos in range ({}, {})", this->selfId, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse));

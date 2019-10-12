@@ -68,7 +68,7 @@ private:
                 goto error_exit;
             }
 
-            addr = "tcp://*:" + to_string(config["port-router"]);
+            addr = "tcp://*:" + to_string(config["portRouter"]);
             // setup zmq
             // TODO: connect to cloud
 

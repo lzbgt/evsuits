@@ -217,8 +217,8 @@ private:
             json evslicer = ipc["modules"]["evslicer"][0];
             slicerGid = evslicer["sn"].get<string>()+":evslicer:" + to_string(evslicer["iid"]);
 
-            urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(evpuller["port-pub"]);
-            urlRouter = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(evmgr["port-router"]);
+            urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(evpuller["portPub"]);
+            urlRouter = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(evmgr["portRouter"]);
             spdlog::info("evmlmotion {} will connect to {} for sub, {} for router", selfId, urlPub, urlRouter);
 
             // TODO: multiple protocols support

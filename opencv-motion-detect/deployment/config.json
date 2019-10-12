@@ -1,8 +1,8 @@
 {
    "data":{
-      "W2E0VFN1":{
+      "V2I0C7KC":{
          "addr":"127.0.0.1",
-         "api-cloud":"http://127.0.0.1:8089",
+         "apiCloud":"http://127.0.0.1:8089",
          "ipcs":[
             {
                "addr":"172.31.0.129",
@@ -14,7 +14,7 @@
                         "iid":1,
                         "post":30,
                         "pre":3,
-                        "sn":"W2E0VFN1",
+                        "sn":"V2I0C7KC",
                         "thresh":30,
                         "entropy": 0.3,
                         "type":"motion"
@@ -25,8 +25,8 @@
                         "addr":"127.0.0.1",
                         "iid":1,
                         "enabled": 1,
-                        "port-pub":5556,
-                        "sn":"W2E0VFN1"
+                        "portPub":5556,
+                        "sn":"V2I0C7KC"
                      }
                   ],
                   "evpusher":[
@@ -34,9 +34,9 @@
                         "enabled":0,
                         "iid":1,
                         "password":"",
-                        "sn":"W2E0VFN1",
+                        "sn":"V2I0C7KC",
                         "token":"",
-                        "urlDest":"rtsp://40.73.41.176/W2E0VFN1",
+                        "urlDest":"rtsp://40.73.41.176/V2I0C7KC",
                         "user":""
                      }
                   ],
@@ -45,8 +45,8 @@
                         "enabled":1,
                         "iid":1,
                         "path":"slices",
-                        "sn":"W2E0VFN1",
-                        "video-server-addr": "http://40.73.41.176:10009/upload/evtvideos/"
+                        "sn":"V2I0C7KC",
+                        "videoServerAddr": "http://40.73.41.176:10009/upload/evtvideos/"
                      }
                   ]
                },
@@ -57,11 +57,11 @@
                "sn": "iLabService"
             }
          ],
-         "mqtt-cloud":"<cloud_addr>",
-         "port-cloud":5556,
-         "port-router":5550,
+         "mqttCloud":"<cloud_addr>",
+         "portCloud":5556,
+         "portRouter":5550,
          "proto":"zmq",
-         "sn":"W2E0VFN1"
+         "sn":"V2I0C7KC"
       }
    },
    "lastupdated":1567669674

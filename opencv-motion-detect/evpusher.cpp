@@ -91,8 +91,8 @@ private:
             pullerGid = evpuller["sn"].get<string>() + ":evpuller:" + to_string(evpuller["iid"]);
             mgrSn = evmgr["sn"];
 
-            urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(evpuller["port-pub"]);
-            urlDealer = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(evmgr["port-router"]);
+            urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(evpuller["portPub"]);
+            urlDealer = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(evmgr["portRouter"]);
             spdlog::info("evpusher {} connect to {} for sub, {} for router", selfId, urlPub, urlDealer);
             // TODO: multiple protocols support
             urlOut = evpusher["urlDest"].get<string>();

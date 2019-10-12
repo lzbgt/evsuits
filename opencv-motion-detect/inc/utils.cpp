@@ -9,10 +9,10 @@ json registry(json &conf, string sn, string module)
     json ret;
     string api;
     try {
-        api = conf.at("data").at(sn).at("api-cloud").get<string>() + "/register";
+        api = conf.at("data").at(sn).at("apiCloud").get<string>() + "/register";
         Uri uri=Uri::Parse(api);
         if(uri.Host.empty()||uri.Port.empty()||uri.Protocol.find("http") == string::npos||uri.Path.empty()) {
-            string msg = "registry error. invalid api-cloud in config: " + api;
+            string msg = "registry error. invalid apiCloud in config: " + api;
             ret["code"] = 1;
             ret["msg"] = msg;
             spdlog::error(msg);
@@ -45,11 +45,11 @@ json reqConfig(json &info)
     json ret;
     string api;
     try {
-        api = info.at("api-cloud").get<string>();
+        api = info.at("apiCloud").get<string>();
         Uri uri=Uri::Parse(api);
         string sn = info.at("sn").get<string>();
         if(uri.Host.empty()||uri.Port.empty()||uri.Protocol.find("http") == string::npos) {
-            string msg = string(__FILE__) +":" + to_string(__LINE__) + ": request cloud configuration error. invalid api-cloud in info: " + api;
+            string msg = string(__FILE__) +":" + to_string(__LINE__) + ": request cloud configuration error. invalid apiCloud in info: " + api;
             ret["code"] = EVCLOUD_REQ_E_PARAM;
             ret["msg"] = msg;
             spdlog::error(msg);
@@ -334,7 +334,7 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                 // one ipc
                 if(!matched && !hasError) {
                     // /PSBV7GKN/ipcs/0"
-                    // {"addr":"172.31.0.129","modules":{"evml":[{"area":200,"enabled":1,"entropy":0.3,"iid":1,"post":30,"pre":3,"sn":"PSBV7GKN","thresh":30,"type":"motion"}],"evpuller":[{"addr":"127.0.0.1","enabled":1,"iid":1,"port-pub":5556,"sn":"PSBV7GKN"}],"evpusher":[{"enabled":0,"iid":1,"password":"","sn":"PSBV7GKN","token":"","urlDest":"rtsp://40.73.41.176/PSBV7GKN","user":""}],"evslicer":[{"enabled":1,"iid":1,"path":"slices","sn":"PSBV7GKN","video-server-addr":"http://40.73.41.176:10009/upload/evtvideos/"}]},"password":"iLabService","port":554,"proto":"rtsp","sn":"iLabService","user":"admin"}
+                    // {"addr":"172.31.0.129","modules":{"evml":[{"area":200,"enabled":1,"entropy":0.3,"iid":1,"post":30,"pre":3,"sn":"PSBV7GKN","thresh":30,"type":"motion"}],"evpuller":[{"addr":"127.0.0.1","enabled":1,"iid":1,"portPub":5556,"sn":"PSBV7GKN"}],"evpusher":[{"enabled":0,"iid":1,"password":"","sn":"PSBV7GKN","token":"","urlDest":"rtsp://40.73.41.176/PSBV7GKN","user":""}],"evslicer":[{"enabled":1,"iid":1,"path":"slices","sn":"PSBV7GKN","videoServerAddr":"http://40.73.41.176:10009/upload/evtvideos/"}]},"password":"iLabService","port":554,"proto":"rtsp","sn":"iLabService","user":"admin"}
                     string  clusterRegStr = "/(\\w+)/ipcs/(\\d+)(?:/[^/]+)?";
                     std::regex clusterRegex(clusterRegStr);
                     std::smatch results;
@@ -375,7 +375,7 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
 
                 // match module config
                 if(!matched && !hasError) {
-                    // /PSBV7GKN/ipcs/0/modules/evslicer/0/video-server-addr
+                    // /PSBV7GKN/ipcs/0/modules/evslicer/0/videoServerAddr
                     // /NMXH73Y2/ipcs/0/modules/evpusher/0/urlDest
                     string  moduleRegStr = "/(\\w+)/ipcs/(\\d+)/modules/(\\w+)/(\\d+)/([^/]+)";
                     std::regex moduleRegex(moduleRegStr);
@@ -518,7 +518,7 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                 // whole cluster
                 if(!matched && !hasError) {
                     // /PSBV7GKN
-                    // "value":{"addr":"127.0.0.1","api-cloud":"http://127.0.0.1:8089","ipcs":[{"addr":"172.31.0.129","modules":{"evml":[{"area":200,"enabled":1,"entropy":0.3,"iid":1,"post":30,"pre":3,"sn":"PSBV7GKN","thresh":30,"type":"motion"}],"evpuller":[{"addr":"127.0.0.1","enabled":1,"iid":1,"port-pub":5556,"sn":"PSBV7GKN"}],"evpusher":[{"enabled":0,"iid":1,"password":"","sn":"PSBV7GKN","token":"","urlDest":"rtsp://40.73.41.176/PSBV7GKN","user":""}],"evslicer":[{"enabled":1,"iid":1,"path":"slices","sn":"PSBV7GKN","video-server-addr":"http://40.73.41.176:10009/upload/evtvideos/"}]},"password":"iLabService","port":554,"proto":"rtsp","sn":"iLabService","user":"admin"}],"mqtt-cloud":"<cloud_addr>","port-cloud":5556,"port-router":5550,"proto":"zmq","sn":"PSBV7GKN"}
+                    // "value":{"addr":"127.0.0.1","apiCloud":"http://127.0.0.1:8089","ipcs":[{"addr":"172.31.0.129","modules":{"evml":[{"area":200,"enabled":1,"entropy":0.3,"iid":1,"post":30,"pre":3,"sn":"PSBV7GKN","thresh":30,"type":"motion"}],"evpuller":[{"addr":"127.0.0.1","enabled":1,"iid":1,"portPub":5556,"sn":"PSBV7GKN"}],"evpusher":[{"enabled":0,"iid":1,"password":"","sn":"PSBV7GKN","token":"","urlDest":"rtsp://40.73.41.176/PSBV7GKN","user":""}],"evslicer":[{"enabled":1,"iid":1,"path":"slices","sn":"PSBV7GKN","videoServerAddr":"http://40.73.41.176:10009/upload/evtvideos/"}]},"password":"iLabService","port":554,"proto":"rtsp","sn":"iLabService","user":"admin"}],"mqttCloud":"<cloud_addr>","portCloud":5556,"portRouter":5550,"proto":"zmq","sn":"PSBV7GKN"}
                     string  clusterRegStr = "/(\\w+)";
                     std::regex clusterRegex(clusterRegStr);
                     std::smatch results;

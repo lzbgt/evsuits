@@ -220,8 +220,8 @@ private:
                 exit(1);
             }
 
-            urlPub = string("tcp://*:") + to_string(evpuller["port-pub"]);
-            urlDealer = "tcp://" + evmgr["addr"].get<string>() + string(":") + to_string(evmgr["port-router"]);
+            urlPub = string("tcp://*:") + to_string(evpuller["portPub"]);
+            urlDealer = "tcp://" + evmgr["addr"].get<string>() + string(":") + to_string(evmgr["portRouter"]);
             spdlog::info("evpuller {} bind on {} for pub, connect to {} for dealer", selfId, urlPub, urlDealer);
 
             pPubCtx = zmq_ctx_new();
