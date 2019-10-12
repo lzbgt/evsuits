@@ -46,7 +46,7 @@ private:
     void *pSubCtx = nullptr, *pDealerCtx = nullptr; // for packets relay
     void *pSub = nullptr, *pDealer = nullptr, *pDaemonCtx = nullptr, *pDaemon = nullptr;
     string urlOut, urlPub, urlRouter, devSn, mgrSn, selfId, pullerGid, ipcSn;
-    int iid, hours, seconds, numSlices, segHead = 1, segHeadP = 0;
+    int iid, hours, seconds, numSlices, segHead = -1, segHeadP = 0;
     long bootTime = 0;
     bool enablePush = false, bSegFull = false;
     AVFormatContext *pAVFormatRemux = nullptr;
@@ -187,7 +187,7 @@ private:
                         bProcessed = true;
                     }else if(metaValue == "debug:list_files"){
                         // TODO: remove debug feature
-                        debugFilesRing();
+                        debugFilesRing(this->vTsActive);
                         bProcessed = true;
                     }else if(metaValue == "debug:toggle_log") {
                         // TODO: remove debug feature
@@ -490,7 +490,11 @@ protected:
                     spdlog::error("evslicer {} could not open output file {}", selfId, name);
                 }
             }
-            av_dict_set(&pOptsRemux, "segment_start_number", to_string(segHead).data(), 0);
+            int startIdx = 0;
+            if(segHead != -1) {
+                startIdx = segHead;
+            }
+            av_dict_set(&pOptsRemux, "segment_start_number", to_string(startIdx).data(), 0);
             ret = avformat_write_header(pAVFormatRemux, &pOptsRemux);
             if (ret < 0) {
                 spdlog::error("evslicer {} error occurred when opening output file", selfId);
@@ -619,12 +623,12 @@ protected:
         return string(buffer);
     }
 
-    void debugFilesRing()
+    void debugFilesRing(vector<long> &v)
     {
         spdlog::info("evslicer {} debug files ring. segHead: {}, isFull: {}, max: {}",this->selfId, this->segHead, this->bSegFull, this->numSlices);
         for(int i = 1; i <= numSlices; i++) {
-            spdlog::info("\tevslicer {} vector[{}] = {}, {}", selfId, i, vTsActive[i], videoFileTs2Name(vTsActive[i]));
-            if(vTsActive[segToIdx(i)] == 0) {
+            spdlog::info("\tevslicer {} vector[{}] = {}, {}", selfId, i, v[i], videoFileTs2Name(v[i]));
+            if(v[segToIdx(i)] == 0) {
                 break;
             }
         }
@@ -676,6 +680,10 @@ protected:
             this->bSegFull = true;
         }
 
+        if(tsRing.size() != 0) {
+            segHead = 0;
+        }
+        
         list<long>::iterator pos = tsRing.begin();
         for(auto &i:tsRing) {
             if(idx < skip) {
@@ -717,7 +725,7 @@ protected:
             spdlog::info("evslicer {} LoadVideoFiles active:{}, ts1:{}, ts2: {}; toprocess: {}, ts1: {}, ts2:{}", selfId, segHead,  v.front(), v.back(), segHeadP, tsNeedUpload.front(), tsNeedUpload.back());
         }
 
-        debugFilesRing();
+        debugFilesRing(v);
 
         return v;
     }
@@ -728,6 +736,10 @@ protected:
         static string lastFile;
         string ext = ".mp4";
         auto self = static_cast<EvSlicer*>(pUserData);
+
+        if(self->segHead == -1) {
+            self->segHead = 1;
+        }
 
         for(auto &i : evts) {
             string fullPath = i.get_path();
@@ -811,7 +823,7 @@ protected:
     vector<string> findSlicesByRange(long tss, long tse, int offsetS, int offsetE)
     {
 
-        debugFilesRing();
+        debugFilesRing(this->vTsActive);
         vector<string> ret;
         int found = 0;
         int _itss = 0;
@@ -993,7 +1005,7 @@ public:
                         spdlog::error("evslicer {} ignore upload videos in range ({}, {})", this->selfId, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse));
                     }
                     else {
-                        debugFilesRing();
+                        debugFilesRing(this->vTsActive);
                         vector<tuple<string, string> > params= {{"startTime", to_string(tss)},{"endTime", to_string(tse)},{"cameraId", ipcSn}, {"headOffset", to_string(offsetS)},{"tailOffset", to_string(offsetE)}};
                         vector<string> fileNames;
                         string sf;
