@@ -156,8 +156,9 @@ private:
                     metaValue = meta["value"];
                 }
 
-                // msg from cluster mgr
                 string daemonId = this->devSn + ":evdaemon:0";
+                
+                // msg from cluster mgr
                 if(peerId == daemonId) {
                     if(metaValue == EV_MSG_META_VALUE_CMD_STOP || metaValue == EV_MSG_META_VALUE_CMD_RESTART) {
                         spdlog::info("evslicer {} received {} cmd from cluster mgr {}", selfId, metaValue, daemonId);

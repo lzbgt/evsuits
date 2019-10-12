@@ -525,6 +525,58 @@ private:
         return ret;
     }
 
+
+    // eventToSlicer["type"] = "event";
+    // eventTOSlicer["extraInfo"] = json(); //array
+    // eventToSlicer["start"]
+    // eventToSlicer["end"]
+    // eventToSlicer["sender"] = selfId;
+
+    json sendEdgeMsg(json &body) {
+        json ret;
+        ret["code"] = 0;
+        ret["msg"] = "ok";
+        string msg;
+        try{
+            auto target = body["target"].get<string>();
+            auto v = strutils::split(target, ':');
+            if(v.size() == 1 || v.size() == 3) {
+                json meta;
+                meta["type"] = body["type"];
+                body["sender"] = devSn;
+                int i= z_send(pRouter, v[0], devSn, meta, body.dump());
+                if(i < 0) {
+                    msg = fmt::format("evcloudsvc failed to z_zend msg: {} :{}",zmq_strerror(zmq_errno()) ,body.dump());
+                    throw StrException(msg);
+                }
+            }else{
+                msg = fmt::format("evcloudsvc invliad target field({}) in body: {}", target, body.dump());
+                throw StrException(msg);
+            }
+
+        }catch(exception &e) {
+            ret["msg"] = e.what();
+            spdlog::error(e.what());
+            ret["code"] = -1;
+        }
+
+        return ret;
+    }
+
+    json handleCmd(json &body){
+        json ret;
+        ret["code"] = -1;
+        ret["msg"] = "unkown msg";
+        spdlog::info("handle cmd");
+        if(body.count("target") != 0 && body["target"].is_string() && body.count("type") !=0  && body["type"].is_string() &&
+            body.count("data") != 0 && body["data"].is_object()) {
+            // it's msg to edge.
+            return sendEdgeMsg(body);
+        }else{
+            return ret;
+        }
+    }
+
 protected:
 public:
     void run()
@@ -645,6 +697,26 @@ public:
         svr.Post("/reset", [](const Request& req, Response& res) {
 
         });
+
+        svr.Post("/cmd", [this](const Request& req, Response& res) {
+            json ret;
+            string msg;
+            ret["code"] = 0;
+            ret["msg"] = "ok";
+            try{
+                auto body = json::parse(req.body);
+                ret = this->handleCmd(body);
+            }catch(exception &e) {
+                ret["code"] = -1;
+                msg = fmt::format("evcloudsvc Post /cmd Exception: {}", e.what());
+                spdlog::error(msg);
+                ret["msg"] = msg;
+            }
+
+            res.set_content(ret.dump(), "text/json");
+        });
+
+
 
         svr.Get("/keys", [](const Request& req, Response& res) {
             string fileName = req.get_param_value("filename");

@@ -615,10 +615,12 @@ protected:
         zmq_msg_t msg;
         AVPacket packet;
         json eventToSlicer;
+        
         // eventToSlicer["type"] = "event";
         // eventTOSlicer["extraInfo"] = json(); //array
         // eventToSlicer["start"]
         // eventToSlicer["end"]
+        eventToSlicer["sender"] = selfId;
 
         //event relay thread: motion to slicer and sn:evdaemon:0
         thEvent = thread([&,this]() {

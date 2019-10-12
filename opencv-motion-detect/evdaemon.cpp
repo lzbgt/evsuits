@@ -324,7 +324,7 @@ private:
         return ret;
     }
 
-    void sendCmd2Peer(string peerId, string cmdVal, string msg)
+    int sendCmd2Peer(string peerId, string cmdVal, string msg)
     {
         json meta;
         meta["type"] = EV_MSG_META_TYPE_CMD;
@@ -336,6 +336,7 @@ private:
         else {
             spdlog::info("evdaemon {} successfully send msg to peer {}: {} - {}", devSn, peerId, meta.dump(), msg);
         }
+        return ret;
     }
 
     int handleEdgeMsg(vector<vector<uint8_t> > &body)
@@ -485,16 +486,16 @@ private:
     int handleCloudMsg(vector<vector<uint8_t> > &v)
     {
         int ret = 0;
-        zmq_msg_t msg;
+        string msg;
         // ID_SENDER, meta ,MSG
         string peerId, meta;
         if(v.size() != 3) {
-            string msg;
             for(auto &s:v) {
                 msg += body2str(s) + ";";
             }
             spdlog::error("evdaemon {} received invalid msg from cloud {}", devSn, msg);
         }
+
         else {
             try {
                 string meta = json::parse(v[1])["type"];
@@ -537,6 +538,34 @@ private:
                                 spdlog::info("evdaemon {} skip startup subsystems since BOOTSTRAP is set to false", devSn);
                             }
                         }
+                    }else if(meta == EV_MSG_META_TYPE_CMD){
+                        spdlog::info("evdaemon {} received cmd from cloud: {}", devSn, msg);
+                        if(data.count("target") != 0 && data["target"].is_string() && data.count("type") !=0  && data["type"].is_string() &&
+                            data.count("data") != 0 && data["data"].is_object()) {
+                            string target = data["target"];
+                            auto v = strutils::split(target, ':');
+                            if(v.size() == 1) {
+                                spdlog::info("evdaemon {} received msg {} from cloud to itself. TODO: functionality extending points such as debug tunnel", devSn, data.dump());
+                            }else if(v.size() == 3){
+                                if(this->peerData["status"].count(target) == 0 || this->peerData["status"][target] == 0 || this->peerData["status"] == -1) {
+                                    spdlog::error("evdaemon {} received {} msg from cloud to {}: {}, but its offline", devSn, meta, target, data.dump());
+                                }else{
+                                    ret = sendCmd2Peer(target, "", data.dump());
+                                    if(ret < 0) {
+                                        spdlog::error("evdaemon {} failed to send msg to peer {}: {}", devSn, data.dump(), zmq_strerror(zmq_errno()));
+                                    }else{
+                                        spdlog::error("evdaemon {} successfully relayed {} msg from cloud to {}: {}", devSn, meta, target, data.dump());
+                                    }
+                                }
+                            }else{
+                                spdlog::info("well");
+                            }
+                            
+                        }else{
+                            spdlog::info("done");
+                        }
+                    }else{
+                        spdlog::info("evdaemon {} received msg from cloud that having no handler implemented: {}", devSn, msg);
                     }
                 }
                 else {
