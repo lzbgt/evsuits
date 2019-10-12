@@ -184,6 +184,15 @@ private:
                         }
                     }else if(metaValue == "debug:list_files"){
                         debugFilesRing();
+                        bProcessed = true;
+                    }else if(metaValue == "debug:toggle_log") {
+                        static bool toggle = false;
+                        toggle = !toggle;
+                        if(toggle){
+                            spdlog::set_level(spdlog::level::debug);
+                        }else{
+                            spdlog::set_level(spdlog::level::info);
+                        }
                     }
                 }
             }
@@ -711,16 +720,18 @@ protected:
             string fullPath = i.get_path();
             size_t pos = fullPath.find(ext, 0);
             if(fullPath.size() < ext.size() ||  pos == string::npos || pos != (fullPath.size() - ext.size())) {
-                spdlog::debug("evslicer {} invalid file : {}", self->selfId, fullPath);
+                spdlog::debug("evslicer {} invalid file: {}, last: {}", self->selfId, fullPath, lastFile);
                 continue;
             }
-            if(lastFile == i.get_path() || lastFile.empty()) {
-                // skip
+
+            if(lastFile == i.get_path()) {
+                spdlog::debug("evslicer {} skip file : {}, last: {}", self->selfId, fullPath, lastFile);
                 continue;
             }
+
             else if(!lastFile.empty()) {
                 // insert into ts active
-                spdlog::info("evslicer {} filemon file: {}, ts: {}, last: {}", self->selfId, i.get_path().c_str(), i.get_time(), lastFile);
+                spdlog::debug("evslicer {} filemon file: {}, ts: {}, last: {}", self->selfId, i.get_path().c_str(), i.get_time(), lastFile);
                 if(self->segHead == 0) {
                     //wrap it;
                     self->bSegFull = true;
@@ -754,8 +765,10 @@ protected:
             else {
                 //nop
             }
+
             lastFile = i.get_path();
         }
+        
     }
 
     //
