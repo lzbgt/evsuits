@@ -165,12 +165,20 @@ private:
                         exit(0);
                     }else if(metaValue == "record") {
                         try{
-                            
+                            json body = json::parse(body2str(v[2]));
+                            if(body.count("start") != 0 && body["start"].is_number() && body.count("end") != 0 && body["end"].is_number()) {
+                                json evt;
+                                evt["type"] = "event";
+                                evt["start"] = body["start"];
+                                evt["end"] = body["end"];
+                                eventQueue.push(evt);
+                                bProcessed = true;
+                            }
                         }catch(exception &e) {
-
+                            spdlog::error("evslicer {} exception in handleCloudMsg: {}", e.what());
                         }
                     }else{
-
+                        //
                     }
                 }
             }
