@@ -608,14 +608,15 @@ protected:
     {
         std::tm t;
         strptime(fileBaseName.data(), "%Y%m%d_%H%M%S", &t);
-        t.tm_isdst = -1;
+        // disable dst
+        t.tm_isdst = -1; //0 - utc, 1 dst, -1 system local.
         return mktime(&t);
     }
 
     string videoFileTs2Name(long ts, bool bLog = false)
     {
         std::tm t;
-        memcpy(&t, gmtime(&ts), sizeof(t));
+        memcpy(&t, localtime(&ts), sizeof(t));
         //t.tm_isdst = -1;
 
         char buffer[20];
