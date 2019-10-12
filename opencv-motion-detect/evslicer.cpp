@@ -183,9 +183,11 @@ private:
                             spdlog::error("evslicer {} exception in handleCloudMsg: {}", selfId, e.what());
                         }
                     }else if(metaValue == "debug:list_files"){
+                        // TODO: remove debug feature
                         debugFilesRing();
                         bProcessed = true;
                     }else if(metaValue == "debug:toggle_log") {
+                        // TODO: remove debug feature
                         static bool toggle = false;
                         toggle = !toggle;
                         if(toggle){
@@ -193,6 +195,8 @@ private:
                         }else{
                             spdlog::set_level(spdlog::level::info);
                         }
+
+                        bProcessed = true;
                     }
                 }
             }
