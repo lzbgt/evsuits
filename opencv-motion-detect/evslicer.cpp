@@ -717,6 +717,8 @@ protected:
             spdlog::info("evslicer {} LoadVideoFiles active:{}, ts1:{}, ts2: {}; toprocess: {}, ts1: {}, ts2:{}", selfId, segHead,  v.front(), v.back(), segHeadP, tsNeedUpload.front(), tsNeedUpload.back());
         }
 
+        debugFilesRing();
+
         return v;
     }
 
