@@ -182,6 +182,9 @@ private:
                         }catch(exception &e) {
                             spdlog::error("evslicer {} exception in handleCloudMsg: {}", selfId, e.what());
                         }
+                    }else if(metaValue == "debug:xxx"){
+                        // TODO: remove debug feature
+                        bProcessed = true;
                     }else if(metaValue == "debug:list_files"){
                         // TODO: remove debug feature
                         debugFilesRing();
