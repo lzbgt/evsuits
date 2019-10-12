@@ -568,7 +568,7 @@ private:
         json ret;
         ret["code"] = -1;
         ret["msg"] = "unkown msg";
-        spdlog::info("handle cmd");
+        spdlog::info("evcloudsvc handle cmd: {}", body.dump());
         if(body.count("target") != 0 && body["target"].is_string() && body.count("metaType") !=0  && body["metaType"].is_string() &&
             body.count("data") != 0 && body["data"].is_object() && body.count("metaValue") !=0  && body["metaValue"].is_string()) {
             // it's msg to edge.

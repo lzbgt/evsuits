@@ -182,8 +182,8 @@ private:
                         }catch(exception &e) {
                             spdlog::error("evslicer {} exception in handleCloudMsg: {}", selfId, e.what());
                         }
-                    }else{
-                        //
+                    }else if(metaValue == "debug:list_files"){
+                        debugFilesRing();
                     }
                 }
             }
