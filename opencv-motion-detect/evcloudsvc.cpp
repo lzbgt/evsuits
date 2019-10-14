@@ -797,10 +797,11 @@ public:
                 if(this->configMap.count("mod2mgr") ==0 || this->configMap["mod2mgr"].size() ==0) {
                 }else{
                     for(auto &k:mods) {
-                        this->configMap.erase(k);
+                        this->configMap["mod2mgr"].erase(k);
                     }
                 }
                 // TODO: clear peerData
+                this->configMap.erase(sn);
                 this->peerData.erase(sn);
                 // TODO: send config diff to sn
                 int iret = LVDB::setValue(this->configMap, KEY_CONFIG_MAP);
