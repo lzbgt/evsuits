@@ -565,7 +565,10 @@ private:
                         }else{
                             spdlog::info("done");
                         }
-                    }else{
+                    }else if(meta == EV_MSG_META_PONG) {
+                        spdlog::info("evdaemon {} received pong msg from evcloudsvc", devSn);
+                    }
+                    else{
                         spdlog::info("evdaemon {} received msg from cloud that having no handler implemented: {}", devSn, msg);
                     }
                 }

@@ -472,6 +472,11 @@ private:
                                 spdlog::error("evcloudsvc {} failed to send multiple: {}", devSn, zmq_strerror(zmq_errno()));
                             }
                         }
+                    }else{
+                        json resp;
+                        resp["metaType"] = EV_MSG_META_PONG;
+                        resp["target"] = selfId;
+                        sendEdgeMsg(resp);
                     }
                 }
             }
@@ -558,12 +563,16 @@ private:
             if(v.size() == 1 || v.size() == 3) {
                 json meta;
                 meta["type"] = body["metaType"];
-                meta["value"] = body["metaValue"];
+                if(body.count("metaValue") == 0) {
+                    // meta["value"] = "";
+                }else{
+                    meta["value"] = body["metaValue"];
+                }
+                
                 body["sender"] = devSn;
                 if(peerData["status"].count(v[0]) == 0 || peerData["status"][v[0]] == 0){
                     spdlog::warn("evcloudsvc sent msg {} to {}, but it was offline", body.dump(), v[0]);
                 }else{
-
                 }
                 int i= z_send(pRouter, v[0], devSn, meta, body.dump());
                 if(i < 0) {
