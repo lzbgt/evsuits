@@ -160,6 +160,12 @@ private:
 
                                 string modKey;
                                 string sn = m["sn"];
+                                if(sn.find('/', 0) != string::npos) {
+                                    string msg = fmt::format("evcloudsvc invalid sn({}) in module /{}/ipcs/{}/modules/{} in config: {}", sn, k, ipcIdx, mn, modIdx, v.dump());
+                                    spdlog::error(msg);
+                                    hasError = true;
+                                    break;
+                                }
                                 //ml
                                 if(mn == "evml") {
                                     modKey = sn +":evml" + m["type"].get<string>();
@@ -223,11 +229,20 @@ private:
                 ret["code"] = 1;
                 ret["msg"] = msg;
                 spdlog::error(msg);
+                hasError = true;
             }
             else {
                 json &data = newConfig["data"];
                 // for edge clusters, those are mgrs
                 for(auto &[k, v]: data.items()) {
+                    if(k.find('/', 0) != string::npos) {
+                        ret["code"] = 2;
+                        string msg = fmt::format("evcloudsvc invalid sn({}) as key in config: {}", k, data.dump());
+                        ret["msg"] = msg;
+                        spdlog::error(msg);
+                        hasError = true;
+                        break;
+                    }
                     if(this->configMap.count(k) ^ this->peerData["config"].count(k)) {
                         spdlog::warn("evcloudsvc inconsistent configuration for cluster {}", k);
                         // TODO: handle this situation gracefully.
