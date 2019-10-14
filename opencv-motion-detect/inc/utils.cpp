@@ -318,10 +318,10 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
     ret["msg"] = "ok";
     ret["data"] = json();
     bool hasError = false;
-    spdlog::info("matching {}, size:{}, type:{}", diff.dump(), diff.size(), diff.type_name());
+    spdlog::info("{}:{}: matching {}, size:{}, type:{}", __FILE__, __LINE__, diff.dump(), diff.size(), diff.type_name());
     try{
         for(auto &d: diff) {
-            spdlog::info("getModulesOperFromConfDiff path: {}", d.dump());
+            spdlog::info("{}:{}: path: {}", __FILE__, __LINE__, d.dump());
             if(d.count("path") != 0) {
                 string path_ = d["path"];
                 bool matched = false;
@@ -340,7 +340,7 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                     std::smatch results;
                     if (std::regex_match(path_, results, clusterRegex)) {
                         if (results.size() == 3) {
-                            spdlog::info("getModulesOperFromConfDiff path matched ipc or ipc prop", path_);
+                            spdlog::info("{}:{}: path matched ipc or ipc prop: {}",__FILE__, __LINE__, path_);
                             matched = true;
                             string mgrSn = results[1].str();
                             int ipcIdx = stoi(results[2].str());
@@ -351,7 +351,8 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                                 mgr[mgrSn] = newConfig[mgrSn];
                             }
 
-                            json jret = cfgutils::getModuleGidsFromCfg(sn, mgr, "getModulesOperFromConfDiff", ipcIdx);
+                            string info = string(__FILE__) + ":" + to_string(__LINE__);
+                            json jret = cfgutils::getModuleGidsFromCfg(sn, mgr, info, ipcIdx);
                             spdlog::info("jret: {}", jret.dump());
                             if(jret["code"] != 0) {
                                 ret["msg"] = jret["msg"];
@@ -383,7 +384,7 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                     if (std::regex_match(path_, results, moduleRegex)) {
                         if (results.size() == 6) {
                             matched = true;
-                            spdlog::info("getModulesOperFromConfDiff path matched module prop", path_);
+                            spdlog::info("{}:{}: path matched module prop: {}", __FILE__, __LINE__, path_);
                             string mgrSn = results[1].str();
                             int ipcIdx = stoi(results[2].str());
                             int modIdx = stoi(results[4].str());
@@ -463,7 +464,7 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                     if (std::regex_match(path_, results, moduleRegex)) {
                         if (results.size() == 5) {
                             matched = true;
-                            spdlog::info("getModulesOperFromConfDiff path matched whole module", path_);
+                            spdlog::info("{}:{}: path matched whole module: {}", __FILE__, __LINE__, path_);
                             string mgrSn = results[1].str();
                             int ipcIdx = stoi(results[2].str());
                             int modIdx = stoi(results[4].str());
@@ -525,7 +526,7 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                     if (std::regex_match(path_, results, clusterRegex)) {
                         if (results.size() == 2) {
                             matched = true;
-                            spdlog::info("getModulesOperFromConfDiff path matched whole cluster", path_);
+                            spdlog::info("{}:{}: path matched whole cluster: {}", path_);
                             string mgrSn = results[1].str();
                             json mgr;
                             if(d["op"] == "remove"){
@@ -534,8 +535,8 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                                 mgr[mgrSn] = newConfig[mgrSn];
                             }
 
-                            json jret = cfgutils::getModuleGidsFromCfg(sn, mgr, "getModulesOperFromConfDiff");
-                            spdlog::info("getModulesOperFromConfDiff getModuleGidsFromCfg: {}", jret.dump());
+                            json jret = cfgutils::getModuleGidsFromCfg(sn, mgr, "");
+                            spdlog::info("{}:{} getModuleGidsFromCfg dump: {}", __FILE__, __LINE__, jret.dump());
                             if(jret["code"] != 0) {
                                 ret["msg"] = jret["msg"];
                                 hasError = true;
@@ -561,10 +562,10 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
             ret["code"] = 1;
         }   
     }catch(exception &e) {
-        string msg = fmt::format("getModulesOperFromConfDiff exception: {}", e.what());
+        string msg = fmt::format("{}:{}: exception: {}", __FILE__, __LINE__, e.what());
         ret["code"] = -1;
         ret["msg"] = msg;
-        spdlog::error("getModulesOperFromConfDiff exception: {}", msg);
+        spdlog::error("{}:{}: exception: {}", __FILE__, __LINE__, msg);
     }
 
     return ret;

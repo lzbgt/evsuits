@@ -145,6 +145,20 @@ error_exit:
             exit(1);
         }
 
+        thCloudMsgHandler = thread([this] {
+            while(true)
+            {
+                auto body = z_recv_multiple(pDealer,false);
+                if(body.size() == 0) {
+                    spdlog::error("evslicer {} failed to receive multiple msg: {}", this->devSn, zmq_strerror(zmq_errno()));
+                    continue;
+                }
+                // full proto msg received.
+                this->handleCloudMsg(body);
+            }
+        });
+        thCloudMsgHandler.detach();   
+
         spdlog::info("evmgr {} successfuly inited", devSn);
     }
 
@@ -172,8 +186,8 @@ error_exit:
                 return -1;
             }
             json *mod = LVDB::findConfigModule(config, sp[0], sp[1], stoi(sp[2]));
-            if(mod == nullptr) {
-                spdlog::warn("evmgr {} failed to find module with id: {}", devSn, selfId);
+            if(mod == nullptr||peerData["status"].count(selfId) == 0) {
+                spdlog::warn("evmgr {} failed to find the connecting/disconnecting module with id {} in config. please check if it was terminated correctly", devSn, selfId);
                 return -1;
             }
 
@@ -294,6 +308,7 @@ protected:
     {
         bool bStopSig = false;
         int ret = 0;
+
         while (true) {
             if(checkStop() == true) {
                 bStopSig = true;
@@ -303,20 +318,6 @@ protected:
             //     spdlog::error("evmgr {} exit since evdaemon is dead", devSn);
             //     exit(1);
             // }
-
-            thCloudMsgHandler = thread([this] {
-                while(true)
-                {
-                    auto body = z_recv_multiple(pDealer,false);
-                    if(body.size() == 0) {
-                        spdlog::error("evslicer {} failed to receive multiple msg: {}", this->devSn, zmq_strerror(zmq_errno()));
-                        continue;
-                    }
-                    // full proto msg received.
-                    this->handleCloudMsg(body);
-                }
-            });
-            thCloudMsgHandler.detach();
             
             auto body = z_recv_multiple(pRouter,false);
             if(body.size() == 0) {

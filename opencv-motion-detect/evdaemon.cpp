@@ -382,10 +382,12 @@ private:
                 if(peerData["pids"].count(selfId) != 0) {
                     peerData["pids"].erase(selfId);
                 }
-                spdlog::warn("evdaemon {} peer {} disconnected. reloading config", devSn, selfId);
 
                 if(this->bBootstrap) {
+                    spdlog::warn("evdaemon {} peer {} disconnected. restarting it.", devSn, selfId);
                     startSubSystems({selfId});
+                }else{
+                    spdlog::warn("evdaemon {} peer {} disconnected. won't restart it since BOOTSTRAP=false", devSn, selfId);
                 }
             }
 
