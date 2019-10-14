@@ -368,8 +368,7 @@ private:
                 json resp;
                 resp["target"] = selfId,
                 resp["metaType"] = EV_MSG_META_PONG;
-                string msg = fmt::format("{}", selfId, data["msg"].get<string>());
-                resp["data"] = msg;
+                resp["data"] = data["msg"];
             }
             else {
                 sendConfig(data["data"], selfId);
