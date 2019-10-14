@@ -504,6 +504,8 @@ public:
             exit(1);
         }
 
+        spdlog::info("evpusher {} boot", selfId);
+
         //
         string addr = string("tcp://127.0.0.1:") + drport;
         int ret = zmqhelper::setupDealer(&pDaemonCtx, &pDaemon, addr, selfId);

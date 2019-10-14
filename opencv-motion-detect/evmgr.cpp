@@ -186,7 +186,7 @@ error_exit:
                 return -1;
             }
             json *mod = LVDB::findConfigModule(config, sp[0], sp[1], stoi(sp[2]));
-            if(mod == nullptr||peerData["status"].count(selfId) == 0) {
+            if(mod == nullptr) {
                 spdlog::warn("evmgr {} failed to find the connecting/disconnecting module with id {} in config. please check if it was terminated correctly", devSn, selfId);
                 return -1;
             }
@@ -357,6 +357,8 @@ public:
             spdlog::error("evmgr failed to start. no SN set");
             exit(1);
         }
+
+        spdlog::info("evmgr {} boot", devSn);
 
         //
         string addr = string("tcp://127.0.0.1:") + drport;;

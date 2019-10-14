@@ -187,20 +187,20 @@ private:
         std::lock_guard<std::mutex> lock(mutSubsystem);
         if(subs.size() != 0) {
             for(auto &k: subs) {
-                if((this->peerData["status"].count(k) == 0 || this->peerData["status"][k] == 0) && this->peerData["config"].count(k) != 0 &&  this->peerData["enabled"].count(k) != 0 && this->peerData["enabled"][k] != 0) {
+                if((this->peerData["status"].count(k) == 0 || this->peerData["status"][k] == 0 || this->peerData["status"][k] != -2) && this->peerData["config"].count(k) != 0 &&  this->peerData["enabled"].count(k) != 0 && this->peerData["enabled"][k] != 0) {
                     pid_t pid;
                     ret = zmqhelper::forkSubsystem(devSn, k, portRouter, pid);
                     if(0 == ret) {
                         this->peerData["status"][k] = 0;
                         this->peerData["pids"][k] = pid;
-                        spdlog::info("evdaemon {} created subsystem {}", this->devSn, k);
+                        spdlog::info("evdaemon {} created subsystem {} (current status: {})", this->devSn, k, this->peerData["status"][k].get<int>());
                     }
                     else {
                         spdlog::info("evdaemon {} failed to create subsystem {}", this->devSn, k);
                     }
                 }
                 else {
-                    spdlog::warn("evdaemon {} refuse to start subsystem {}, maybe it's disabled", this->devSn, k);
+                    spdlog::warn("evdaemon {} refuse to start subsystem {}, maybe it's disabled or removed out from lastes cluster config", this->devSn, k);
                 }
             }
         }
@@ -297,11 +297,14 @@ private:
                 for(auto &[k,v]: mods.items()) {
                     spdlog::info("evdaemon {} startSubSystems config diff to module action: {} -> {}", this->devSn, string(k), int(v));
                     if(v == 0) {
+                        // stop
+                        this->peerData["status"][k] = -2; // stopped
                         sendCmd2Peer(k, EV_MSG_META_VALUE_CMD_STOP, "0");
                     }
+
                     else if(int(v) == 1 || int(v) == 2) {
                         int status = (this->peerData["status"].count(k) == 0) ? -1:this->peerData["status"][k].get<int>();
-                        spdlog::info("evdaemon module {} status {}", this->devSn, k, status);
+                        spdlog::info("evdaemon {} module {} status {}", this->devSn, k, status);
                         if(this->peerData["status"].count(k) == 0 || this->peerData["status"][k] == 0||this->peerData["status"][k] == -1) {
                             pid_t pid;
                             spdlog::info("evdaemon {} starting subsystem {}", this->devSn, k);
@@ -378,16 +381,20 @@ private:
                 spdlog::info("evdaemon {} peer {} config sent: {}", devSn,selfId, cfg);
             }
             else {
-                peerData["status"][selfId] = 0;
-                if(peerData["pids"].count(selfId) != 0) {
-                    peerData["pids"].erase(selfId);
-                }
-
-                if(this->bBootstrap) {
-                    spdlog::warn("evdaemon {} peer {} disconnected. restarting it.", devSn, selfId);
-                    startSubSystems({selfId});
+                if(peerData["status"][selfId] == -2){
+                    spdlog::warn("evdaemon {} refuse to start {}: it was asked to be stopped, and is removed from cluster config", this->devSn, selfId);
                 }else{
-                    spdlog::warn("evdaemon {} peer {} disconnected. won't restart it since BOOTSTRAP=false", devSn, selfId);
+                    peerData["status"][selfId] = 0;
+                    if(peerData["pids"].count(selfId) != 0) {
+                        peerData["pids"].erase(selfId);
+                    }
+
+                    if(this->bBootstrap) {
+                        spdlog::warn("evdaemon {} peer {} disconnected. restarting it.", devSn, selfId);
+                        startSubSystems({selfId});
+                    }else{
+                        spdlog::warn("evdaemon {} peer {} disconnected. won't restart it since BOOTSTRAP=false", devSn, selfId);
+                    }
                 }
             }
 

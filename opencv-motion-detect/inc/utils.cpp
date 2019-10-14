@@ -421,17 +421,16 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                                     string oldSn = oldMod["sn"];
                                     string newSn = newMod["sn"];
 
-                                    if(oldSn != newSn) {
-                                        string oldGid = sn + ":" + modName + ":" + to_string(oldMod["iid"].get<int>());
+                                    string oldGid = oldSn + ":" + modName + ":" + to_string(oldMod["iid"].get<int>());
+                                    string newGid = newSn + ":" + modName + ":" + to_string(newMod["iid"].get<int>());
+
+                                    if(oldGid != newGid) {
                                         ret["data"][oldGid] = 0;
                                     }
 
                                     if(!sn.empty() && sn != newSn) {
                                         continue;
-                                    } 
-                                    
-                                    string oldGid = oldSn + ":" + modName + ":" + to_string(oldMod["iid"].get<int>());
-                                    string newGid = newSn + ":" + modName + ":" + to_string(newMod["iid"].get<int>());
+                                    }
 
                                     if(propName == "enabled") {
                                         if(newMod.count("enabled") == 0||newMod["enabled"].get<int>() == 0) {
