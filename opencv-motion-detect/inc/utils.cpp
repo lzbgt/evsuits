@@ -310,7 +310,7 @@ json *findModuleConfig(string peerId, json &data)
     return ret;
 }
 
-/// return json key: gid; value: 0 - stop, 1 - start, 3 - restart
+/// return json key: gid; value: 0 - disabled, 1 - removed, 2 - start, 3 - restart
 json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, string sn) {
     /// key: gid; value: 0 - stop, 1 - start, 3 - restart
     json ret;
@@ -331,7 +331,7 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                 set<string> oprations{"add", "replace", "remove"};
                 set<string> pullerTag{"addr", "user", "password", "proto", "port" /*, "sn"*/};
 
-                // one ipc
+                // whole ipc
                 if(!matched && !hasError) {
                     // /PSBV7GKN/ipcs/0"
                     // {"addr":"172.31.0.129","modules":{"evml":[{"area":200,"enabled":1,"entropy":0.3,"iid":1,"post":30,"pre":3,"sn":"PSBV7GKN","thresh":30,"type":"motion"}],"evpuller":[{"addr":"127.0.0.1","enabled":1,"iid":1,"portPub":5556,"sn":"PSBV7GKN"}],"evpusher":[{"enabled":0,"iid":1,"password":"","sn":"PSBV7GKN","token":"","urlDest":"rtsp://40.73.41.176/PSBV7GKN","user":""}],"evslicer":[{"enabled":1,"iid":1,"path":"slices","sn":"PSBV7GKN","videoServerAddr":"http://40.73.41.176:10009/upload/evtvideos/"}]},"password":"iLabService","port":554,"proto":"rtsp","sn":"iLabService","user":"admin"}
@@ -344,37 +344,103 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                             matched = true;
                             string mgrSn = results[1].str();
                             int ipcIdx = stoi(results[2].str());
-                            json mgr;
-                            if(d["op"] == "remove"){
-                                mgr[mgrSn] = oldConfig[mgrSn];
-                            }else{
-                                mgr[mgrSn] = newConfig[mgrSn];
+                            json oldIpc, newIpc;
+                            json oldMgr, newMgr;
+                           
+                            if(oldConfig[mgrSn]["ipcs"].size() >= ipcIdx+1){
+                                oldIpc = oldConfig[mgrSn]["ipcs"][ipcIdx];
+                                oldMgr[mgrSn] = json();
+                                oldMgr[mgrSn]["ipcs"] = json();
+                                oldMgr[mgrSn]["ipcs"].push_back(oldIpc);
                             }
 
-                            string info = string(__FILE__) + ":" + to_string(__LINE__);
-                            json jret = cfgutils::getModuleGidsFromCfg(sn, mgr, info, ipcIdx);
-                            spdlog::info("jret: {}", jret.dump());
-                            if(jret["code"] != 0) {
-                                ret["msg"] = jret["msg"];
-                                hasError = true;
-                                break;
-                            }else{
-                                if(jret["msg"] != "ok") {
-                                    ret["msg"] = jret["msg"];
-                                }
-                                for(auto &k: jret["data"]) {
-                                    if(d["op"] == "remove"){
-                                        ret["data"][string(k)] = 0;
-                                    }else{
-                                        ret["data"][string(k)] = 2;
+                            if(newConfig[mgrSn]["ipcs"].size() >= ipcIdx+1){
+                                newIpc = newConfig[mgrSn]["ipcs"][ipcIdx];
+                                newMgr[mgrSn] = json();
+                                newMgr[mgrSn]["ipcs"] = json();
+                                newMgr[mgrSn]["ipcs"].push_back(newIpc);
+                            }
+
+                            if(newIpc.size() != 0 && newIpc.count("modules") != 0 && newIpc.count("addr") != 0) {
+                                for(auto &[mn, v]: newIpc["modules"].items()) {
+                                    string modName = mn;
+                                    json &mods = v;
+                                    int modIdx = 0;
+                                    for(auto &modObj:mods) {
+                                        string modSn = sn.empty()? modObj["sn"].get<string>(): sn;
+                                        if(modObj["sn"].get<string>() == modSn){
+                                            if(modName == "evml") {
+                                                if(modObj.count("type") == 0) {
+                                                    string msg = fmt::format("invalid evml module config ipcs[{}]['modules'][{}][{}] having no type field", ipcIdx, modName, modIdx);
+                                                    spdlog::error(msg);
+                                                    hasError = true;
+                                                    break;
+                                                }else{
+                                                    modName = modName + modObj["type"].get<string>();
+                                                }
+                                            }
+
+                                            if(modObj.count("iid") == 0) {
+                                                string msg = fmt::format("invalid evml module config ipcs[{}]['modules'][{}][{}] having no iid field", ipcIdx, modName, modIdx);
+                                                spdlog::error(msg);
+                                                hasError = true;
+                                                break;
+                                            }
+
+                                            string modGid = modSn + ":" + modName + ":" + to_string(modObj["iid"].get<int>());
+                                            if(modObj.count("enabled") == 0 ||modObj["enabled"] == 0 ) {
+                                                ret["data"][modGid] = 0; // disabled
+                                            }else{
+                                                ret["data"][modGid] = 2; // start
+                                            } 
+                                        }
+                                        modIdx++;
                                     }
-                                }
+                                }      
+                            }
+
+                            if(oldIpc.size() != 0 && oldIpc.count("modules") != 0 && oldIpc.count("addr") != 0) {
+                                for(auto &[mn,v]: oldIpc["modules"].items()) {
+                                    string modName = mn;
+                                    json &mods = v;
+                                    int modIdx = 0;
+                                    for(auto &modObj:mods) {
+                                        string modSn = sn.empty()? modObj["sn"].get<string>(): sn;
+                                        if(modObj["sn"].get<string>() == modSn){
+                                            if(modName == "evml") {
+                                                if(modObj.count("type") == 0) {
+                                                    string msg = fmt::format("invalid evml module config ipcs[{}]['modules'][{}][{}] having no type field", ipcIdx, modName, modIdx);
+                                                    spdlog::error(msg);
+                                                    hasError = true;
+                                                    break;
+                                                }else{
+                                                    modName = modName + modObj["type"].get<string>();
+                                                }
+                                            }
+
+                                            if(modObj.count("iid") == 0) {
+                                                string msg = fmt::format("invalid evml module config ipcs[{}]['modules'][{}][{}] having no iid field", ipcIdx, modName, modIdx);
+                                                spdlog::error(msg);
+                                                hasError = true;
+                                                break;
+                                            }
+
+                                            string modGid = modSn + ":" + modName + ":" + to_string(modObj["iid"].get<int>());
+                                            if(ret["data"].count(modGid) != 0 && ret["data"][modGid] == 2) {
+                                                ret["data"][modGid] = 3; // restart
+                                            }else{
+                                                ret["data"][modGid] = 1; // perm stop
+                                            } 
+                                        }
+                                        modIdx++;
+                                    }
+                                }      
                             }
                         }
                     }
                 }
 
-                // match module config
+                // match module prop config
                 if(!matched && !hasError) {
                     // /PSBV7GKN/ipcs/0/modules/evslicer/0/videoServerAddr
                     // /NMXH73Y2/ipcs/0/modules/evpusher/0/urlDest
@@ -390,7 +456,7 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                             int modIdx = stoi(results[4].str());
                             string modName = results[3].str();
                             string propName = results[5].str();
-                            if(d["op"] == "replace"||d["op"] == "add" || d["op"] == "remove") {   
+                            if(true){        //d["op"] == "replace"||d["op"] == "add" || d["op"] == "remove") {   
                                 auto &oldMod = oldConfig[mgrSn]["ipcs"][ipcIdx]["modules"][modName][modIdx];
                                 auto &newMod = newConfig[mgrSn]["ipcs"][ipcIdx]["modules"][modName][modIdx];
                                 if(oldMod.count("iid") == 0 || newMod.count("iid") == 0) {
@@ -425,7 +491,7 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                                     string newGid = newSn + ":" + modName + ":" + to_string(newMod["iid"].get<int>());
 
                                     if(oldGid != newGid) {
-                                        ret["data"][oldGid] = 0;
+                                        ret["data"][oldGid] = 1; // perm stop
                                     }
 
                                     if(!sn.empty() && sn != newSn) {
@@ -434,17 +500,16 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
 
                                     if(propName == "enabled") {
                                         if(newMod.count("enabled") == 0||newMod["enabled"].get<int>() == 0) {
-                                            ret["data"][newGid] = 0;
+                                            ret["data"][newGid] = 0; // disable
                                         }else{
-                                            ret["data"][newGid] = 1;
+                                            ret["data"][newGid] = 2; // start
                                         }
                                     }else{ // other prop modification
                                         // it was disabled. just ignore
-                                        if(ret["data"].count(newGid) != 0 && ret["data"][newGid].get<int>() == 0) {
-                                            // nop
+                                        if(ret["data"].count(newGid) != 0 && (ret["data"][newGid].get<int>() == 0 || ret["data"][newGid].get<int>() == 1)) {
+                                            // nop. stopped or disabled
                                         }else{
-                                            // restart
-                                            ret["data"][newGid] = 2;
+                                            ret["data"][newGid] = 3; // restart
                                         }
                                     }
                                 }
@@ -468,47 +533,73 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                             int ipcIdx = stoi(results[2].str());
                             int modIdx = stoi(results[4].str());
                             string modName = results[3].str();
-                            json modObj;
-                            if(d["op"] == "remove") {
-                                modObj = oldConfig[mgrSn]["ipcs"][ipcIdx]["modules"][modName][modIdx];
-                            }else{
-                                modObj = newConfig[mgrSn]["ipcs"][ipcIdx]["modules"][modName][modIdx];
+                            json oldModObj, newModObj;
+
+                            if(oldConfig[mgrSn]["ipcs"][ipcIdx]["modules"][modName].size() >= modIdx +1) {
+                                oldModObj = oldConfig[mgrSn]["ipcs"][ipcIdx]["modules"][modName][modIdx];
                             }
-                            if(modObj.count("sn") == 0) {
-                                if(d["op"] != "remove"){
-                                    string msg = fmt::format("invalid modue config having no sn /{}/ipcs/{}/modules/{}/{}", mgrSn, ipcIdx, modName, modIdx);
-                                    spdlog::error(msg);
-                                    hasError = true;
-                                    ret["msg"] = msg;
-                                    break;
-                                }
-                            }else{
-                                string modSn = sn.empty()? modObj["sn"].get<string>(): sn;
-                                if(modObj["sn"].get<string>() == modSn){
+
+                            if(newConfig[mgrSn]["ipcs"][ipcIdx]["modules"][modName].size() >= modIdx +1){
+                                newModObj = newConfig[mgrSn]["ipcs"][ipcIdx]["modules"][modName][modIdx];
+                            }
+                            
+                            if(newModObj.size() != 0) {
+                                string modSn = sn.empty()? newModObj["sn"].get<string>(): sn;
+                                if(newModObj["sn"].get<string>() == modSn){
                                     if(modName == "evml") {
-                                        if(modObj.count("type") == 0) {
+                                        if(newModObj.count("type") == 0) {
                                             string msg = fmt::format("invalid evml module config ipcs[{}]['modules'][{}][{}] having no type field", ipcIdx, modName, modIdx);
                                             spdlog::error(msg);
                                             hasError = true;
                                             break;
                                         }else{
-                                            modName = modName + modObj["type"].get<string>();
+                                            modName = modName + newModObj["type"].get<string>();
                                         }
                                     }
 
-                                    if(modObj.count("iid") == 0) {
+                                    if(newModObj.count("iid") == 0) {
                                         string msg = fmt::format("invalid evml module config ipcs[{}]['modules'][{}][{}] having no iid field", ipcIdx, modName, modIdx);
                                         spdlog::error(msg);
                                         hasError = true;
                                         break;
                                     }
 
-                                    string modGid = modSn + ":" + modName + ":" + to_string(modObj["iid"].get<int>());
-                                    if(d["op"] == "remove") {
-                                        ret["data"][modGid] = 0;
+                                    string modGid = modSn + ":" + modName + ":" + to_string(newModObj["iid"].get<int>());
+                                    if(newModObj.count("enabled") == 0 ||newModObj["enabled"] == 0 ) {
+                                        ret["data"][modGid] = 0; // disabled
                                     }else{
-                                        ret["data"][modGid] = 1;
+                                        ret["data"][modGid] = 2; // start
+                                    } 
+                                }
+                            }
+
+                            if(oldModObj.size() != 0) {
+                                string modSn = sn.empty()? oldModObj["sn"].get<string>(): sn;
+                                if(oldModObj["sn"].get<string>() == modSn){
+                                    if(modName == "evml") {
+                                        if(oldModObj.count("type") == 0) {
+                                            string msg = fmt::format("invalid evml module config ipcs[{}]['modules'][{}][{}] having no type field", ipcIdx, modName, modIdx);
+                                            spdlog::error(msg);
+                                            hasError = false; // TODO
+                                            continue;
+                                        }else{
+                                            modName = modName + oldModObj["type"].get<string>();
+                                        }
                                     }
+
+                                    if(oldModObj.count("iid") == 0) {
+                                        string msg = fmt::format("invalid evml module config ipcs[{}]['modules'][{}][{}] having no iid field", ipcIdx, modName, modIdx);
+                                        spdlog::error(msg);
+                                        hasError = false;
+                                        continue;
+                                    }
+
+                                    string modGid = modSn + ":" + modName + ":" + to_string(oldModObj["iid"].get<int>());
+                                    if(ret["data"].count(modGid) != 0 && ret["data"][modGid] == 2 ) {
+                                        ret["data"][modGid] = 3; // restart
+                                    }else{
+                                        ret["data"][modGid] = 1; // perm stop
+                                    }                     
                                 }
                             }
                         }
