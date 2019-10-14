@@ -97,6 +97,14 @@ int setupRouter(void **ctx, void **s, string addr){
     int opt_notify = ZMQ_NOTIFY_DISCONNECT|ZMQ_NOTIFY_CONNECT;
     *ctx = zmq_ctx_new();
     *s = zmq_socket(*ctx, ZMQ_ROUTER);
+    //ZMQ_TCP_KEEPALIVE
+    //ZMQ_TCP_KEEPALIVE_IDLE
+    //ZMQ_TCP_KEEPALIVE_INTVL
+    ret = 1;
+    zmq_setsockopt(*s, ZMQ_TCP_KEEPALIVE, &ret, sizeof (ret));
+    ret = 20;
+    zmq_setsockopt(*s, ZMQ_TCP_KEEPALIVE_IDLE, &ret, sizeof (ret));
+    zmq_setsockopt(*s, ZMQ_TCP_KEEPALIVE_INTVL, &ret, sizeof (ret));
     zmq_setsockopt(*s, ZMQ_ROUTER_NOTIFY, &opt_notify, sizeof (opt_notify));
     ret = zmq_bind(*s, addr.c_str());
     if(ret < 0) {

@@ -75,6 +75,14 @@ private:
             // router service
             pRouterCtx = zmq_ctx_new();
             pRouter = zmq_socket(pRouterCtx, ZMQ_ROUTER);
+            //ZMQ_TCP_KEEPALIVE
+            //ZMQ_TCP_KEEPALIVE_IDLE
+            //ZMQ_TCP_KEEPALIVE_INTVL
+            ret = 1;
+            zmq_setsockopt(pRouter, ZMQ_TCP_KEEPALIVE, &ret, sizeof (ret));
+            ret = 20;
+            zmq_setsockopt(pRouter, ZMQ_TCP_KEEPALIVE_IDLE, &ret, sizeof (ret));
+            zmq_setsockopt(pRouter, ZMQ_TCP_KEEPALIVE_INTVL, &ret, sizeof (ret));
             zmq_setsockopt (pRouter, ZMQ_ROUTER_NOTIFY, &opt_notify, sizeof (opt_notify));
             ret = zmq_bind(pRouter, addr.c_str());
             if(ret < 0) {

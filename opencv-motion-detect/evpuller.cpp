@@ -247,6 +247,14 @@ private:
             }
             pDealerCtx = zmq_ctx_new();
             pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
+            //ZMQ_TCP_KEEPALIVE
+            //ZMQ_TCP_KEEPALIVE_IDLE
+            //ZMQ_TCP_KEEPALIVE_INTVL
+            ret = 1;
+            zmq_setsockopt(pDealer, ZMQ_TCP_KEEPALIVE, &ret, sizeof (ret));
+            ret = 20;
+            zmq_setsockopt(pDealer, ZMQ_TCP_KEEPALIVE_IDLE, &ret, sizeof (ret));
+            zmq_setsockopt(pDealer, ZMQ_TCP_KEEPALIVE_INTVL, &ret, sizeof (ret));
             ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());
             if(ret < 0) {
                 spdlog::error("evpuller {} failed to set identity", selfId);
