@@ -98,7 +98,12 @@ private:
         //     }
         // }else{
         ret = z_send_multiple(pRouter, v);
-        spdlog::info("evcloudsvc config sent to {}: {}", sn, cfg);
+        if(ret <0) {
+            spdlog::error("evcloudsvc failed to send config to {}", sn);
+        }else{
+            spdlog::info("evcloudsvc config sent to {}: {}", sn, cfg);
+        }
+        
         //}
 
         return ret;
@@ -803,6 +808,7 @@ public:
                 // TODO: clear peerData
                 this->configMap.erase(sn);
                 this->peerData.erase(sn);
+                spdlog::info("evcloudsvc removed sn: {}", sn);
                 // TODO: send config diff to sn
                 int iret = LVDB::setValue(this->configMap, KEY_CONFIG_MAP);
             }
