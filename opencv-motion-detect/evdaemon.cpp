@@ -566,7 +566,17 @@ private:
                             spdlog::info("done");
                         }
                     }else if(meta == EV_MSG_META_PONG) {
-                        spdlog::info("evdaemon {} received pong msg from evcloudsvc", devSn);
+                        string info;
+                        if(data.count("data") != 0 ) {
+                            if(data["data"].is_string()) {
+                                info = fmt::format("evdaemon {} received pong msg from evcloudsvc: {}", devSn, data["data"].get<string>());
+                            }else if (data["data"].is_object()) {
+                                info = fmt::format("evdaemon {} received pong msg from evcloudsvc: {}", devSn, data["data"].dump());
+                            }
+                        }else{
+                            info = fmt::format("evdaemon {} received pong msg from evcloudsvc.", devSn);
+                        }
+                        spdlog::info(info);
                     }
                     else{
                         spdlog::info("evdaemon {} received msg from cloud that having no handler implemented: {}", devSn, msg);
