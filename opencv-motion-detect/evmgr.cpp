@@ -114,7 +114,7 @@ error_exit:
         return ret;
     }
 
-    int handleMsg(vector<vector<uint8_t> > &body)
+    int handleEdgeMsg(vector<vector<uint8_t> > &body)
     {
         int ret = 0;
         zmq_msg_t msg;
@@ -267,7 +267,7 @@ protected:
                 continue;
             }
             // full proto msg received.
-            handleMsg(body);
+            handleEdgeMsg(body);
         }
     }
 public:

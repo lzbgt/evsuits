@@ -287,7 +287,13 @@ private:
                 json &mods = jret["data"];
                 if(mods.size() == 0) {
                     spdlog::info("evdaemon {} startSubSystems: no module to operate", this->devSn);
+                    return ret;
                 }
+
+                // there is diff. restart evmgr first
+                string mgrId = this->devSn + ":evmgr:0";
+                sendCmd2Peer(mgrId, EV_MSG_META_VALUE_CMD_STOP, "0");
+
                 for(auto &[k,v]: mods.items()) {
                     spdlog::info("evdaemon {} startSubSystems config diff to module action: {} -> {}", this->devSn, string(k), int(v));
                     if(v == 0) {
@@ -295,7 +301,7 @@ private:
                     }
                     else if(int(v) == 1 || int(v) == 2) {
                         int status = (this->peerData["status"].count(k) == 0) ? -1:this->peerData["status"][k].get<int>();
-                        spdlog::info("{} status {}", k, status);
+                        spdlog::info("evdaemon module {} status {}", this->devSn, k, status);
                         if(this->peerData["status"].count(k) == 0 || this->peerData["status"][k] == 0||this->peerData["status"][k] == -1) {
                             pid_t pid;
                             spdlog::info("evdaemon {} starting subsystem {}", this->devSn, k);
