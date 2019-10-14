@@ -841,6 +841,7 @@ public:
             spdlog::error("evcloudsvc failed setup router: {}", addr);
             exit(1);
         }
+        
         // setup edge msg processor
         thMsgProcessor = thread([this]() {
             while(true) {

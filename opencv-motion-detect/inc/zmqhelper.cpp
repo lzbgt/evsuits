@@ -97,7 +97,7 @@ int setupRouter(void **ctx, void **s, string addr){
     int opt_notify = ZMQ_NOTIFY_DISCONNECT|ZMQ_NOTIFY_CONNECT;
     *ctx = zmq_ctx_new();
     *s = zmq_socket(*ctx, ZMQ_ROUTER);
-    zmq_setsockopt (*s, ZMQ_ROUTER_NOTIFY, &opt_notify, sizeof (opt_notify));
+    zmq_setsockopt(*s, ZMQ_ROUTER_NOTIFY, &opt_notify, sizeof (opt_notify));
     ret = zmq_bind(*s, addr.c_str());
     if(ret < 0) {
         spdlog::debug("failed to bind zmq at {} for reason: {}, retrying load configuration...", addr, zmq_strerror(zmq_errno()));

@@ -492,9 +492,11 @@ private:
         for(auto &s:v) {
             msg += body2str(s) + ";";
         }
+
+        spdlog::info("evdaemon {} received msg from cloud: {}", devSn, msg);
     
         if(v.size() != 3) {
-            spdlog::error("evdaemon {} received invalid msg from cloud {}", devSn, msg);
+            spdlog::error("evdaemon {} received invalid msg from evcloudsvc {}", devSn, msg);
         }
 
         else {
@@ -769,13 +771,17 @@ public:
         // setup cloud msg processor
         thCloud = thread([this]() {
             while(true) {
+                spdlog::info("evdaemon {} waiting for msg from evcloudsvc", this->devSn);
                 auto v = zmqhelper::z_recv_multiple(this->pDealer);
                 if(v.size() == 0) {
                     spdlog::error("evdaemon {} failed to receive msg {}", this->devSn, zmq_strerror(zmq_errno()));
                 }
                 else {
                     handleCloudMsg(v);
+                    spdlog::info("evdaemon {} successfully handled msg from evcloudsvc", this->devSn);
                 }
+                
+                
             }
         });
 

@@ -217,8 +217,22 @@ private:
             json evslicer = ipc["modules"]["evslicer"][0];
             slicerGid = evslicer["sn"].get<string>()+":evslicer:" + to_string(evslicer["iid"]);
 
-            urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(evpuller["portPub"]);
-            urlRouter = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(evmgr["portRouter"]);
+            int portPub = 5556;
+            if(evpuller.count("portPub") != 0 && evpuller["portPub"].is_number_integer()) {
+                portPub = evpuller["portPub"];
+            }else if(evpuller.count("port-pub") != 0 && evpuller["port-pub"].is_number_integer()){
+                portPub = evpuller["port-pub"];
+            }
+
+            int portRouter = 5550;
+            if(evmgr.count("portRouter") != 0 && evmgr["portRouter"].is_number_integer()) {
+                portRouter = evmgr["portRouter"];
+            }else if(evmgr.count("port-router") != 0 && evmgr["port-router"].is_number_integer()) {
+                portRouter = evmgr["port-router"];
+            }
+
+            urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(portPub);
+            urlRouter = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(portRouter);
             spdlog::info("evmlmotion {} will connect to {} for sub, {} for router", selfId, urlPub, urlRouter);
 
             // TODO: multiple protocols support
