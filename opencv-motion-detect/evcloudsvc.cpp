@@ -369,6 +369,7 @@ private:
                 resp["target"] = selfId,
                 resp["metaType"] = EV_MSG_META_PONG;
                 resp["data"] = data["msg"];
+                sendEdgeMsg(resp);
             }
             else {
                 sendConfig(data["data"], selfId);
