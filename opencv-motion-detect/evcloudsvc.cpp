@@ -267,7 +267,8 @@ private:
                     targetJson[k] = v;
                     json diff = json::diff(srcJson, targetJson);
                     if(diff.size() == 0) {
-                        spdlog::info("evcloudsvc no diffrence for cluster {}, ignore it.", k);
+                        spdlog::info("evcloudsvc no diffrence for cluster {}", k);
+                        deltaCfg[k] = 1;
                     }
                     else {
                         auto gids = cfgutils::getModulesOperFromConfDiff(srcJson, targetJson, diff, "");
