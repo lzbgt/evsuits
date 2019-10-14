@@ -767,11 +767,47 @@ public:
             int ret = LVDB::getValue(j, key, filename);
             if(ret < 0) {
                 j["code"] = 1;
+                string msg = fmt::format("evcloudsvc failed to get {} in file: {}", key, filename);
+                spdlog::error(msg);
+                j["msg"] = msg;
             }
             else {
                 j["code"] = 0;
+                j["msg"] = "ok";
             }
             res.set_content(j.dump(), "text/json");
+        });
+
+        svr.Post("/delete", [this](const Request& req, Response& res) {
+            string sn = req.get_param_value("sn");
+            string filename = req.get_param_value("filename");
+            json ret;
+            vector<string> mods;
+            if(this->configMap.count("sn2mods") != 0 && this->configMap["sn2mods"].size() != 0) {
+                for(auto &[k,v]: this->configMap["sn2mods"].items()) {
+                    if(k == sn) {
+                        for(auto &[a,b]: v.items()) {
+                            mods.push_back(a);
+                        }
+
+                        this->configMap["sn2mods"].erase(k);
+                    }
+                }
+
+                if(this->configMap.count("mod2mgr") ==0 || this->configMap["mod2mgr"].size() ==0) {
+                }else{
+                    for(auto &k:mods) {
+                        this->configMap.erase(k);
+                    }
+                }
+                // TODO: clear peerData
+                this->peerData.erase(sn);
+                // TODO: send config diff to sn
+                int iret = LVDB::setValue(this->configMap, KEY_CONFIG_MAP);
+            }
+
+
+            res.set_content(this->configMap.dump(), "text/json");
         });
 
         svr.listen("0.0.0.0", stoi(httpPort));
