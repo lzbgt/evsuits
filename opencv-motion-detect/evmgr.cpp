@@ -44,6 +44,48 @@ private:
     mutex eventQLock;
     time_t tsLastBoot,  tsUpdateTime;
     string drport = "5549";
+    thread thCloudMsgHandler;
+
+    int handleCloudMsg(vector<vector<uint8_t> > v)
+    {
+        int ret = 0;
+        string peerId, metaType, metaValue, msg;
+        json data;
+        for(auto &b:v) {
+            msg +=body2str(b) + ";";
+        }
+
+        bool bProcessed = false;
+        if(v.size() == 3) {
+            try {
+                peerId = body2str(v[0]);
+                json meta = json::parse(body2str(v[1]));
+                metaType = meta["type"];
+                if(meta.count("value") != 0) {
+                    metaValue = meta["value"];
+                }
+
+                // msg from cluster mgr
+                string daemonId = this->devSn + ":evdaemon:0";
+                if(peerId == daemonId) {
+                    if(metaValue == EV_MSG_META_VALUE_CMD_STOP || metaValue == EV_MSG_META_VALUE_CMD_RESTART) {
+                        spdlog::info("evmgr {} received {} cmd from cluster mgr {}", devSn, metaValue, daemonId);
+                        bProcessed = true;
+                        exit(0);
+                    }
+                }
+            }
+            catch(exception &e) {
+                spdlog::error("evmgr {} exception to process msg {}: {}", devSn, msg, e.what());
+            }
+        }
+
+        if(!bProcessed) {
+            spdlog::error("evmgr {} received msg having no implementation from peer: {}", devSn, msg);
+        }
+
+        return ret;
+    }
 
     //
     void init()
@@ -261,6 +303,21 @@ protected:
             //     spdlog::error("evmgr {} exit since evdaemon is dead", devSn);
             //     exit(1);
             // }
+
+            thCloudMsgHandler = thread([this] {
+                while(true)
+                {
+                    auto body = z_recv_multiple(pDealer,false);
+                    if(body.size() == 0) {
+                        spdlog::error("evslicer {} failed to receive multiple msg: {}", this->devSn, zmq_strerror(zmq_errno()));
+                        continue;
+                    }
+                    // full proto msg received.
+                    this->handleCloudMsg(body);
+                }
+            });
+            thCloudMsgHandler.detach();
+            
             auto body = z_recv_multiple(pRouter,false);
             if(body.size() == 0) {
                 spdlog::error("evmgr {} failed to receive multiple msg: {}", devSn, zmq_strerror(zmq_errno()));
