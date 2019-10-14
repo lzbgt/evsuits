@@ -534,9 +534,9 @@ private:
             }
             else {
                 ret["code"] = 1;
-                string msg = "no such sn: " + sn;
+                string msg = fmt::format("evcloudsvc having no configuration for sn: {}. please POST /config", sn);
                 ret["msg"] = msg;
-                spdlog::warn("evcloudsvc no config for sn: {}", sn);
+                spdlog::warn(msg);
             }
         }
         catch(exception &e) {
