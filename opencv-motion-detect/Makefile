@@ -98,15 +98,18 @@ mux: demuxing_decoding.c
 clean:
 	rm -fr evmgr evpuller evpusher evslicer evmlmotion evdaemon evcloudsvc *.dSYM *.out *.o objs/*.o
 
-.PHONY: zmq
+#.PHONY: zmq
 zmq:
 	cd vendor/libzmq && ./autogen.sh && ./configure --prefix=$(CURDIR)/vendor --enable-drafts
 	cd vendor/libzmq && make clean && make -j 4 && make install
 
-.PHONY: leveldb
+#.PHONY: leveldb
 leveldb:
 	cd vendor/leveldb && mkdir -p build && cd build && cmake -DCMAKE_INSTALL_PREFIX=$(CURDIR)/vendor .. && make -j && make install
 
-.PHONY: fmt
+#.PHONY: fmt
 fmt:
 	cd vendor/fmt && mkdir -p build && cd build && cmake -DCMAKE_INSTALL_PREFIX=$(CURDIR)/vendor -DFMT_TEST=OFF .. && make -j && make install
+
+fswatch:
+	cd vendor/fswatch && ./autogen.sh && ./configure --prefix=$(CURDIR)/vendor && make -j && make install
