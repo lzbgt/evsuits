@@ -187,7 +187,7 @@ private:
                         bProcessed = true;
                     }else if(metaValue == "debug:list_files"){
                         // TODO: remove debug feature
-                        debugFilesRing(this->vTsActive);
+                        this->vTsActive = LoadVideoFiles(this->urlOut, this->hours, this->numSlices, this->vTsOld);
                         bProcessed = true;
                     }else if(metaValue == "debug:toggle_log") {
                         // TODO: remove debug feature
@@ -661,7 +661,7 @@ protected:
     void debugFilesRing(vector<long> &v)
     {
         spdlog::info("evslicer {} debug files ring. segHead: {}, isFull: {}, max: {}",this->selfId, this->segHead, this->bSegFull, this->numSlices);
-        for(int i = 1; i <= numSlices; i++) {
+        for(int i = 0; i <= numSlices; i++) {
             spdlog::info("\tevslicer {} vector[{}] = {}, {}", selfId, i, v[i], videoFileTs2Name(v[i]));
             if(v[segToIdx(i)] == 0) {
                 break;
@@ -671,6 +671,11 @@ protected:
 
     vector<long> LoadVideoFiles(string path, int hours, int maxSlices, vector<long> &tsNeedUpload)
     {
+        tsNeedUpload.clear();
+        vTsActive.clear();
+        segHeadP = 0;
+        segHead = -1;
+        bSegFull = false;
         vector<long> v = vector<long>(maxSlices, 0);
         tsNeedUpload = vector<long>(maxSlices, 0);
         // get current timestamp
