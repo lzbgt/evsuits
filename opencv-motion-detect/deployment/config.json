@@ -13,7 +13,7 @@
                         "enabled":1,
                         "iid":1,
                         "post":30,
-                        "pre":3,
+                        "pre":4,
                         "sn":"V2I0C7KC",
                         "thresh":30,
                         "entropy": 0.3,
@@ -31,8 +31,8 @@
                   ],
                   "evpusher":[
                      {
-                        "enabled":0,
-                        "iid":1,
+                        "enabled":1,
+                        "iid":2,
                         "password":"",
                         "sn":"V2I0C7KC",
                         "token":"",

@@ -148,7 +148,7 @@ int getPeerId(string modName, json& modElem, string &peerId, string &peerName)
     return 0;
 }
 
-/// ret["data"] is json array contains gids
+/// ret["data"] is json map. key: mod gid; value: 0 - disabled, 1 - enabled
 /// ret["code"], ["msg"] indicates error if not 0.
 /// ipcIdx: -1 - all IPCS, otherwise - ipc specified by ipcIdx
 json getModuleGidsFromCfg(string sn, json &data, string caller, int ipcIdx)
@@ -165,7 +165,7 @@ json getModuleGidsFromCfg(string sn, json &data, string caller, int ipcIdx)
         pid_t pid;
         for(auto &[k,v]:data.items()) {
             if(v.count("sn") == 0|| v["sn"].size() == 0 || v.count("ipcs") == 0 || v["ipcs"].size() == 0) {
-                msg += fmt::format( "\t\tcluster {} has no sn/ipcs field", v.dump());
+                msg += fmt::format( "\t\tcluster {} has no sn/ipcs field {}:{}", v.dump(), __FILE__, __LINE__);
                 spdlog::warn(msg);
                 ret["msg"] = msg;
                 continue;
@@ -188,7 +188,7 @@ json getModuleGidsFromCfg(string sn, json &data, string caller, int ipcIdx)
                 }
 
                 if(ipc.count("modules") == 0|| ipc["modules"].size() == 0) {
-                    msg += fmt::format( "\t\tipc {} has no modules field", ipc.dump());
+                    msg += fmt::format( "\t\tipc {} has no modules field. {}:{}", __FILE__, __LINE__, ipc.dump());
                     spdlog::warn(msg);
                     ret["msg"] = msg;
                     continue;
@@ -197,7 +197,7 @@ json getModuleGidsFromCfg(string sn, json &data, string caller, int ipcIdx)
                 for(auto &[mn, ml] : modules.items()) {
                     for(auto &m : ml) {
                         if(m.count("sn") == 0 || m["sn"].size() == 0 || m.count("iid") == 0 || (mn=="evml" && (m.count("type") == 0 || m["type"].size() == 0))) {
-                            msg += fmt::format( "\t\tmodule {} has no sn/iid/type(evml only) field", m.dump());
+                            msg += fmt::format( "\t\tmodule {} has no sn/iid/type(evml only) field. {}:{}", m.dump(), __FILE__, __LINE__);
                             spdlog::warn(msg);
                             ret["msg"] = msg;
                             continue;
@@ -209,13 +209,19 @@ json getModuleGidsFromCfg(string sn, json &data, string caller, int ipcIdx)
 
                         string peerName;
                         int iret = cfgutils::getPeerId(mn, m, peerId, peerName);
+                        
                         if(iret != 0) {
                             // TODO: do we need to treat it more strictly, to make it fails fast???
-                            spdlog::error("{} getModuleGidsFromCfg for {} invalid config found in module {} of {}",caller, sn, m.dump(), data.dump());
+                            spdlog::error("{}:{} {} getModuleGidsFromCfg for {} invalid config found in module {} of {}",__FILE__, __LINE__, caller, sn, m.dump(), data.dump());
                             continue;
                         }
                         else {
-                            ret["data"].push_back(peerId);
+                            if(m.count("enabled") == 0 || m["enabled"] == 0) {
+                                // disabled
+                                ret["data"][peerId] = 0;
+                            }else{
+                                ret["data"][peerId] = 1;
+                            }
                         }
                     }
                 }
@@ -229,7 +235,7 @@ json getModuleGidsFromCfg(string sn, json &data, string caller, int ipcIdx)
         }
     }
     catch(exception &e) {
-        string msg = fmt::format("{} getModuleGidsFromCfg  exception {} in config {}",caller, sn, e.what(), data.dump());
+        string msg = fmt::format("{}:{} {} getModuleGidsFromCfg  exception {} in config {}",__FILE__, __LINE__, caller, sn, e.what(), data.dump());
         spdlog::error(msg);
         ret["msg"] = msg;
         ret["code"] = -1;
@@ -504,12 +510,15 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                                         }else{
                                             ret["data"][newGid] = 2; // start
                                         }
-                                    }else{ // other prop modification
-                                        // it was disabled. just ignore
-                                        if(ret["data"].count(newGid) != 0 && (ret["data"][newGid].get<int>() == 0 || ret["data"][newGid].get<int>() == 1)) {
-                                            // nop. stopped or disabled
+                                    }else{ // other prop modification  
+                                        if(ret["data"].count(newGid) == 0 ||(ret["data"][newGid] != 0 && ret["data"][newGid] != 1)) {
+                                            if(oldGid != newGid) {
+                                                ret["data"][newGid] = 2; // start
+                                            }else{
+                                                ret["data"][newGid] = 3; // restart
+                                            }
                                         }else{
-                                            ret["data"][newGid] = 3; // restart
+                                            // no op
                                         }
                                     }
                                 }
@@ -574,6 +583,7 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                             }
 
                             if(oldModObj.size() != 0) {
+                                spdlog::info("old mod: {}", oldModObj.dump());
                                 string modSn = sn.empty()? oldModObj["sn"].get<string>(): sn;
                                 if(oldModObj["sn"].get<string>() == modSn){
                                     if(modName == "evml") {
@@ -616,30 +626,57 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                     if (std::regex_match(path_, results, clusterRegex)) {
                         if (results.size() == 2) {
                             matched = true;
-                            spdlog::info("{}:{}: path matched whole cluster: {}", path_);
+                            spdlog::info("{}:{}: path matched whole cluster: {}",__FILE__, __LINE__, path_);
                             string mgrSn = results[1].str();
-                            json mgr;
-                            if(d["op"] == "remove"){
-                                mgr[mgrSn] = oldConfig[mgrSn];
-                            }else{
-                                mgr[mgrSn] = newConfig[mgrSn];
+                            json oldMgr, newMgr;
+
+                            if(oldConfig.count(mgrSn) != 0) {
+                                oldMgr[mgrSn] = json();
+                                oldMgr[mgrSn] = oldConfig[mgrSn];
                             }
 
-                            json jret = cfgutils::getModuleGidsFromCfg(sn, mgr, "");
-                            spdlog::info("{}:{} getModuleGidsFromCfg dump: {}", __FILE__, __LINE__, jret.dump());
-                            if(jret["code"] != 0) {
-                                ret["msg"] = jret["msg"];
-                                hasError = true;
-                                break;
-                            }else{
-                                if(jret["msg"] != "ok") {
+                            if(newConfig.count(mgrSn) != 0) {
+                                newMgr[mgrSn] = json();
+                                newMgr[mgrSn] = newConfig[mgrSn];
+                            }
+                            if(newMgr.size() != 0) {
+                                json jret = cfgutils::getModuleGidsFromCfg(sn, newMgr, "");
+                                spdlog::info("{}:{} getModuleGidsFromCfg dump: {}", __FILE__, __LINE__, jret.dump());
+                                if(jret["code"] != 0) {
                                     ret["msg"] = jret["msg"];
+                                    hasError = false; // TODO:
+                                    continue;
+                                }else{
+                                    if(jret["msg"] != "ok") {
+                                        ret["msg"] = jret["msg"];
+                                    }
+                                    for(auto &[k,v]: jret["data"].items()) {
+                                        if(ret["data"].count(string(k)) == 0||(ret["data"][string(k)] != 0 && ret["data"][string(k)] !=1)){
+                                            ret["data"][string(k)] = int(v) == 0? int(v): int(v)+1;
+                                        }
+                                    }
                                 }
-                                for(auto &k: jret["data"]) {
-                                    if(d["op"] == "remove"){
-                                        ret["data"][string(k)] = 0;
-                                    }else{
-                                        ret["data"][string(k)] = 2;
+                            }
+
+                            if(oldMgr.size() != 0) {
+                                json jret = cfgutils::getModuleGidsFromCfg(sn, oldMgr, "");
+                                spdlog::info("{}:{} getModuleGidsFromCfg dump: {}", __FILE__, __LINE__, jret.dump());
+                                if(jret["code"] != 0) {
+                                    ret["msg"] = jret["msg"];
+                                    hasError = false; // TODO:
+                                    continue;
+                                }else{
+                                    if(jret["msg"] != "ok") {
+                                        ret["msg"] = jret["msg"];
+                                    }
+                                    for(auto &[k, v]: jret["data"].items()) {
+                                        if(ret["data"].count(string(k)) == 0){
+                                            ret["data"][string(k)] = 1;
+                                        }else{
+                                            if(ret["data"][string(k)] == 2) { // change start to restart
+                                                ret["data"][string(k)] = 3;
+                                            }                                         
+                                        }
                                     }
                                 }
                             }

@@ -23,6 +23,6 @@ int main(){
     config2 = config2["data"];
     json dif = json::diff(config2, config);
     spdlog::info("diff: {}", dif.dump());
-    auto ret = cfgutils::getModulesOperFromConfDiff(config2, config, dif, "PSBV7GKN");
+    auto ret = cfgutils::getModulesOperFromConfDiff(config2, config, dif, "");
     spdlog::info("parse: {}", ret.dump());
 }
