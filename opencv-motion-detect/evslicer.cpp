@@ -798,7 +798,6 @@ protected:
                 }
 
                 if(self->bSegFull) {
-                    // TODO: backup orignal self->vTsActive[self->segHead]
                 }
 
                 try {
@@ -985,21 +984,17 @@ public:
         thCloudMsgHandler.detach();
 
 
+        // TODO: bugfix
+        // // thread for slicer maintenace
+        // thSliceMgr = thread([this]() {
+        //     // get old and active slices
+        //     this->vTsActive = this->LoadVideoFiles(this->urlOut, this->hours, this->numSlices, this->vTsOld);
+        //     spdlog::info("evslicer {} will store slice from index: {}", selfId, this->segHead);
+        //     monitor * m = nullptr;
 
-        // thread for slicer maintenace
-        thSliceMgr = thread([this]() {
-            // get old and active slices
-            this->vTsActive = this->LoadVideoFiles(this->urlOut, this->hours, this->numSlices, this->vTsOld);
-            spdlog::info("evslicer {} will store slice from index: {}", selfId, this->segHead);
-            monitor * m = nullptr;
-
-            CreateDirMon(&m, this->urlOut, ".mp4", vector<string>(), EvSlicer::fileMonHandler, (void *)this);
-        });
-        thSliceMgr.detach();
-
-        // thread for uploading slices
-        getInputFormat();
-        setupStream();
+        //     CreateDirMon(&m, this->urlOut, ".mp4", vector<string>(), EvSlicer::fileMonHandler, (void *)this);
+        // });
+        // thSliceMgr.detach();
 
         // event thread
         thEventHandler = thread([this] {
@@ -1027,6 +1022,14 @@ public:
                     long offsetE = 0;
                     // TODO: async
 
+                    this->vTsActive = this->LoadVideoFiles(this->urlOut, this->hours, this->numSlices, this->vTsOld);
+                    
+                    if(this->segHead == -1) {
+                        spdlog::error("evslicer {} no local video files");
+                        continue;
+                    }
+
+
                     if(tss < this->bootTime) {
                         spdlog::warn("evslicer {} should we discard old msg?  {} <  bootTime {}", selfId, evt, this->bootTime);
                     }
@@ -1038,13 +1041,12 @@ public:
                         sIdx = this->incSegHead(this->segHead);
                         eIdx = this->decSegHead(this->segHead);
                     }else{
-                        sIdx = 1;
+                        sIdx = 0;
                         eIdx = this->decSegHead(this->segHead);
                     }
 
                     if(sIdx > eIdx || tss > this->vTsActive[eIdx] || tse < this->vTsActive[sIdx]) {
-                        spdlog::error("event range ({}, {}) not in local range ({}, {}).", tss, tse, this->vTsActive[sIdx], this->vTsActive[eIdx]);
-                        this->debugFilesRing(this->vTsActive);
+                        spdlog::error("evslicer {} event range ({}, {}) not in local range ({}, {}).", selfId, tss, tse, this->vTsActive[sIdx], this->vTsActive[eIdx]);
                         continue;
                     }
 
@@ -1053,7 +1055,7 @@ public:
                         spdlog::info("evslicer {} wait for {}s to matching event videos", this->selfId, this->seconds + 5);
                         this_thread::sleep_for(chrono::seconds(this->seconds + 5));
                     }else{
-                        spdlog::info("event range ({}, {}) is in local range ({}, {}).", tss, tse, this->vTsActive[sIdx], this->vTsActive[eIdx]);
+                        spdlog::info("evslicer {} event range ({}, {}) is in local range ({}, {}).", selfId, tss, tse, this->vTsActive[sIdx], this->vTsActive[eIdx]);
                     }
 
                     auto v = findSlicesByRange(tss, tse, offsetS, offsetE);
@@ -1061,7 +1063,6 @@ public:
                         spdlog::error("evslicer {} ignore upload videos in range ({}, {})", this->selfId, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse));
                     }
                     else {
-                        debugFilesRing(this->vTsActive);
                         vector<tuple<string, string> > params= {{"startTime", to_string(tss)},{"endTime", to_string(tse)},{"cameraId", ipcSn}, {"headOffset", to_string(offsetS)},{"tailOffset", to_string(offsetE)}};
                         vector<string> fileNames;
                         string sf;
@@ -1086,6 +1087,10 @@ public:
                 }
             }
         });
+
+        // thread for uploading slices
+        getInputFormat();
+        setupStream();
     };
     ~EvSlicer()
     {

@@ -113,3 +113,6 @@ fmt:
 
 fswatch:
 	cd vendor/fswatch && ./autogen.sh && ./configure --prefix=$(CURDIR)/vendor && make -j && make install
+
+libcurl:
+	cd vendor/curl && ./buildconf && ./configure --prefix=$(CURDIR)/vendor && make -j && make install
