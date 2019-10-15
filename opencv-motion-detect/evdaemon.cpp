@@ -298,11 +298,15 @@ private:
                     spdlog::info("evdaemon {} startSubSystems config diff to module action: {} -> {}", this->devSn, string(k), int(v));
                     if(v == 0) {
                         // stop
-                        this->peerData["status"][k] = -2; // stopped
+                        this->peerData["status"][k] = 1; // disabled
+                        sendCmd2Peer(k, EV_MSG_META_VALUE_CMD_STOP, "0");
+                    }else if(v == 1) { // perm stop
+                        this->peerData["status"][k] = 2;
+                        this->peerData["config"].erase(k);
                         sendCmd2Peer(k, EV_MSG_META_VALUE_CMD_STOP, "0");
                     }
 
-                    else if(int(v) == 1 || int(v) == 2) {
+                    else if(int(v) == 2||int(v) == 3) {
                         int status = (this->peerData["status"].count(k) == 0) ? -1:this->peerData["status"][k].get<int>();
                         spdlog::info("evdaemon {} module {} status {}", this->devSn, k, status);
                         if(this->peerData["status"].count(k) == 0 || this->peerData["status"][k] == 0||this->peerData["status"][k] == -1) {
@@ -319,8 +323,9 @@ private:
                             }
                         }
                         else {
-                            // restart
-                            sendCmd2Peer(k, EV_MSG_META_VALUE_CMD_STOP, to_string(v));
+                            if(int(v) == 3) {
+                                sendCmd2Peer(k, EV_MSG_META_VALUE_CMD_STOP, to_string(v));
+                            }            
                         }
                     }
                     else {
@@ -381,7 +386,7 @@ private:
                 spdlog::info("evdaemon {} peer {} config sent: {}", devSn,selfId, cfg);
             }
             else {
-                if(peerData["status"][selfId] == -2){
+                if(peerData["status"][selfId] == 1 || peerData["status"][selfId] == 2){
                     spdlog::warn("evdaemon {} refuse to start {}: it was asked to be stopped, and is removed from cluster config", this->devSn, selfId);
                 }else{
                     peerData["status"][selfId] = 0;
