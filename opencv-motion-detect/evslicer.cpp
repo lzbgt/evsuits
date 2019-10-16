@@ -776,13 +776,10 @@ protected:
     // file monitor callback
     static void fileMonHandler(const std::vector<event>& evts, void *pUserData)
     {
+        
         static string lastFile;
         string ext = ".mp4";
         auto self = static_cast<EvSlicer*>(pUserData);
-
-        if(self->segHead == -1) {
-            self->segHead = 1;
-        }
 
         for(auto &i : evts) {
             string fullPath = i.get_path();
@@ -791,50 +788,51 @@ protected:
                 spdlog::debug("evslicer {} invalid file: {}, last: {}", self->selfId, fullPath, lastFile);
                 continue;
             }
-
-            if(lastFile == i.get_path()) {
-                spdlog::debug("evslicer {} skip file : {}, last: {}", self->selfId, fullPath, lastFile);
-                continue;
-            }
-
-            else if(!lastFile.empty()) {
-                // insert into ts active
-                spdlog::debug("evslicer {} filemon file: {}, ts: {}, last: {}", self->selfId, i.get_path().c_str(), i.get_time(), lastFile);
-                if(self->segHead == 0) {
-                    //wrap it;
-                    self->bSegFull = true;
-                }
-
-                if(self->bSegFull) {
-                }
-
-                try {
-                    auto baseName = self->getBaseName(lastFile);
-                    auto ts = self->videoFileName2Ts(baseName);
-                    if(ts == -1) {
-                        spdlog::error("evslicer {} fileMonHandler failed to process file: {}", self->selfId, lastFile);
-                        continue;
-                    }
-                    auto oldTs = self->vTsActive[self->segHead];
-                    if(oldTs != 0) {
-                        // TODO
-                        fs::path fname(self->urlOut + "/" +  self->videoFileTs2Name(oldTs) + ".mp4");
-                        fs::remove(fname);
-                    }
-                    self->vTsActive[self->segHead] = ts;
-                    self->segHead++;
-                    self->segHead = self->segToIdx(self->segHead);
-                }
-                catch(exception &e) {
-                    spdlog::error("evslicer {} fileMonHandler exception: {}", self->selfId, e.what());
-                }
-            }
-            else {
-                //nop
-            }
-
-            lastFile = i.get_path();
         }
+
+        //     if(lastFile == i.get_path()) {
+        //         spdlog::debug("evslicer {} skip file : {}, last: {}", self->selfId, fullPath, lastFile);
+        //         continue;
+        //     }
+
+        //     else if(!lastFile.empty()) {
+        //         // insert into ts active
+        //         spdlog::debug("evslicer {} filemon file: {}, ts: {}, last: {}", self->selfId, i.get_path().c_str(), i.get_time(), lastFile);
+        //         if(self->segHead == 0) {
+        //             //wrap it;
+        //             self->bSegFull = true;
+        //         }
+
+        //         if(self->bSegFull) {
+        //         }
+
+        //         try {
+        //             auto baseName = self->getBaseName(lastFile);
+        //             auto ts = self->videoFileName2Ts(baseName);
+        //             if(ts == -1) {
+        //                 spdlog::error("evslicer {} fileMonHandler failed to process file: {}", self->selfId, lastFile);
+        //                 continue;
+        //             }
+        //             auto oldTs = self->vTsActive[self->segHead];
+        //             if(oldTs != 0) {
+        //                 // TODO
+        //                 fs::path fname(self->urlOut + "/" +  self->videoFileTs2Name(oldTs) + ".mp4");
+        //                 fs::remove(fname);
+        //             }
+        //             self->vTsActive[self->segHead] = ts;
+        //             self->segHead++;
+        //             self->segHead = self->segToIdx(self->segHead);
+        //         }
+        //         catch(exception &e) {
+        //             spdlog::error("evslicer {} fileMonHandler exception: {}", self->selfId, e.what());
+        //         }
+        //     }
+        //     else {
+        //         //nop
+        //     }
+
+        //     lastFile = i.get_path();
+        // }
         
     }
 

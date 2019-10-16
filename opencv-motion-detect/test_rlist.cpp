@@ -1,4 +1,4 @@
-#include <list>
+#include <set>
 #include <algorithm>
 #include <spdlog/spdlog.h>
 #include <json.hpp>
@@ -6,7 +6,7 @@
 
 using namespace std;
 
-void insertTsList(list<long> &_list, long elem, int maxSize) {
+void insertTsList(set<long> &_list, long elem, int maxSize) {
     // _list.insert(lower_bound(_list.begin(), _list.end(), elem), elem);
     if(_list.size() == 0) {
         _list.insert(_list.begin(),elem);
@@ -28,18 +28,18 @@ void insertTsList(list<long> &_list, long elem, int maxSize) {
     }
 
     if(_list.size() > maxSize) {
-        _list.pop_front();
+        _list.erase(_list.begin());
     }
 }
 
-void printTsList(list<long>&_list) {
+void printTsList(set<long>&_list) {
     for(auto &i:_list) {
         cout <<i <<endl;
     }
 }
 
 int main() {
-    list<long> tsList;
+    set<long> tsList;
     insertTsList(tsList, 10, 5);
     insertTsList(tsList,6, 5);
     insertTsList(tsList, 11, 5);
