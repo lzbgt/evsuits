@@ -722,6 +722,9 @@ public:
 
     EvDaemon()
     {
+
+        // killall subsystems
+        
         /// peerId -> value
         peerData["status"] = json();
         peerData["pids"] = json();
