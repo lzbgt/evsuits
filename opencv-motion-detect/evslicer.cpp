@@ -175,8 +175,7 @@ private:
                                     lock_guard<mutex> lock(this->mutEvent);
                                     eventQueue.push(evt.dump());
                                     cvEvent.notify_one();
-                                }
-                                
+                                }       
                                 bProcessed = true;
                             }
                         }catch(exception &e) {
