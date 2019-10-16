@@ -316,7 +316,7 @@ error_exit:
                                     if(ret < 0) {
                                         spdlog::error("evmgr {} failed to broadcast msg from {} because {}. msg meta: {}", devSn, selfId, zmq_strerror(zmq_errno()), meta);
                                     }else{
-                                        spdlog::error("evmgr {} successfully broadcast msg from {} to {}. msg meta: {}", devSn, selfId, k, meta);
+                                        spdlog::info("evmgr {} successfully broadcast msg from {} to {}. msg meta: {}", devSn, selfId, k, meta);
                                     }
                                 }
                             }
