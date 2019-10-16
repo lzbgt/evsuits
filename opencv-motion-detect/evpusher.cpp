@@ -256,11 +256,16 @@ private:
                 else if(peerId == pullerGid) {
                     if(metaType == EV_MSG_META_AVFORMATCTX) {
                         lock_guard<mutex> lock(this->mutMsg);
-                        pAVFormatInput = (AVFormatContext *)malloc(sizeof(AVFormatContext));
-                        AVFormatCtxSerializer::decode((char *)(v[2].data()), v[2].size(), pAVFormatInput);
-                        gotFormat = true;
-                        bProcessed = true;
-                        cvMsg.notify_one();
+                        if(pAVFormatInput == nullptr) {
+                            pAVFormatInput = (AVFormatContext *)malloc(sizeof(AVFormatContext));
+                            AVFormatCtxSerializer::decode((char *)(v[2].data()), v[2].size(), pAVFormatInput);
+                            gotFormat = true;
+                            bProcessed = true;
+                            cvMsg.notify_one();
+                        }else{
+                            spdlog::warn("evpusher {} received avformatctx msg from {}, but already proceessed before, ignored. TODO: reinit", selfId, peerId);
+                        }
+                        
                     }
                 }
             }

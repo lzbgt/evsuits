@@ -91,11 +91,15 @@ private:
                 meta = json::parse(body2str(v[1]))["type"];
                 if(meta == EV_MSG_META_AVFORMATCTX) {
                     lock_guard<mutex> lock(this->mutMsg);
-                    pAVFormatInput = (AVFormatContext *)malloc(sizeof(AVFormatContext));
-                    AVFormatCtxSerializer::decode((char *)(v[2].data()), v[2].size(), pAVFormatInput);
-                    gotFormat = true;
-                    cvMsg.notify_one();
-                    spdlog::info("evslicer {} got avformat from {}", selfId, peerId);
+                    if(pAVFormatInput == nullptr) {
+                        pAVFormatInput = (AVFormatContext *)malloc(sizeof(AVFormatContext));
+                        AVFormatCtxSerializer::decode((char *)(v[2].data()), v[2].size(), pAVFormatInput);
+                        gotFormat = true;
+                        cvMsg.notify_one();
+                        spdlog::info("evslicer {} got avformat from {}", selfId, peerId);
+                    }else{
+                        spdlog::warn("evslicer {} received avformatctx msg from {}, but already proceessed before, ignored. TODO: reinit", selfId, peerId);
+                    }                    
                 }
                 else if(meta == EV_MSG_META_EVENT) {
                     data = json::parse(body2str(v[2]));
