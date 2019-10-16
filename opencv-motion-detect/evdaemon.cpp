@@ -191,7 +191,8 @@ private:
                     pid_t pid;
 
                     if(this->peerData["contConn"].count(k) != 0 && this->peerData["contConn"][k] > 4) { // 4 times
-                        spdlog::warn("evdaemon {} detected module restarting frequently {}", this->devSn, k);
+                        spdlog::error("evdaemon {} detected module restarting frequently {}, will slow down the calling thread for 10s", this->devSn, k);
+                        this_thread::sleep_for(chrono::seconds(10));
                     }
                     ret = zmqhelper::forkSubsystem(devSn, k, portRouter, pid);
                     if(0 == ret) {
@@ -388,7 +389,7 @@ private:
 
                         auto delta = this->peerData["contConn"][selfId].get<long>() - chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                         if(delta < 3) { // within 3s
-                            this->peerData["contConn"][selfId] += 1;
+                            this->peerData["contConn"][selfId] =  this->peerData["contConn"][selfId].get<int>() + 1;
                         }else{
                             this->peerData["contConn"][selfId] = 0;
                         }
