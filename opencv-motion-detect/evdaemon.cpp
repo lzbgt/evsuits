@@ -189,6 +189,10 @@ private:
             for(auto &k: subs) {
                 if((this->peerData["status"].count(k) == 0 || this->peerData["status"][k] == 0 || this->peerData["status"][k] != -2) && this->peerData["config"].count(k) != 0 &&  this->peerData["enabled"].count(k) != 0 && this->peerData["enabled"][k] != 0) {
                     pid_t pid;
+
+                    if(this->peerData["contConn"].count(k) != 0 && this->peerData["contConn"][k] > 4) { // 4 times
+                        spdlog::warn("evdaemon {} detected module restarting frequently {}", this->devSn, k);
+                    }
                     ret = zmqhelper::forkSubsystem(devSn, k, portRouter, pid);
                     if(0 == ret) {
                         this->peerData["status"][k] = 0;
@@ -375,6 +379,24 @@ private:
             if((peerData["status"].count(selfId) == 0 || peerData["status"][selfId] == 0||this->peerData["status"][selfId] == -1) ) {
                 peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                 spdlog::info("evdaemon {} peer connected: {}", devSn, selfId);
+                if(this->peerData["tsLastConn"].count(selfId) == 0) {
+                    this->peerData["tsLastConn"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                }else{
+                    if(this->peerData["contConn"].count(selfId) == 0) {
+                        this->peerData["contConn"][selfId] = 0;
+                    }else{
+
+                        auto delta = this->peerData["contConn"][selfId].get<long>() - chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                        if(delta < 3) { // within 3s
+                            this->peerData["contConn"][selfId] += 1;
+                        }else{
+                            this->peerData["contConn"][selfId] = 0;
+                        }
+                        // refer to startSubsystems          
+                    }
+                    this->peerData["tsLastConn"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                }
+
                 eventConn = true;
                 string cfg = peerData["config"][selfId].dump();
                 spdlog::debug("evdaemon {} peer {} config is: {}", devSn, selfId, cfg);
