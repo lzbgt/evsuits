@@ -33,6 +33,8 @@ namespace zmqhelper {
 #define EV_MSG_META_VALUE_CMD_UPDATE "update"
 #define EV_MSG_META_VALUE_CMD_STOP "stop"
 
+#define EV_MSG_META_TYPE_BROADCAST "broadcast"
+
 #define EV_MSG_META_CONFIG "config"
 #define EV_MSG_META_AVFORMATCTX "afctx"
 

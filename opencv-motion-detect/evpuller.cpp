@@ -91,16 +91,37 @@ private:
         return ret;
     }
 
+    void sendAVInputCtxMsg(string peerId){
+        json meta;
+        auto msgBody = data2body(const_cast<char*>(pAVFmtCtxBytes), lenAVFmtCtxBytes);
+        if(peerId.empty()){
+            meta["type"] = EV_MSG_META_TYPE_BROADCAST;
+            meta["value"] = EV_MSG_META_AVFORMATCTX;
+            peerId = this->mgrSn + ":evmgr:0";
+        }else{
+            meta["type"] = EV_MSG_META_AVFORMATCTX;
+        }
+        
+        vector<vector<uint8_t> > rep = {str2body(peerId), str2body(meta.dump()), msgBody};
+        int ret = z_send_multiple(pDealer, rep);
+        if(ret < 0) {
+            spdlog::error("evpuller {} failed to send avformatctx data to requester {}: {}", selfId, peerId, zmq_strerror(zmq_errno()));
+        }
+        else {
+            spdlog::info("evpuller {} success to send avformatctx data to requester {}", selfId, peerId);
+        }
+    }
+
     int handleEdgeMsg(vector<vector<uint8_t> > v)
     {
         int ret = 0;
         {
+            // TODO: disable message response before openned input stream
             unique_lock<mutex> lk(this->mutMsg);
             this->cvMsg.wait(lk, [this] {return this->gotFormat;});
         }
 
         spdlog::info("evpuller {} got inputformat", selfId);
-        auto msgBody = data2body(const_cast<char*>(pAVFmtCtxBytes), lenAVFmtCtxBytes);
         try {
             // rep framectx
             // TODO: verify sender id
@@ -108,14 +129,7 @@ private:
             string peerId = body2str(v[0]);
             auto meta = json::parse(sMeta);
             if(meta["type"].get<string>() == EV_MSG_META_AVFORMATCTX) {
-                vector<vector<uint8_t> > rep = {v[0], v[1], msgBody};
-                ret = z_send_multiple(pDealer, rep);
-                if(ret < 0) {
-                    spdlog::error("evpuller {} failed to send avformatctx data to requester {}: {}", selfId, peerId, zmq_strerror(zmq_errno()));
-                }
-                else {
-                    spdlog::info("evpuller {} success to send avformatctx data to requester {}", selfId, peerId);
-                }
+                sendAVInputCtxMsg(peerId);
             }
             else if(meta["type"].get<string>() == EV_MSG_META_EVENT) {
                 // event msg
@@ -320,6 +334,9 @@ protected:
             ret = AVERROR(ENOMEM);
             spdlog::error("evpuller {} failed create avformatcontext for output: {}", selfId, av_err2str(AVERROR(ENOMEM)));
         }
+
+        // broadcast
+        sendAVInputCtxMsg("");
 
         // serialize formatctx to bytes
         // be attention to the scope of lock guard!

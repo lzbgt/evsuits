@@ -176,6 +176,9 @@ error_exit:
         zmq_msg_t msg;
         // ID_SENDER, ID_TARGET, meta ,MSG
         string selfId, peerId, meta;
+        bool bProcessed = false;
+
+        // connection message
         if(body.size() == 2 && body[1].size() == 0) {
             selfId = body2str(body[0]);
             bool eventConn = false;
@@ -256,6 +259,7 @@ error_exit:
                 cachedMsg[peerId].push(v);
                 if(cachedMsg[peerId].size() > EV_NUM_CACHE_PERPEER) {
                     cachedMsg[peerId].pop();
+                    spdlog::info("evmgr {} max msg queue size {} reached for {}, dropped the oldest one.", this->devSn, MAX_EVENT_QUEUE_SIZE, peerId);
                 }
             }
 
@@ -266,11 +270,13 @@ error_exit:
                     eventQue.push(body2str(body[3]));
                     if(eventQue.size() > MAX_EVENT_QUEUE_SIZE) {
                         eventQue.pop();
+                        spdlog::info("evmgr {} max event queue size {} reached, dropped the oldest one.", this->devSn, MAX_EVENT_QUEUE_SIZE);
                     }
                 }
-            }
 
-            catch(exception &e) {
+                bProcessed = true;
+            } catch(exception &e) {
+                bProcessed = false;
                 spdlog::error("evmgr {} exception parse event msg from {} to {}: ", devSn, selfId, peerId, e.what());
             }
         }
@@ -278,7 +284,6 @@ error_exit:
             // message to mgr
             // spdlog::info("evmgr {} subsystem report msg received: {}; {}; {}", devSn, zmqhelper::body2str(body[0]), zmqhelper::body2str(body[1]), zmqhelper::body2str(body[2]));
             if(meta == "pong"||meta == "ping") {
-                // update status
                 spdlog::info("evmgr {}, ping msg from {}", devSn, selfId);
                 if(meta=="ping") {
                     if(cachedMsg.find(selfId) != cachedMsg.end()) {
@@ -293,11 +298,40 @@ error_exit:
                         }
                     }
                 }
+
+                bProcessed = true;
             }
             else {
-                // TODO:
-                spdlog::warn("evmgr {} received unknown meta {} from {}", devSn, meta, selfId);
+                try{
+                    json jmeta = json::parse(meta);
+                    if(jmeta["type"] == EV_MSG_META_TYPE_BROADCAST) {
+                        if(jmeta.count("value") != 0) {
+                            json newMeta;
+                            newMeta["type"] = jmeta["value"];
+                            vector<vector<uint8_t> > broadCastMsg = {str2body(""), body[0], str2body(newMeta.dump()), body[3]};
+                            for(auto &[k,v]: peerData["status"].items()) {
+                                if(k != selfId && v != 0) {
+                                    broadCastMsg[0] = str2body(k);
+                                    ret = z_send_multiple(pRouter, broadCastMsg);
+                                    if(ret < 0) {
+                                        spdlog::error("evmgr {} failed to broadcast msg from {} because {}. msg meta: {}", devSn, selfId, zmq_strerror(zmq_errno()), meta);
+                                    }else{
+                                        spdlog::error("evmgr {} successfully broadcast msg from {} to {}. msg meta: {}", devSn, selfId, k, meta);
+                                    }
+                                }
+                            }
+                        }
+                        bProcessed = true;
+                    }
+                }catch(exception &e) {
+                    bProcessed = false;
+                    spdlog::error("evmgr {} exception process msg from {} with meta {}: {}", devSn, selfId, meta, e.what());      
+                }
             }
+        }
+
+        if(!bProcessed) {
+            spdlog::warn("evmgr {} failed process msg from {}: {}", devSn, selfId, meta);
         }
 
         return ret;
