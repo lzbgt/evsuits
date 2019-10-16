@@ -501,6 +501,8 @@ private:
                 // update status
                 spdlog::info("evdaemon {}, ping msg from {}", devSn, selfId);
                 if(meta=="ping") {
+                    //get pid
+                    //this->peerData["pids"][selfId] = stoi(body2str(body[3]));
                     if(cachedMsg.find(selfId) != cachedMsg.end()) {
                         while(!cachedMsg[selfId].empty()) {
                             lock_guard<mutex> lock(cacheLock);
@@ -511,7 +513,7 @@ private:
                                 spdlog::error("evdaemon {} failed to send multiple: {}", devSn, zmq_strerror(zmq_errno()));
                             }
                             else {
-                                spdlog::info("evdaemon {} cached msg sent from {} to {} of type: {}, content: {}", body2str(v[1]), body2str(v[0]), body2str(v[2]), body2str(v[3]));
+                                spdlog::info("evdaemon {} failed to send cached msg from {} to {} of type: {}, content: {}",devSn, body2str(v[1]), body2str(v[0]), body2str(v[2]), body2str(v[3]));
                             }
                         }
                     }
