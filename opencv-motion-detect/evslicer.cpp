@@ -947,7 +947,7 @@ public:
                     if(tse < first) {
                         spdlog::info("evslicer {} thEventHandler event range ({}, {}) is not in range ({}, {}).", selfId, tss, tse, first, end);
                         return ret;
-                    }else if(first == 0||tss > end) {
+                    }else if(first == 0||tse > end) {
                         spdlog::info("evslicer {} thEventHandler event range ({}, {}) is not in range ({}, {}), resched to run in {}s.", selfId, tss, tse, first, end, this->seconds + 5);
                         thread([this, evt]{
                             this_thread::sleep_for(chrono::seconds(this->seconds + 5));
@@ -981,7 +981,8 @@ public:
                             spdlog::error("evslicer {} failed to upload files:\n{}", selfId, sf);
                         }
                         else {
-                            spdlog::info("evslicer {} successfully uploaded ({}, {}) = ({}, {}) files:\n{}", selfId, tss, tse, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse), sf);
+
+                            spdlog::info("evslicer {} successfully uploaded ({}, {}). local({}, {}) files:\n{}", selfId, tss, tse, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse), first, end, sf);
                         }
                     }
                 }
