@@ -119,7 +119,7 @@ private:
             //ZMQ_TCP_KEEPALIVE_INTVL
             ret = 1;
             zmq_setsockopt(pSub, ZMQ_TCP_KEEPALIVE, &ret, sizeof (ret));
-            ret = 20;
+            ret = 5;
             zmq_setsockopt(pSub, ZMQ_TCP_KEEPALIVE_IDLE, &ret, sizeof (ret));
             zmq_setsockopt(pSub, ZMQ_TCP_KEEPALIVE_INTVL, &ret, sizeof (ret));
             ret = zmq_setsockopt(pSub, ZMQ_SUBSCRIBE, "", 0);
@@ -141,7 +141,7 @@ private:
             //ZMQ_TCP_KEEPALIVE_INTVL
             ret = 1;
             zmq_setsockopt(pDealer, ZMQ_TCP_KEEPALIVE, &ret, sizeof (ret));
-            ret = 20;
+            ret = 5;
             zmq_setsockopt(pDealer, ZMQ_TCP_KEEPALIVE_IDLE, &ret, sizeof (ret));
             zmq_setsockopt(pDealer, ZMQ_TCP_KEEPALIVE_INTVL, &ret, sizeof (ret));
             ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());

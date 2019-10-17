@@ -122,7 +122,7 @@ private:
             //ZMQ_TCP_KEEPALIVE_INTVL
             ret = 1;
             zmq_setsockopt(pRouter, ZMQ_TCP_KEEPALIVE, &ret, sizeof (ret));
-            ret = 20;
+            ret = 5;
             zmq_setsockopt(pRouter, ZMQ_TCP_KEEPALIVE_IDLE, &ret, sizeof (ret));
             zmq_setsockopt(pRouter, ZMQ_TCP_KEEPALIVE_INTVL, &ret, sizeof (ret));
             zmq_setsockopt (pRouter, ZMQ_ROUTER_NOTIFY, &opt_notify, sizeof (opt_notify));

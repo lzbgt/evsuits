@@ -14,7 +14,6 @@ void insertTsList(set<long> &_list, long elem, int maxSize) {
     }
 
     auto itr = _list.rbegin();
-
     for(; itr != _list.rend(); itr++) {
         if(*itr < elem){
             break;

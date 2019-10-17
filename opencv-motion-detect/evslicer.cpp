@@ -24,6 +24,8 @@ update: 2019/09/10
 #include <functional>
 #include <queue>
 #include <fstream>
+#include <algorithm>
+#include <set>
 
 #include <cstdlib>
 #include "inc/zmqhelper.hpp"
@@ -46,9 +48,9 @@ private:
     void *pSubCtx = nullptr, *pDealerCtx = nullptr; // for packets relay
     void *pSub = nullptr, *pDealer = nullptr, *pDaemonCtx = nullptr, *pDaemon = nullptr;
     string urlOut, urlPub, urlRouter, devSn, mgrSn, selfId, pullerGid, ipcSn;
-    int iid, hours, seconds, numSlices, segHead = -1, segHeadP = 0;
+    int iid, hours, seconds, numSlices;
     long bootTime = 0;
-    bool enablePush = false, bSegFull = false;
+    bool enablePush = false;
     AVFormatContext *pAVFormatRemux = nullptr;
     AVFormatContext *pAVFormatInput = nullptr;
     AVDictionary *pOptsRemux = nullptr;
@@ -61,15 +63,14 @@ private:
     condition_variable cvMsg;
     mutex mutMsg;
     bool gotFormat = false;
-    vector<long> vTsOld;
-    mutex mutTsOld;
-    vector<long> vTsActive;
-    mutex mutTsActive;
     queue<string> eventQueue;
     condition_variable cvEvent;
     mutex mutEvent;
     thread thEventHandler;
     string videoFileServerApi = "http://139.219.142.18:10008/upload/evtvideos/";
+    set<long> sTsList;
+    mutex mutTsList;
+
 
     bool validMsg(json &msg)
     {
@@ -190,7 +191,7 @@ private:
                         bProcessed = true;
                     }else if(metaValue == "debug:list_files"){
                         // TODO: remove debug feature
-                        this->vTsActive = LoadVideoFiles(this->urlOut, this->hours, this->numSlices, this->vTsOld);
+                        printVideoFiles(this->sTsList);
                         bProcessed = true;
                     }else if(metaValue == "debug:toggle_log") {
                         // TODO: remove debug feature
@@ -331,7 +332,7 @@ private:
             //ZMQ_TCP_KEEPALIVE_INTVL
             ret = 1;
             zmq_setsockopt(pSub, ZMQ_TCP_KEEPALIVE, &ret, sizeof (ret));
-            ret = 20;
+            ret = 5;
             zmq_setsockopt(pSub, ZMQ_TCP_KEEPALIVE_IDLE, &ret, sizeof (ret));
             zmq_setsockopt(pSub, ZMQ_TCP_KEEPALIVE_INTVL, &ret, sizeof (ret));
             ret = zmq_setsockopt(pSub, ZMQ_SUBSCRIBE, "", 0);
@@ -355,7 +356,7 @@ private:
             //ZMQ_TCP_KEEPALIVE_INTVL
             ret = 1;
             zmq_setsockopt(pDealer, ZMQ_TCP_KEEPALIVE, &ret, sizeof (ret));
-            ret = 20;
+            ret = 5;
             zmq_setsockopt(pDealer, ZMQ_TCP_KEEPALIVE_IDLE, &ret, sizeof (ret));
             zmq_setsockopt(pDealer, ZMQ_TCP_KEEPALIVE_INTVL, &ret, sizeof (ret));
             ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());
@@ -524,11 +525,8 @@ protected:
                     spdlog::error("evslicer {} could not open output file {}", selfId, name);
                 }
             }
-            int startIdx = 0;
-            if(segHead != -1) {
-                startIdx = segHead;
-            }
-            av_dict_set(&pOptsRemux, "segment_start_number", to_string(startIdx).data(), 0);
+            // TODO
+            av_dict_set(&pOptsRemux, "segment_start_number", to_string(this->sTsList.size()).data(), 0);
             ret = avformat_write_header(pAVFormatRemux, &pOptsRemux);
             if (ret < 0) {
                 spdlog::error("evslicer {} error occurred when opening output file", selfId);
@@ -634,7 +632,6 @@ protected:
             return ret;
         }
 
-        //spdlog::info("LoadVideoFiles path {}, s {}, e {}", fname, posS, posE);
         return fname.substr(posS, posE - posS + 1);
     }
 
@@ -661,122 +658,77 @@ protected:
         return string(buffer);
     }
 
-    void debugFilesRing(vector<long> &v)
+    void printVideoFiles(set<long> &list)
     {
-        spdlog::info("evslicer {} debug files ring. segHead: {}, isFull: {}, max: {}",this->selfId, this->segHead, this->bSegFull, this->numSlices);
-        for(int i = 0; i <= numSlices; i++) {
-            spdlog::info("\tevslicer {} vector[{}] = {}, {}", selfId, i, v[i], videoFileTs2Name(v[i]));
-            if(v[segToIdx(i)] == 0) {
-                break;
-            }
+        spdlog::info("evslicer {} debug files ring. size: {} max: {}",this->selfId, list.size(), this->numSlices);
+        // lock_guard<mutex> lg(mutTsList);
+        for(auto i: list) {
+            spdlog::info("\tevslicer {} file ts: {}, baseName: {}", selfId, i, videoFileTs2Name(i));
         }
     }
 
-    vector<long> LoadVideoFiles(string path, int hours, int maxSlices, vector<long> &tsNeedUpload)
+    void loadVideoFiles(string path, int hours, int maxSlices, set<long> &_list)
     {
-        tsNeedUpload.clear();
-        vTsActive.clear();
-        segHeadP = 0;
-        segHead = -1;
-        bSegFull = false;
-        vector<long> v = vector<long>(maxSlices, 0);
-        tsNeedUpload = vector<long>(maxSlices, 0);
-        // get current timestamp
-        list<long> tsRing;
-        list<long>tsToProcess;
-
         auto now = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
         try {
             string fname, baseName;
             for (const auto & entry : fs::directory_iterator(path)) {
                 fname = entry.path().c_str();
                 if(entry.file_size() == 0 || !entry.is_regular_file()||entry.path().extension() != ".mp4") {
-                    spdlog::warn("evslicer {} LoadVideoFiles skipped {} (empty/directory/!mp4)", selfId, entry.path().c_str());
+                    spdlog::warn("evslicer {} loadVideoFiles skipped {} (empty/directory/!mp4)", selfId, entry.path().c_str());
                     continue;
                 }
 
                 baseName = getBaseName(fname);
                 auto ts = videoFileName2Ts(baseName);
-                spdlog::info("evslicer {} LoadVideoFiles basename: {}, ts: {}", selfId, baseName, ts);
+                spdlog::info("evslicer {} loadVideoFiles basename: {}, ts: {}", selfId, baseName, ts);
 
                 // check old files
                 if(ts - now > hours * 60 * 60) {
                     spdlog::info("evslicer {} file {} old than {} hours: {}, {}", selfId, entry.path().c_str(), hours, ts, now);
-                    tsToProcess.insert(std::upper_bound(tsToProcess.begin(), tsToProcess.end(), ts), ts);
+                    fs::path fname(this->urlOut + "/" + baseName + ".mp4");
+                    fs::remove(fname);
                 }
                 else {
-                    tsRing.insert(std::upper_bound(tsRing.begin(), tsRing.end(), ts), ts);
+                    insertTsList(_list, ts, maxSlices);
                 }
             }
         }
         catch(exception &e) {
-            spdlog::error("LoasdVideoFiles exception : {}", e.what());
+            spdlog::error("evslicer {} {}:{} loadVideoFiles exception : {}",selfId, __FILE__, __LINE__, e.what());
+        }
+    }
+
+    void insertTsList(set<long> &_list, long elem, int maxSize) {
+        // _list.insert(lower_bound(_list.begin(), _list.end(), elem), elem);
+        if(_list.size() == 0) {
+            _list.insert(_list.begin(),elem);
+            return;
         }
 
-        // skip old items
-        list<long>olds;
-        int delta = maxSlices - tsRing.size();
-        int skip = delta < 0? (-delta):0;
-        spdlog::info("evslicer {} LoasdVideoFiles max: {}, current: {}, skip: {}", selfId, maxSlices, tsRing.size(), skip);
-        int idx = 0;
-        if(skip > 0) {
-            this->bSegFull = true;
-        }
+        auto itr = _list.rbegin();
 
-        if(tsRing.size() != 0) {
-            segHead = 0;
-        }
-        
-        list<long>::iterator pos = tsRing.begin();
-        for(auto &i:tsRing) {
-            if(idx < skip) {
-                idx++;
-                pos++;
-                continue;
+        for(; itr != _list.rend(); itr++) {
+            if(*itr < elem){
+                break;
             }
-            v[segHead] = i;
-            segHead++;
-        }
-        // merge
-        if(skip > 0) {
-            tsToProcess.insert(std::upper_bound(tsToProcess.begin(), tsToProcess.end(), tsRing.front()), tsRing.begin(), pos);
         }
 
-        delta = maxSlices - tsToProcess.size();
-        skip = delta < 0? (-delta) : 0;
-        idx = 0;
-        pos = tsToProcess.begin();
-        for(auto &i:tsToProcess) {
-            // remove
-            fs::path fname(this->urlOut + "/" +  videoFileTs2Name(i) + ".mp4");
-            fs::remove(fname);
-            // TODO: currently we don't cache event videos. lost on reboot.
-            // TODO: this behavior will be enhenced later.
-            continue;
-
-            // skip cache operations
-            if(idx < skip) {
-                idx++;
-                pos++;
-                continue;
-            }
-            tsNeedUpload[segHeadP] = i;
-            segHeadP++;
+        if(itr == _list.rbegin() ) {
+            _list.insert(_list.end(), elem);
+        }else{
+            _list.insert(itr.base(), elem);
         }
 
-        if(segHead!=0 && segHeadP != 0) {
-            spdlog::info("evslicer {} LoadVideoFiles active:{}, ts1:{}, ts2: {}; toprocess: {}, ts1: {}, ts2:{}", selfId, segHead,  v.front(), v.back(), segHeadP, tsNeedUpload.front(), tsNeedUpload.back());
+        if(_list.size() > maxSize) {
+            lock_guard<mutex> lg(mutTsList);
+            _list.erase(_list.begin());
         }
-
-        debugFilesRing(v);
-
-        return v;
     }
 
     // file monitor callback
     static void fileMonHandler(const std::vector<event>& evts, void *pUserData)
-    {
-        
+    {    
         static string lastFile;
         string ext = ".mp4";
         auto self = static_cast<EvSlicer*>(pUserData);
@@ -788,133 +740,90 @@ protected:
                 spdlog::debug("evslicer {} invalid file: {}, last: {}", self->selfId, fullPath, lastFile);
                 continue;
             }
+
+            if(lastFile == i.get_path()) {
+                spdlog::debug("evslicer {} skip file : {}, last: {}", self->selfId, fullPath, lastFile);
+                continue;
+            }
+            else if(!lastFile.empty()) {
+                spdlog::debug("evslicer {} filemon file: {}, ts: {}, last: {}", self->selfId, i.get_path().c_str(), i.get_time(), lastFile);
+                try {
+                    auto baseName = self->getBaseName(lastFile);
+                    auto ts = self->videoFileName2Ts(baseName);
+                    if(ts == -1) {
+                        spdlog::error("evslicer {} fileMonHandler failed to process file: {}", self->selfId, lastFile);
+                    }else{
+                        self->insertTsList(self->sTsList, ts, self->numSlices);
+                    }
+                }
+                catch(exception &e) {
+                    spdlog::error("evslicer {} fileMonHandler exception: {}", self->selfId, e.what());
+                }
+            }
+            else {
+            }
+
+            lastFile = i.get_path();
         }
-
-        //     if(lastFile == i.get_path()) {
-        //         spdlog::debug("evslicer {} skip file : {}, last: {}", self->selfId, fullPath, lastFile);
-        //         continue;
-        //     }
-
-        //     else if(!lastFile.empty()) {
-        //         // insert into ts active
-        //         spdlog::debug("evslicer {} filemon file: {}, ts: {}, last: {}", self->selfId, i.get_path().c_str(), i.get_time(), lastFile);
-        //         if(self->segHead == 0) {
-        //             //wrap it;
-        //             self->bSegFull = true;
-        //         }
-
-        //         if(self->bSegFull) {
-        //         }
-
-        //         try {
-        //             auto baseName = self->getBaseName(lastFile);
-        //             auto ts = self->videoFileName2Ts(baseName);
-        //             if(ts == -1) {
-        //                 spdlog::error("evslicer {} fileMonHandler failed to process file: {}", self->selfId, lastFile);
-        //                 continue;
-        //             }
-        //             auto oldTs = self->vTsActive[self->segHead];
-        //             if(oldTs != 0) {
-        //                 // TODO
-        //                 fs::path fname(self->urlOut + "/" +  self->videoFileTs2Name(oldTs) + ".mp4");
-        //                 fs::remove(fname);
-        //             }
-        //             self->vTsActive[self->segHead] = ts;
-        //             self->segHead++;
-        //             self->segHead = self->segToIdx(self->segHead);
-        //         }
-        //         catch(exception &e) {
-        //             spdlog::error("evslicer {} fileMonHandler exception: {}", self->selfId, e.what());
-        //         }
-        //     }
-        //     else {
-        //         //nop
-        //     }
-
-        //     lastFile = i.get_path();
-        // }
-        
-    }
-
-    //
-    int segToIdx(int seg)
-    {
-        if(seg >= numSlices) {
-            seg -= numSlices;
-        }
-        else if(seg <=-1) {
-            seg = numSlices + seg;
-        }
-        return seg;
-    }
-
-
-    int incSegHead(int seg)
-    {
-        return segToIdx(++seg);
-    }
-
-    int decSegHead(int seg)
-    {
-        return segToIdx(--seg);
     }
 
     // find video files
     vector<string> findSlicesByRange(long tss, long tse, int offsetS, int offsetE)
     {
         vector<string> ret;
-        int found = 0;
-        int _itss = 0;
-        if(bSegFull) {
-            _itss = segHead;
-        }
-        else {
-            _itss = 1;
-        }
-
-        if(segHead == -1) {
-            spdlog::error("evslicer {} no local records.");
+        
+        lock_guard<mutex> lg(mutTsList);
+        if(this->sTsList.size() == 0) {
             return ret;
         }
-        else {
-            int idxS, idxE;
-            int delta = bSegFull? numSlices : 0;
-            for(int i = segHead - 1 + delta; i >= _itss; i--) {
-                if(vTsActive[segToIdx(i)] == 0) {
-                    continue;
-                }
-                if(tse >= vTsActive[segToIdx(i)]) {
-                    if((found &1) != 1) {
-                        idxE = segToIdx(i);
-                        found |= 1;
-                    }
-                }
 
-                if(tss >= vTsActive[segToIdx(i)]) {
-                    if((found &2) != 2) {
-                        idxS = segToIdx(i);
-                        found |=2;
-                    }
-                }
+        long first = *(this->sTsList.begin());
+        long end =  *(--(this->sTsList.end()));
 
-                if(found == 3) {
-                    break;
+        if(tse < first  || tss > end) {
+            spdlog::info("evslicer {} event range ({}, {}) is in local range ({}, {}).", selfId, tss, tse, first, end);
+            return ret;
+        }
+
+        first = end = 0;
+        vector<long> tmp;
+        int found = 0;
+        auto itr = this->sTsList.rbegin();
+        for(; itr != this->sTsList.rend(); itr++) {
+            if(found == 3) {
+                break;
+            }
+            if(found & 1) {
+                tmp.push_back(*itr);
+                spdlog::info("\t matched file: {}, s:{}, e:{}", *itr, tse, tss);
+            }
+
+            if(tse >= *itr) {
+                if((found &1) != 1) {
+                    tmp.push_back(*itr);
+                    spdlog::info("\t matched file: {}, s:{}, e:{}", *itr, tse, tss);
+                    found |= 1;
                 }
             }
-            if(found ==3) {
-                if(idxS > idxE) {
-                    idxE += numSlices;
+
+            if(tss >= *itr) {
+                if((found &2) != 2) {
+                    tmp.push_back(*itr);
+                    spdlog::info("\t matched file: {}, s:{}, e:{}", *itr, tse, tss);
+                    found |=2;
                 }
-                string sf;
-                for(int i = idxS; i <= idxE; i++) {
-                    int idx = segToIdx(i);
-                    long ts = vTsActive[idx];
-                    string fname = videoFileTs2Name(ts, true);
-                    sf += "\n\t" + this->urlOut + "/" + fname + ".mp4, " + to_string(ts) + ", " + to_string(idx);
-                    ret.push_back(fname);
-                }
-                spdlog::info("evslicer {} event {} - {} files to upload: {}", selfId, videoFileTs2Name(tss), videoFileTs2Name(tse), sf);
+            }      
+        }
+
+        if(found ==3) {
+            string sf;
+            auto itr = tmp.rbegin();
+            for(; itr != tmp.rend(); itr++) {
+                string fname = videoFileTs2Name(*itr, true);
+                sf += "\n\t" + this->urlOut + "/" + fname + ".mp4, " + to_string(*itr);
+                ret.push_back(fname);
             }
+            spdlog::info("evslicer {} event {} - {} files to upload: {}", selfId, videoFileTs2Name(tss), videoFileTs2Name(tse), sf);
         }
 
         return ret;
@@ -989,24 +898,23 @@ public:
         });
         thCloudMsgHandler.detach();
 
+        //
+        this->loadVideoFiles(this->urlOut, this->hours, this->numSlices, this->sTsList);
+        // thread for slicer maintenace
+        thSliceMgr = thread([this]() {
+            // get old and active slices
+            monitor * m = nullptr;
 
-        // TODO: bugfix
-        // // thread for slicer maintenace
-        // thSliceMgr = thread([this]() {
-        //     // get old and active slices
-        //     this->vTsActive = this->LoadVideoFiles(this->urlOut, this->hours, this->numSlices, this->vTsOld);
-        //     spdlog::info("evslicer {} will store slice from index: {}", selfId, this->segHead);
-        //     monitor * m = nullptr;
-
-        //     CreateDirMon(&m, this->urlOut, ".mp4", vector<string>(), EvSlicer::fileMonHandler, (void *)this);
-        // });
-        // thSliceMgr.detach();
+            CreateDirMon(&m, this->urlOut, ".mp4", vector<string>(), EvSlicer::fileMonHandler, (void *)this);
+        });
+        thSliceMgr.detach();
 
         // event thread
         thEventHandler = thread([this] {
             while(true)
             {
                 string evt;
+                int ret = 0;
                 unique_lock<mutex> lk(this->mutEvent);
                 this->cvEvent.wait(lk, [this] {return !(this->eventQueue.empty());});
 
@@ -1028,45 +936,24 @@ public:
                     long offsetE = 0;
                     // TODO: async
 
-                    this->vTsActive = this->LoadVideoFiles(this->urlOut, this->hours, this->numSlices, this->vTsOld);
-                    
-                    if(this->segHead == -1) {
-                        spdlog::error("evslicer {} no local video files");
-                        continue;
-                    }
-
-
                     if(tss < this->bootTime) {
                         spdlog::warn("evslicer {} should we discard old msg?  {} <  bootTime {}", selfId, evt, this->bootTime);
                     }
 
-                    // TODO: scheduled task
-                    // check tss, tse
-                    int sIdx = 0, eIdx = 0;
-                    if(this->bSegFull) {
-                        sIdx = this->incSegHead(this->segHead);
-                        eIdx = this->decSegHead(this->segHead);
-                    }else{
-                        sIdx = 0;
-                        eIdx = this->decSegHead(this->segHead);
+                    long first = 0, end = 0;
+                    if(this->sTsList.size()!=0 ) {
+                        first = *(this->sTsList.begin());
+                        end =  *(--(this->sTsList.end()));
                     }
 
-                    if(sIdx > eIdx || tss > this->vTsActive[eIdx] || tse < this->vTsActive[sIdx]) {
-                        spdlog::error("evslicer {} event range ({}, {}) not in local range ({}, {}).", selfId, tss, tse, this->vTsActive[sIdx], this->vTsActive[eIdx]);
+                    if(first == 0||tse < first  || tss > end) {
+                        spdlog::error("evslicer {} event range ({}, {}) is in local range ({}, {}).", selfId, tss, tse, first, end);
                         continue;
-                    }
-
-                    if(sIdx == eIdx)
-                    {
-                        spdlog::info("evslicer {} wait for {}s to matching event videos", this->selfId, this->seconds + 5);
-                        this_thread::sleep_for(chrono::seconds(this->seconds + 5));
-                    }else{
-                        spdlog::info("evslicer {} event range ({}, {}) is in local range ({}, {}).", selfId, tss, tse, this->vTsActive[sIdx], this->vTsActive[eIdx]);
                     }
 
                     auto v = findSlicesByRange(tss, tse, offsetS, offsetE);
                     if(v.size() == 0) {
-                        spdlog::error("evslicer {} ignore upload videos in range ({}, {})", this->selfId, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse));
+                        spdlog::error("evslicer {} ignore upload videos in range ({}, {}): not found", this->selfId, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse));
                     }
                     else {
                         vector<tuple<string, string> > params= {{"startTime", to_string(tss)},{"endTime", to_string(tse)},{"cameraId", ipcSn}, {"headOffset", to_string(offsetS)},{"tailOffset", to_string(offsetE)}};
@@ -1078,13 +965,13 @@ public:
                             sf+="\tfile\t" + fname + "\n";
                         }
 
-                        spdlog::info("evslicer {} file upload range:{} - {} ({} - {}), url: {}", selfId, tss, tse, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse), this->videoFileServerApi);
+                        spdlog::info("evslicer {} file upload range:({},{}) = ({}, {}), url: {}", selfId, tss, tse, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse), this->videoFileServerApi);
                         // TODO: check result and reschedule it
                         if(netutils::postFiles(std::move(this->videoFileServerApi), std::move(params), std::move(fileNames)) != 0) {
                             spdlog::error("evslicer {} failed to upload files:\n{}", selfId, sf);
                         }
                         else {
-                            spdlog::info("evslicer {} successfully uploaded {} - {} ({} - {})files:\n{}", selfId, tss, tse, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse), sf);
+                            spdlog::info("evslicer {} successfully uploaded ({}, {}) = ({}, {}) files:\n{}", selfId, tss, tse, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse), sf);
                         }
                     }
                 }

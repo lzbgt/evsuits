@@ -102,7 +102,7 @@ int setupRouter(void **ctx, void **s, string addr){
     //ZMQ_TCP_KEEPALIVE_INTVL
     ret = 1;
     zmq_setsockopt(*s, ZMQ_TCP_KEEPALIVE, &ret, sizeof (ret));
-    ret = 20;
+    ret = 5;
     zmq_setsockopt(*s, ZMQ_TCP_KEEPALIVE_IDLE, &ret, sizeof (ret));
     zmq_setsockopt(*s, ZMQ_TCP_KEEPALIVE_INTVL, &ret, sizeof (ret));
     zmq_setsockopt(*s, ZMQ_ROUTER_NOTIFY, &opt_notify, sizeof (opt_notify));
@@ -119,6 +119,11 @@ int setupDealer(void **ctx, void **s, string addr, string ident) {
     int ret = 0;
     *ctx = zmq_ctx_new();
     *s = zmq_socket(*ctx, ZMQ_DEALER);
+    ret = 1;
+    zmq_setsockopt(*s, ZMQ_TCP_KEEPALIVE, &ret, sizeof (ret));
+    ret = 5;
+    zmq_setsockopt(*s, ZMQ_TCP_KEEPALIVE_IDLE, &ret, sizeof (ret));
+    zmq_setsockopt(*s, ZMQ_TCP_KEEPALIVE_INTVL, &ret, sizeof (ret));
     ret = zmq_setsockopt(*s, ZMQ_IDENTITY, ident.c_str(), ident.size());
     ret += zmq_setsockopt (*s, ZMQ_ROUTING_ID, ident.c_str(), ident.size());
     if(ret < 0) {
