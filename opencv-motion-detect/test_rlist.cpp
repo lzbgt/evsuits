@@ -46,6 +46,8 @@ int main() {
     insertTsList(tsList, 2, 5);
     insertTsList(tsList, 3, 5);
     insertTsList(tsList, 9, 5);
+    insertTsList(tsList, 9, 5);
+    insertTsList(tsList, 7, 5);
 
     printTsList(tsList);
     return 0;
