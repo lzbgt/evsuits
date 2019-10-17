@@ -66,7 +66,7 @@ int downloadFile(string fileUrl, string outUrl)
 }
 }
 
-int main()
-{
-    netutils::downloadFile("https://curl.haxx.se/libcurl/c/url2file.html", "a.html");
-}
+// int main()
+// {
+//     netutils::downloadFile("https://curl.haxx.se/libcurl/c/url2file.html", "a.html");
+// }
