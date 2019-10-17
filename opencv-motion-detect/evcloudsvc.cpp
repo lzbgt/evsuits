@@ -616,6 +616,16 @@ private:
         }
     }
 
+    json getVersionBundle(string bid) {
+        json ret;
+        return ret;
+    }
+
+    json addVersionBundle(json &bundle) {
+        json ret;
+        return ret;
+    }
+
 protected:
 public:
     void run()
@@ -755,7 +765,42 @@ public:
             res.set_content(ret.dump(), "text/json");
         });
 
+        svr.Get("/release", [this](const Request& req, Response& res) {
+            json ret;
+            string msg;
+            ret["code"] = 0;
+            ret["msg"] = "ok";
+            try{
+                string bundleId = req.get_param_value("bId");
+                auto body = json::parse(req.body);
+                ret = this->getVersionBundle(bundleId);
+            }catch(exception &e) {
+                ret["code"] = -1;
+                msg = fmt::format("evcloudsvc Get /release Exception: {}", e.what());
+                spdlog::error(msg);
+                ret["msg"] = msg;
+            }
 
+            res.set_content(ret.dump(), "text/json");
+        });
+
+        svr.Post("/release", [this](const Request& req, Response& res) {
+            json ret;
+            string msg;
+            ret["code"] = 0;
+            ret["msg"] = "ok";
+            try{
+                auto body = json::parse(req.body);
+                ret = this->addVersionBundle(body);
+            }catch(exception &e) {
+                ret["code"] = -1;
+                msg = fmt::format("evcloudsvc Post /release Exception: {}", e.what());
+                spdlog::error(msg);
+                ret["msg"] = msg;
+            }
+
+            res.set_content(ret.dump(), "text/json");
+        });
 
         svr.Get("/keys", [](const Request& req, Response& res) {
             string fileName = req.get_param_value("filename");
@@ -808,7 +853,7 @@ public:
                 this->configMap.erase(sn);
                 this->peerData.erase(sn);
                 spdlog::info("evcloudsvc removed sn: {}", sn);
-                int iret = LVDB::setValue(this->configMap, KEY_CONFIG_MAP);
+                LVDB::setValue(this->configMap, KEY_CONFIG_MAP);
             }
 
             res.set_content(this->configMap.dump(), "text/json");
