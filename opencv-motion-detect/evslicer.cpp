@@ -781,36 +781,29 @@ protected:
         auto _it = this->sTsList.end();
         long end =  *(--_it);
 
-        if(tse < first  || tss > end) {
-            spdlog::info("evslicer {} event range ({}, {}) is in local range ({}, {}).", selfId, tss, tse, first, end);
+        if(tse < first||tss > end) {
+            spdlog::info("evslicer {} event range ({}, {}) is not in range ({}, {}).", selfId, tss, tse, first, end);
             return ret;
         }
+            
+        
 
         first = end = 0;
         set<long> tmp;
         int found = 0;
         auto itr = this->sTsList.rbegin();
         for(; itr != this->sTsList.rend(); itr++) {
-            // state machine
-            if(found == 3) {
-                break;
-            }
-
             if(*itr > tse) {
                 continue;
             }
 
-            if(found & 1) {
-                tmp.insert(*itr);
-                spdlog::info("\t matched file: {}, s:{}, e:{}", *itr, tss, tse);
-            }
-
             if(tse <= *itr) {
                 if((found &1) != 1) {
-                    tmp.insert(*itr);
                     spdlog::info("\t matched file: {}, s:{}, e:{}", *itr, tss, tse);
                     found |= 1;
                 }
+                tmp.insert(*itr);
+                continue;
             }
 
             if(tss >= *itr && (found &1)) {
@@ -818,11 +811,12 @@ protected:
                     tmp.insert(*itr);
                     spdlog::info("\t matched file: {}, s:{}, e:{}", *itr, tss, tse);
                     found |=2;
+                    break;
                 }
             } 
         }
 
-        if(found ==3) {
+        if(found & 1 ) {
             string sf;
             auto itr = tmp.begin();
             for(; itr != tmp.end(); itr++) {
@@ -922,13 +916,17 @@ public:
             {
                 string evt;
                 int ret = 0;
-                unique_lock<mutex> lk(this->mutEvent);
-                this->cvEvent.wait(lk, [this] {return !(this->eventQueue.empty());});
 
-                if(!this->eventQueue.empty()) {
-                    evt = this->eventQueue.front();
-                    this->eventQueue.pop();
+                {
+                    unique_lock<mutex> lk(this->mutEvent);
+                    this->cvEvent.wait(lk, [this] {return !(this->eventQueue.empty());});
+
+                    if(!this->eventQueue.empty()) {
+                        evt = this->eventQueue.front();
+                        this->eventQueue.pop();
+                    }
                 }
+                
 
                 if(evt.empty()) {
                     continue;
@@ -954,9 +952,21 @@ public:
                         end =  *(--itr);
                     }
 
-                    if(first == 0|| tse < first  || tss > end) {
-                        spdlog::error("evslicer {} event range ({}, {}) is in local range ({}, {}).", selfId, tss, tse, first, end);
-                        continue;
+                    if(tse < first) {
+                        spdlog::info("evslicer {} event range ({}, {}) is not in range ({}, {}).", selfId, tss, tse, first, end);
+                        return ret;
+                    }else if(first == 0||tss > end) {
+                        spdlog::info("evslicer {} event range ({}, {}) is not in range ({}, {}), resched to run in {}s.", selfId, tss, tse, first, end, this->seconds + 5);
+                        thread([this, evt]{
+                            this_thread::sleep_for(chrono::seconds(this->seconds + 5));
+                            lock_guard<mutex> lock(this->mutEvent);
+                            this->eventQueue.push(evt);
+                            if(eventQueue.size() > MAX_EVENT_QUEUE_SIZE) {
+                                eventQueue.pop();
+                            }
+                            cvEvent.notify_one();
+                        }).detach();
+                        return ret;
                     }
 
                     auto v = findSlicesByRange(tss, tse, offsetS, offsetE);
