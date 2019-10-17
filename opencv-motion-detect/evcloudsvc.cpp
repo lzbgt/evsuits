@@ -616,12 +616,12 @@ private:
         }
     }
 
-    json getVersionBundle(string bid) {
+    json getReleaseBundle(string bid) {
         json ret;
         return ret;
     }
 
-    json addVersionBundle(json &bundle) {
+    json addReleaseBundle(json &bundle) {
         json ret;
         return ret;
     }
@@ -830,7 +830,7 @@ public:
             try{
                 string bundleId = req.get_param_value("bId");
                 auto body = json::parse(req.body);
-                ret = this->getVersionBundle(bundleId);
+                ret = this->getReleaseBundle(bundleId);
             }catch(exception &e) {
                 ret["code"] = -1;
                 msg = fmt::format("evcloudsvc Get /release Exception: {}", e.what());
@@ -848,7 +848,7 @@ public:
             ret["msg"] = "ok";
             try{
                 auto body = json::parse(req.body);
-                ret = this->addVersionBundle(body);
+                ret = this->addReleaseBundle(body);
             }catch(exception &e) {
                 ret["code"] = -1;
                 msg = fmt::format("evcloudsvc Post /release Exception: {}", e.what());
