@@ -778,7 +778,8 @@ protected:
         }
 
         long first = *(this->sTsList.begin());
-        long end =  *(--(this->sTsList.end()));
+        auto _it = this->sTsList.end();
+        long end =  *(--_it);
 
         if(tse < first  || tss > end) {
             spdlog::info("evslicer {} event range ({}, {}) is in local range ({}, {}).", selfId, tss, tse, first, end);
@@ -786,39 +787,45 @@ protected:
         }
 
         first = end = 0;
-        vector<long> tmp;
+        set<long> tmp;
         int found = 0;
         auto itr = this->sTsList.rbegin();
         for(; itr != this->sTsList.rend(); itr++) {
+            // state machine
             if(found == 3) {
                 break;
             }
-            if(found & 1) {
-                tmp.push_back(*itr);
-                spdlog::info("\t matched file: {}, s:{}, e:{}", *itr, tse, tss);
+
+            if(*itr > tse) {
+                continue;
             }
 
-            if(tse >= *itr) {
+            if(found & 1) {
+                tmp.insert(*itr);
+                spdlog::info("\t matched file: {}, s:{}, e:{}", *itr, tss, tse);
+            }
+
+            if(tse <= *itr) {
                 if((found &1) != 1) {
-                    tmp.push_back(*itr);
-                    spdlog::info("\t matched file: {}, s:{}, e:{}", *itr, tse, tss);
+                    tmp.insert(*itr);
+                    spdlog::info("\t matched file: {}, s:{}, e:{}", *itr, tss, tse);
                     found |= 1;
                 }
             }
 
-            if(tss >= *itr) {
+            if(tss >= *itr && (found &1)) {
                 if((found &2) != 2) {
-                    tmp.push_back(*itr);
-                    spdlog::info("\t matched file: {}, s:{}, e:{}", *itr, tse, tss);
+                    tmp.insert(*itr);
+                    spdlog::info("\t matched file: {}, s:{}, e:{}", *itr, tss, tse);
                     found |=2;
                 }
-            }      
+            } 
         }
 
         if(found ==3) {
             string sf;
-            auto itr = tmp.rbegin();
-            for(; itr != tmp.rend(); itr++) {
+            auto itr = tmp.begin();
+            for(; itr != tmp.end(); itr++) {
                 string fname = videoFileTs2Name(*itr, true);
                 sf += "\n\t" + this->urlOut + "/" + fname + ".mp4, " + to_string(*itr);
                 ret.push_back(fname);
@@ -941,19 +948,20 @@ public:
                     }
 
                     long first = 0, end = 0;
+                    auto itr = this->sTsList.end();
                     if(this->sTsList.size()!=0 ) {
                         first = *(this->sTsList.begin());
-                        end =  *(--(this->sTsList.end()));
+                        end =  *(--itr);
                     }
 
-                    if(first == 0||tse < first  || tss > end) {
+                    if(first == 0|| tse < first  || tss > end) {
                         spdlog::error("evslicer {} event range ({}, {}) is in local range ({}, {}).", selfId, tss, tse, first, end);
                         continue;
                     }
 
                     auto v = findSlicesByRange(tss, tse, offsetS, offsetE);
                     if(v.size() == 0) {
-                        spdlog::error("evslicer {} ignore upload videos in range ({}, {}): not found", this->selfId, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse));
+                        spdlog::error("evslicer {} event ({}, {}) = ({}, {}) not in range: ({}, {}), ({}, {})", this->selfId, tss, tse, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse), first, end, this->videoFileTs2Name(first), this->videoFileTs2Name(end));
                     }
                     else {
                         vector<tuple<string, string> > params= {{"startTime", to_string(tss)},{"endTime", to_string(tse)},{"cameraId", ipcSn}, {"headOffset", to_string(offsetS)},{"tailOffset", to_string(offsetE)}};
