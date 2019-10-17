@@ -912,14 +912,12 @@ public:
                 {
                     unique_lock<mutex> lk(this->mutEvent);
                     this->cvEvent.wait(lk, [this] {return !(this->eventQueue.empty());});
-
                     if(!this->eventQueue.empty()) {
                         evt = this->eventQueue.front();
                         this->eventQueue.pop();
                     }
                 }
                 
-
                 if(evt.empty()) {
                     continue;
                 }
@@ -951,12 +949,12 @@ public:
                         spdlog::info("evslicer {} thEventHandler event range ({}, {}) is not in range ({}, {}), resched to run in {}s.", selfId, tss, tse, first, end, this->seconds + 5);
                         thread([this, evt]{
                             this_thread::sleep_for(chrono::seconds(this->seconds + 5));
-                            lock_guard<mutex> lock(this->mutEvent);
+                            //lock_guard<mutex> lock(this->mutEvent);
                             this->eventQueue.push(evt);
                             if(eventQueue.size() > MAX_EVENT_QUEUE_SIZE) {
                                 eventQueue.pop();
                             }
-                            cvEvent.notify_one();
+                            //cvEvent.notify_one();
                         }).detach();
                         return ret;
                     }
