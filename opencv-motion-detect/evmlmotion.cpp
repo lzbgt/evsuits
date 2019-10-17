@@ -181,7 +181,6 @@ private:
     int init()
     {
         int ret = 0;
-        // TODO: req config
         bool found = false;
         try {
             spdlog::info("evmlmotion boot config: {} -> {}", selfId, config.dump());
@@ -364,7 +363,6 @@ private:
         ret = z_send_multiple(pDealer, body);
         if(ret < 0) {
             spdlog::error("evmlmotion {} failed to send multiple: {}", selfId, zmq_strerror(zmq_errno()));
-            //TODO:
         }
         else {
             spdlog::info("evmlmotion {} sent hello to router: {}", selfId, mgrSn);
@@ -517,7 +515,6 @@ private:
         // cv::accumulateWeighted(gray, avg, 0.5);
         cv::absdiff(gray, avg, thresh);
         avg = gray.clone();
-
 
         if(!detect || fent < detPara.entropy) {
             return;

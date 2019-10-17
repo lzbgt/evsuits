@@ -250,8 +250,8 @@ private:
                     }
                     if(this->configMap.count(k) ^ this->peerData["config"].count(k)) {
                         spdlog::warn("evcloudsvc inconsistent configuration for cluster {}", k);
-                        // TODO: handle this situation gracefully.
-                        // rmeove both
+                        // TODO: improvements?
+                        // remove both
                         this->configMap.erase(k);
                         this->peerData["config"].erase(k);
                     }
@@ -491,7 +491,6 @@ private:
                 }
             }
             else {
-                // TODO:
                 spdlog::warn("evcloudsvc {} received unknown meta {} from {}", devSn, meta, selfId);
             }
         }
@@ -805,14 +804,12 @@ public:
                         this->configMap["mod2mgr"].erase(k);
                     }
                 }
-                // TODO: clear peerData
+                
                 this->configMap.erase(sn);
                 this->peerData.erase(sn);
                 spdlog::info("evcloudsvc removed sn: {}", sn);
-                // TODO: send config diff to sn
                 int iret = LVDB::setValue(this->configMap, KEY_CONFIG_MAP);
             }
-
 
             res.set_content(this->configMap.dump(), "text/json");
         });

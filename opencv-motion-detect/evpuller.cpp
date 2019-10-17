@@ -116,7 +116,6 @@ private:
     {
         int ret = 0;
         {
-            // TODO: disable message response before openned input stream
             unique_lock<mutex> lk(this->mutMsg);
             this->cvMsg.wait(lk, [this] {return this->gotFormat;});
         }
@@ -124,7 +123,7 @@ private:
         spdlog::info("evpuller {} got inputformat", selfId);
         try {
             // rep framectx
-            // TODO: verify sender id
+            // TODO: verify sender id?
             string sMeta = body2str(v[1]);
             string peerId = body2str(v[0]);
             auto meta = json::parse(sMeta);
@@ -414,7 +413,6 @@ protected:
             free(pAVFmtCtxBytes);
         }
 
-        // TODO:
         if(ret < 0 && !bStopSig) {
             // reconnect
         }

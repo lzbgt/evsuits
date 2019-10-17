@@ -26,7 +26,7 @@ string _config_default_tmpl = "{\"time\":0,\"code\":0,\"data\":{\"<SN_MGR>\":{\"
 const string _sn_tmpl[] = {"<SN_MGR>", "<SN_PULLER>", "<SN_PUSHER>", "<SN_SLICER>", "<SN_ML>"};
 const string _addr_tmpl[] = {"<ADDR_CAMERA>"};
 
-// TODO:
+// TODO: move to evcloudsvc ?
 string getStrRand(int length)
 {
     static bool bRand = false;

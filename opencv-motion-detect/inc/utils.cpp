@@ -154,7 +154,6 @@ int getPeerId(string modName, json& modElem, string &peerId, string &peerName)
 json getModuleGidsFromCfg(string sn, json &data, string caller, int ipcIdx)
 {
     json ret;
-    bool hasError = false;
     ret["code"] = 0;
     ret["msg"] = "ok";
     ret["data"] = json();
@@ -162,7 +161,6 @@ json getModuleGidsFromCfg(string sn, json &data, string caller, int ipcIdx)
     try {
         // lock_guard<mutex> lock(cacheLock);
         string peerId;
-        pid_t pid;
         for(auto &[k,v]:data.items()) {
             if(v.count("sn") == 0|| v["sn"].size() == 0 || v.count("ipcs") == 0 || v["ipcs"].size() == 0) {
                 msg += fmt::format( "\t\tcluster {} has no sn/ipcs field {}:{}", v.dump(), __FILE__, __LINE__);

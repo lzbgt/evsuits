@@ -112,8 +112,6 @@ private:
 
             addr = "tcp://*:" + to_string(config["portRouter"]);
             // setup zmq
-            // TODO: connect to cloud
-
             // router service
             pRouterCtx = zmq_ctx_new();
             pRouter = zmq_socket(pRouterCtx, ZMQ_ROUTER);

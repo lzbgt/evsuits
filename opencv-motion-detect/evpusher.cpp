@@ -179,7 +179,6 @@ private:
         ret = z_send_multiple(pDealer, body);
         if(ret < 0) {
             spdlog::error("evpusher {} {} failed to send multiple: {}", devSn, iid, zmq_strerror(zmq_errno()));
-            //TODO:
         }
         else {
             spdlog::info("evpusher {} sent hello to router: {}", selfId, mgrSn);

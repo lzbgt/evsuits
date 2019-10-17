@@ -520,7 +520,6 @@ private:
                 }
             }
             else {
-                // TODO:
                 spdlog::warn("evdaemon {} received unknown meta {} from {}", devSn, meta, selfId);
             }
         }
@@ -579,7 +578,6 @@ private:
                             }
 
                             if(bBootstrap) {
-                                // TODO: wait for previous started modules to connecting
                                 startSubSystems();
                             }
                             else {
@@ -665,8 +663,6 @@ public:
             else {
                 json info;
                 info["sn"] = sn;
-                // TODO:
-
                 info["lastboot"] =  chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                 LVDB::setSn(info);
             }
@@ -689,8 +685,6 @@ public:
 
                 LVDB::setLocalConfig(newConfig);
                 spdlog::info("evmgr new config: {}", newConfig.dump());
-                // TODO: restart other components
-                //
             }
             catch(exception &e) {
                 ret.clear();

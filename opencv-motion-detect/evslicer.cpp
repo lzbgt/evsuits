@@ -394,7 +394,6 @@ private:
         ret = z_send_multiple(pDealer, body);
         if(ret < 0) {
             spdlog::error("evslicer {} failed to send multiple: {}", selfId, zmq_strerror(zmq_errno()));
-            //TODO:
         }
         else {
             spdlog::info("evslicer {} sent hello to router: {}", selfId, mgrSn);
@@ -929,7 +928,6 @@ public:
                     auto tse = jEvt["end"].get<long>();
                     long offsetS = 0;
                     long offsetE = 0;
-                    // TODO: async
 
                     if(tss < this->bootTime) {
                         spdlog::warn("evslicer {} should we discard old msg?  {} <  bootTime {}", selfId, evt, this->bootTime);
@@ -1004,8 +1002,7 @@ public:
                                                 cvEvent.notify_one();
                                             }
                                         }else if(resp["code"] == 6) {
-                                            // cloud storage issue
-                                            // TODO:
+                                            // TODO: cloud storage issue. need stratigy policy
                                         }
                                     }
                                 }
