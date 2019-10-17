@@ -1003,6 +1003,9 @@ public:
                                                 }
                                                 cvEvent.notify_one();
                                             }
+                                        }else if(resp["code"] == 6) {
+                                            // cloud storage issue
+                                            // TODO:
                                         }
                                     }
                                 }
