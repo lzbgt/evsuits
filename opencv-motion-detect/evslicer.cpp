@@ -785,9 +785,7 @@ protected:
             spdlog::info("evslicer {} event range ({}, {}) is not in range ({}, {}).", selfId, tss, tse, first, end);
             return ret;
         }
-            
-        
-
+    
         first = end = 0;
         set<long> tmp;
         int found = 0;
@@ -797,26 +795,20 @@ protected:
                 continue;
             }
 
-            if(tse <= *itr) {
-                if((found &1) != 1) {
+            if(*itr <= tse) {
+                if(found != 1) {
                     spdlog::info("\t matched file: {}, s:{}, e:{}", *itr, tss, tse);
-                    found |= 1;
+                    found = 1;
                 }
-                tmp.insert(*itr);
-                continue;
-            }
 
-            if(tss >= *itr && (found &1)) {
-                if((found &2) != 2) {
-                    tmp.insert(*itr);
-                    spdlog::info("\t matched file: {}, s:{}, e:{}", *itr, tss, tse);
-                    found |=2;
+                tmp.insert(*itr);
+                if(tss >= *itr) {
                     break;
                 }
-            } 
+            }
         }
 
-        if(found & 1 ) {
+        if(found  == 1) {
             string sf;
             auto itr = tmp.begin();
             for(; itr != tmp.end(); itr++) {
@@ -953,10 +945,10 @@ public:
                     }
 
                     if(tse < first) {
-                        spdlog::info("evslicer {} event range ({}, {}) is not in range ({}, {}).", selfId, tss, tse, first, end);
+                        spdlog::info("evslicer {} thEventHandler event range ({}, {}) is not in range ({}, {}).", selfId, tss, tse, first, end);
                         return ret;
                     }else if(first == 0||tss > end) {
-                        spdlog::info("evslicer {} event range ({}, {}) is not in range ({}, {}), resched to run in {}s.", selfId, tss, tse, first, end, this->seconds + 5);
+                        spdlog::info("evslicer {} thEventHandler event range ({}, {}) is not in range ({}, {}), resched to run in {}s.", selfId, tss, tse, first, end, this->seconds + 5);
                         thread([this, evt]{
                             this_thread::sleep_for(chrono::seconds(this->seconds + 5));
                             lock_guard<mutex> lock(this->mutEvent);
@@ -971,7 +963,7 @@ public:
 
                     auto v = findSlicesByRange(tss, tse, offsetS, offsetE);
                     if(v.size() == 0) {
-                        spdlog::error("evslicer {} event ({}, {}) = ({}, {}) not in range: ({}, {}), ({}, {})", this->selfId, tss, tse, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse), first, end, this->videoFileTs2Name(first), this->videoFileTs2Name(end));
+                        spdlog::error("evslicer {} thEventHandler event ({}, {}) = ({}, {}) not in range: ({}, {}), ({}, {})", this->selfId, tss, tse, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse), first, end, this->videoFileTs2Name(first), this->videoFileTs2Name(end));
                     }
                     else {
                         vector<tuple<string, string> > params= {{"startTime", to_string(tss)},{"endTime", to_string(tse)},{"cameraId", ipcSn}, {"headOffset", to_string(offsetS)},{"tailOffset", to_string(offsetE)}};
