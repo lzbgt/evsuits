@@ -260,12 +260,11 @@ private:
                             pAVFormatInput = (AVFormatContext *)malloc(sizeof(AVFormatContext));
                             AVFormatCtxSerializer::decode((char *)(v[2].data()), v[2].size(), pAVFormatInput);
                             gotFormat = true;
-                            bProcessed = true;
                             cvMsg.notify_one();
                         }else{
                             spdlog::warn("evpusher {} received avformatctx msg from {}, but already proceessed before, ignored. TODO: reinit", selfId, peerId);
                         }
-                        
+                        bProcessed = true;
                     }
                 }
             }

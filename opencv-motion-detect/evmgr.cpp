@@ -322,6 +322,9 @@ error_exit:
                             }
                         }
                         bProcessed = true;
+                    }else if(jmeta["type"] == EV_MSG_META_AVFORMATCTX) {
+                        bProcessed = true;
+                        // ignore;
                     }
                 }catch(exception &e) {
                     bProcessed = false;
