@@ -908,7 +908,7 @@ public:
             {
                 string evt;
                 int ret = 0;
-
+                // scoped
                 {
                     unique_lock<mutex> lk(this->mutEvent);
                     this->cvEvent.wait(lk, [this] {return !(this->eventQueue.empty());});
@@ -944,19 +944,21 @@ public:
 
                     if(tse < first) {
                         spdlog::info("evslicer {} thEventHandler event range ({}, {}) is not in range ({}, {}).", selfId, tss, tse, first, end);
-                        return ret;
+                        continue;
                     }else if(first == 0||tse > end) {
                         spdlog::info("evslicer {} thEventHandler event range ({}, {}) is not in range ({}, {}), resched to run in {}s.", selfId, tss, tse, first, end, this->seconds + 5);
-                        thread([this, evt]{
+                        auto th = thread([evt, this](){
                             this_thread::sleep_for(chrono::seconds(this->seconds + 5));
-                            //lock_guard<mutex> lock(this->mutEvent);
+                            lock_guard<mutex> lock(this->mutEvent);
                             this->eventQueue.push(evt);
                             if(eventQueue.size() > MAX_EVENT_QUEUE_SIZE) {
                                 eventQueue.pop();
                             }
-                            //cvEvent.notify_one();
-                        }).detach();
-                        return ret;
+                            cvEvent.notify_one();
+                        });
+
+                        th.detach();
+                        continue;
                     }
 
                     auto v = findSlicesByRange(tss, tse, offsetS, offsetE);
@@ -980,7 +982,7 @@ public:
                         }
                         else {
 
-                            spdlog::info("evslicer {} successfully uploaded ({}, {}). local({}, {}) files:\n{}", selfId, tss, tse, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse), first, end, sf);
+                            spdlog::info("evslicer {} successfully uploaded ({}, {}). local({}, {}) files:\n{}", selfId, tss, tse, first, end, sf);
                         }
                     }
                 }
