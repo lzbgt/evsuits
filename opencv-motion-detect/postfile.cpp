@@ -1,7 +1,7 @@
 #include "postfile.h"
 
 namespace netutils{
-
+// private
 static void libcurlInit(){
   static bool inited = false;
   if(inited == false) {
@@ -10,7 +10,14 @@ static void libcurlInit(){
   }
 }
 
-int postFiles(string &&url, vector<tuple<string, string> > &&params, vector<string> &&fileNames){
+// private
+static size_t WriteCallback(char *contents, size_t size, size_t nmemb, void *userp)
+{
+    ((std::string*)userp)->append((char*)contents, size * nmemb);
+    return size * nmemb;
+}
+
+int postFiles(string &&url, vector<tuple<string, string> > &&params, vector<string> &&fileNames, string &response){
   CURL *curl;
   CURLcode res;
   curl_mime *form = NULL;
@@ -49,6 +56,8 @@ int postFiles(string &&url, vector<tuple<string, string> > &&params, vector<stri
   curl_easy_setopt(curl, CURLOPT_URL, _url.c_str());
   //curl_easy_setopt(curl, CURLOPT_POSTFIELDS, queryString.c_str());
   curl_easy_setopt(curl, CURLOPT_MIMEPOST, form);
+  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+  curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
   /* Perform the request, res will get the return code */
   res = curl_easy_perform(curl);
   /* Check for errors */

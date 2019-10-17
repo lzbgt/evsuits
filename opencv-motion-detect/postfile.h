@@ -9,7 +9,7 @@
 
 namespace netutils{
 using namespace std;
-int postFiles(string &&url, vector<tuple<string, string> > &&params, vector<string> &&fileNames);
+int postFiles(string &&url, vector<tuple<string, string> > &&params, vector<string> &&fileNames, string &resp);
 
 }
 

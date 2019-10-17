@@ -977,12 +977,38 @@ public:
 
                         spdlog::info("evslicer {} file upload range:({},{}) = ({}, {}), url: {}", selfId, tss, tse, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse), this->videoFileServerApi);
                         // TODO: check result and reschedule it
-                        if(netutils::postFiles(std::move(this->videoFileServerApi), std::move(params), std::move(fileNames)) != 0) {
+                        string strResp;
+                        if(netutils::postFiles(std::move(this->videoFileServerApi), std::move(params), std::move(fileNames), strResp) != 0) {
                             spdlog::error("evslicer {} failed to upload files:\n{}", selfId, sf);
                         }
                         else {
-
-                            spdlog::info("evslicer {} successfully uploaded ({}, {}). local({}, {}) files:\n{}", selfId, tss, tse, first, end, sf);
+                            spdlog::info("evslicer {} successfully uploaded ({}, {}). local({}, {}). resp: {} files:\n{}", selfId, tss, tse, first, end, strResp, sf);
+                            try{
+                                auto resp = json::parse(strResp);
+                                //TODO: open this swith when video server has implemented this functionality
+                                if(false){
+                                    if(resp.count("code") != 0 && resp["code"] != 0) {
+                                        if(resp["code"] == 4|| resp["code"] == 7) {
+                                            if(jEvt.count("cnt") == 0) {
+                                                jEvt["cnt"] = 0;
+                                            }
+                                            if(jEvt["cnt"].get<int>() > 10) {
+                                                spdlog::error("evslicer {} failed to upload videos over 10 times, abort retrying: {}", this->selfId, jEvt.dump());
+                                            }else{
+                                                jEvt["cnt"] = jEvt["cnt"].get<int>() + 1;
+                                                lock_guard<mutex> lock(this->mutEvent);
+                                                this->eventQueue.push(jEvt.dump());
+                                                if(eventQueue.size() > MAX_EVENT_QUEUE_SIZE) {
+                                                    eventQueue.pop();
+                                                }
+                                                cvEvent.notify_one();
+                                            }
+                                        }
+                                    }
+                                }
+                            }catch(exception &e) {
+                                spdlog::error("evslicer {} {}:{} exception: {}", this->selfId, __FILE__, __LINE__, e.what());
+                            }
                         }
                     }
                 }
