@@ -334,9 +334,6 @@ protected:
             spdlog::error("evpuller {} failed create avformatcontext for output: {}", selfId, av_err2str(AVERROR(ENOMEM)));
         }
 
-        // broadcast
-        sendAVInputCtxMsg("");
-
         // serialize formatctx to bytes
         // be attention to the scope of lock guard!
         {
@@ -346,6 +343,8 @@ protected:
                 spdlog::error("evpuller {} failed to pull packet from {}. exiting...", selfId, urlIn);
                 exit(1);
             }
+            // broadcast
+            sendAVInputCtxMsg("");
             gotFormat = true;
             cvMsg.notify_one();
         }
