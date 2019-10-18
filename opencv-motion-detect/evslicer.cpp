@@ -1013,9 +1013,8 @@ public:
                                     try{
                                         ofstream ofs(fname);
                                         ofs << postArgs;
-                                        fs::path dirDest("/var/data/evsuits/failed_events/");
                                         for(auto &f:fileNames){
-                                            fs::copy(fs::path(string(f)), dirDest);
+                                            fs::copy(fs::path(string(f)),fs::path(dirDest));
                                         }
 
                                     }catch(exception &e) {
