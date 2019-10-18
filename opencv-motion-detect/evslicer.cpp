@@ -1003,8 +1003,24 @@ public:
 
                                 if(jEvt["cnt"].get<int>() <= 0) {
                                     spdlog::error("evslicer {} failed to upload videos over N times, abort retrying: {}", selfId, evt);
-                                    // move to failed folder
+                                    // TODO: move to failed folder
                                     system(string("mkdir -p /var/data/evsuits/failed_events/").c_str());
+                                    json postArgs;
+                                    postArgs["params"] = params;
+                                    postArgs["fileNames"] = fileNames;
+                                    string fname = params["startTime"].get<string>() + "_" + params["endTime"].get<string>() + "evt.json";
+                                    try{
+                                        ofstream ofs(fname);
+                                        ofs << postArgs;
+                                        fs::path dirDest("/var/data/evsuits/failed_events/");
+                                        for(auto &f:fileNames){
+                                            fs::copy(fs::path(f), dirDest);
+                                        }
+
+                                    }catch(exception &e) {
+                                        spdlog::error("evcloudsvc {} {}:{} exception: {}", selfId, __FILE__, __LINE__, e.what());
+                                    }
+                                    
                                 }else{
                                     spdlog::info("evslicer {} retrying upload", selfId);
                                     jEvt["cnt"] = jEvt["cnt"].get<int>() - 1;
