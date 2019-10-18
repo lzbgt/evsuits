@@ -721,7 +721,11 @@ protected:
 
         if(_list.size() > maxSize) {
             lock_guard<mutex> lg(mutTsList);
+            auto ts = *(_list.begin());
             _list.erase(_list.begin());
+            auto baseName = videoFileTs2Name(ts);
+            fs::path fname(this->urlOut + "/" + baseName + ".mp4");
+            fs::remove(fname);
         }
     }
 
