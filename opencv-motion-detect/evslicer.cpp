@@ -976,10 +976,19 @@ public:
                         params["tailOffset"] = to_string(offsetE);
                         json fileNames;
                         string sf;
+                        bool hasError = false;
                         for(auto &i: v) {
                             string fname = this->urlOut + "/" + i + ".mp4";
+                            if(fs::file_size(fname) == 0) {
+                                spdlog::error("evslicer {} video size is 0: {}. ignore this event: {}", this->selfId, fname, evt);
+                                hasError = true;
+                                break;
+                            }
                             fileNames.push_back(fname);
                             sf+="\tfile\t" + fname + "\n";
+                        }
+                        if(hasError) {
+                            continue;
                         }
 
                         spdlog::info("evslicer {} file upload range:({},{}) = ({}, {}), url: {}", selfId, tss, tse, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse), this->videoFileServerApi);
