@@ -738,21 +738,27 @@ private:
     string delReleaseBundle(string bid) {
         string ret;
         int stackId = -1;
+        bool handled = false;
+        bool isNumber = true;
         if(bid.empty()) {
             ret = "empty release bundle id";
         }else{
             try{
                 stackId = stoi(bid);
             }catch(exception &e) {
-                stackId = -1;
+                isNumber = false;
             }
 
             if(this->releaseBundle.size() != 0 && this->releaseBundle.count("bundles") != 0) {
                 auto &bunds = this->releaseBundle["bundles"];
-                bool handled = false;
-                int idx = bunds.size() - 1 - stackId;
-                spdlog::info("idx: {}", idx);
-                if(stackId >=0 && idx>= 0) {
+                if(isNumber) {
+                    int idx = bunds.size() - 1 - stackId;
+                    if(idx < 0) {
+                        ret = "no such release config";
+                        return ret;
+                    }
+
+                    spdlog::info("idx: {}", idx);
                     if(idx == this->releaseBundle["activeIdx"].get<int>()){
                         ret = "can't delete active release bundle";
                     }else{
@@ -763,27 +769,14 @@ private:
                         handled = true;
                     }
                 }
-                else if(stackId >=0  && bunds.size() - 1 - stackId < 0)
-                {
-                    ret = "release bundle not exist";
-                }
                 else{
                     // releaseId style
                     int idx = 0;
                     for(auto r: bunds) {
                         if(r["releaseId"] == bid) {
-                            bunds.erase(idx);
-                            handled = true;
-                            break;
+                            return delReleaseBundle(to_string(idx));
                         }
                         idx++;
-                    }
-                    if(handled) {
-                        if(idx < this->releaseBundle["activeIdx"]) {
-                            this->releaseBundle["activeIdx"] = this->releaseBundle["activeIdx"].get<int>() -1;
-                        }
-                    }else{
-                        ret = "release bundle not exist";
                     }
                 }
                 if(handled) {
