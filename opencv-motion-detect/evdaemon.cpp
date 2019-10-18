@@ -305,7 +305,8 @@ private:
                         // stop
                         this->peerData["status"][k] = 1; // disabled
                         sendCmd2Peer(k, EV_MSG_META_VALUE_CMD_STOP, "0");
-                    }else if(v == 1) { // perm stop
+                    }
+                    else if(v == 1) {  // perm stop
                         this->peerData["status"][k] = 2;
                         this->peerData["config"].erase(k);
                         sendCmd2Peer(k, EV_MSG_META_VALUE_CMD_STOP, "0");
@@ -330,7 +331,7 @@ private:
                         else {
                             if(int(v) == 3) {
                                 sendCmd2Peer(k, EV_MSG_META_VALUE_CMD_STOP, to_string(v));
-                            }            
+                            }
                         }
                     }
                     else {
@@ -382,18 +383,21 @@ private:
                 spdlog::info("evdaemon {} peer connected: {}", devSn, selfId);
                 if(this->peerData["tsLastConn"].count(selfId) == 0) {
                     this->peerData["tsLastConn"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
-                }else{
+                }
+                else {
                     if(this->peerData["contConn"].count(selfId) == 0) {
                         this->peerData["contConn"][selfId] = 0;
-                    }else{
+                    }
+                    else {
 
                         auto delta = this->peerData["contConn"][selfId].get<long>() - chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                         if(delta < 3) { // within 3s
                             this->peerData["contConn"][selfId] =  this->peerData["contConn"][selfId].get<int>() + 1;
-                        }else{
+                        }
+                        else {
                             this->peerData["contConn"][selfId] = 0;
                         }
-                        // refer to startSubsystems          
+                        // refer to startSubsystems
                     }
                     this->peerData["tsLastConn"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                 }
@@ -409,9 +413,10 @@ private:
                 spdlog::info("evdaemon {} peer {} config sent: {}", devSn,selfId, cfg);
             }
             else {
-                if(peerData["status"][selfId] == 1 || peerData["status"][selfId] == 2){
+                if(peerData["status"][selfId] == 1 || peerData["status"][selfId] == 2) {
                     spdlog::warn("evdaemon {} refuse to start {}: it was asked to be stopped, and is removed from cluster config", this->devSn, selfId);
-                }else{
+                }
+                else {
                     peerData["status"][selfId] = 0;
                     if(peerData["pids"].count(selfId) != 0) {
                         peerData["pids"].erase(selfId);
@@ -420,7 +425,8 @@ private:
                     if(this->bBootstrap) {
                         spdlog::warn("evdaemon {} peer {} disconnected. restarting it.", devSn, selfId);
                         startSubSystems({selfId});
-                    }else{
+                    }
+                    else {
                         spdlog::warn("evdaemon {} peer {} disconnected. won't restart it since BOOTSTRAP=false", devSn, selfId);
                     }
                 }
@@ -538,7 +544,7 @@ private:
         }
 
         spdlog::info("evdaemon {} received msg from cloud: {}", devSn, msg);
-    
+
         if(v.size() != 3) {
             spdlog::error("evdaemon {} received invalid msg from evcloudsvc {}", devSn, msg);
         }
@@ -584,46 +590,55 @@ private:
                                 spdlog::info("evdaemon {} skip startup subsystems since BOOTSTRAP is set to false", devSn);
                             }
                         }
-                    }else if(meta == EV_MSG_META_TYPE_CMD){
+                    }
+                    else if(meta == EV_MSG_META_TYPE_CMD) {
                         spdlog::info("evdaemon {} received cmd from cloud: {}", devSn, msg);
                         if(data.count("target") != 0 && data["target"].is_string() && data.count("metaType") !=0  && data["metaType"].is_string() &&
-                            data.count("data") != 0 && data["data"].is_object() && data.count("metaValue") !=0  && data["metaValue"].is_string()) {
+                                data.count("data") != 0 && data["data"].is_object() && data.count("metaValue") !=0  && data["metaValue"].is_string()) {
                             string target = data["target"];
                             auto v = strutils::split(target, ':');
                             if(v.size() == 1) {
                                 spdlog::info("evdaemon {} received msg {} from cloud to itself. TODO: functionality extending points such as debug tunnel", devSn, data.dump());
-                            }else if(v.size() == 3){
+                            }
+                            else if(v.size() == 3) {
                                 if(this->peerData["status"].count(target) == 0 || this->peerData["status"][target] == 0 || this->peerData["status"] == -1) {
                                     spdlog::error("evdaemon {} received {} msg from cloud to {}: {}, but its offline", devSn, meta, target, data.dump());
-                                }else{
+                                }
+                                else {
                                     ret = sendCmd2Peer(target, data["metaValue"], data.dump());
                                     if(ret < 0) {
                                         spdlog::error("evdaemon {} failed to send msg to peer {}: {}", devSn, data.dump(), zmq_strerror(zmq_errno()));
-                                    }else{
+                                    }
+                                    else {
                                         spdlog::info("evdaemon {} successfully relayed {} msg from cloud to {}: {}", devSn, meta, target, data.dump());
                                     }
                                 }
-                            }else{
+                            }
+                            else {
                                 spdlog::info("well");
                             }
-                            
-                        }else{
+
+                        }
+                        else {
                             spdlog::info("done");
                         }
-                    }else if(meta == EV_MSG_META_PONG) {
+                    }
+                    else if(meta == EV_MSG_META_PONG) {
                         string info;
                         if(data.count("data") != 0 ) {
                             if(data["data"].is_string()) {
                                 info = fmt::format("evdaemon {} received pong msg from evcloudsvc: {}", devSn, data["data"].get<string>());
-                            }else if (data["data"].is_object()) {
+                            }
+                            else if (data["data"].is_object()) {
                                 info = fmt::format("evdaemon {} received pong msg from evcloudsvc: {}", devSn, data["data"].dump());
                             }
-                        }else{
+                        }
+                        else {
                             info = fmt::format("evdaemon {} received pong msg from evcloudsvc.", devSn);
                         }
                         spdlog::info(info);
                     }
-                    else{
+                    else {
                         spdlog::info("evdaemon {} received msg from cloud that having no handler implemented: {}", devSn, msg);
                     }
                 }
@@ -718,7 +733,7 @@ public:
     {
 
         // killall subsystems
-        
+
         /// peerId -> value
         peerData["status"] = json();
         peerData["pids"] = json();
@@ -822,8 +837,8 @@ public:
                     handleCloudMsg(v);
                     spdlog::info("evdaemon {} successfully handled msg from evcloudsvc", this->devSn);
                 }
-                
-                
+
+
             }
         });
 

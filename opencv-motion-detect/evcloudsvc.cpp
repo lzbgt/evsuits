@@ -100,10 +100,11 @@ private:
         ret = z_send_multiple(pRouter, v);
         if(ret <0) {
             spdlog::error("evcloudsvc failed to send config to {}", sn);
-        }else{
+        }
+        else {
             spdlog::info("evcloudsvc config sent to {}: {}", sn, cfg);
         }
-        
+
         //}
 
         return ret;
@@ -373,7 +374,7 @@ private:
             if(data["code"] != 0) {
                 json resp;
                 resp["target"] = selfId,
-                resp["metaType"] = EV_MSG_META_PONG;
+                                 resp["metaType"] = EV_MSG_META_PONG;
                 resp["data"] = data["msg"];
                 sendEdgeMsg(resp);
             }
@@ -482,7 +483,8 @@ private:
                                 spdlog::error("evcloudsvc {} failed to send multiple: {}", devSn, zmq_strerror(zmq_errno()));
                             }
                         }
-                    }else{
+                    }
+                    else {
                         json resp;
                         resp["metaType"] = EV_MSG_META_PONG;
                         resp["target"] = selfId;
@@ -561,12 +563,13 @@ private:
     // eventToSlicer["end"]
     // eventToSlicer["sender"] = selfId;
 
-    json sendEdgeMsg(json &body) {
+    json sendEdgeMsg(json &body)
+    {
         json ret;
         ret["code"] = 0;
         ret["msg"] = "ok";
         string msg;
-        try{
+        try {
             auto target = body["target"].get<string>();
             auto v = strutils::split(target, ':');
             if(v.size() == 1 || v.size() == 3) {
@@ -574,26 +577,30 @@ private:
                 meta["type"] = body["metaType"];
                 if(body.count("metaValue") == 0) {
                     // meta["value"] = "";
-                }else{
+                }
+                else {
                     meta["value"] = body["metaValue"];
                 }
-                
+
                 body["sender"] = devSn;
-                if(peerData["status"].count(v[0]) == 0 || peerData["status"][v[0]] == 0){
+                if(peerData["status"].count(v[0]) == 0 || peerData["status"][v[0]] == 0) {
                     spdlog::warn("evcloudsvc sent msg {} to {}, but it was offline", body.dump(), v[0]);
-                }else{
+                }
+                else {
                 }
                 int i= z_send(pRouter, v[0], devSn, meta, body.dump());
                 if(i < 0) {
-                    msg = fmt::format("evcloudsvc failed to z_zend msg: {} :{}",zmq_strerror(zmq_errno()) ,body.dump());
+                    msg = fmt::format("evcloudsvc failed to z_zend msg: {} :{}",zmq_strerror(zmq_errno()),body.dump());
                     throw StrException(msg);
                 }
-            }else{
+            }
+            else {
                 msg = fmt::format("evcloudsvc invliad target field({}) in body: {}", target, body.dump());
                 throw StrException(msg);
             }
 
-        }catch(exception &e) {
+        }
+        catch(exception &e) {
             ret["msg"] = e.what();
             spdlog::error(e.what());
             ret["code"] = -1;
@@ -602,26 +609,30 @@ private:
         return ret;
     }
 
-    json handleCmd(json &body){
+    json handleCmd(json &body)
+    {
         json ret;
         ret["code"] = -1;
         ret["msg"] = "unkown msg";
         spdlog::info("evcloudsvc handle cmd: {}", body.dump());
         if(body.count("target") != 0 && body["target"].is_string() && body.count("metaType") !=0  && body["metaType"].is_string() &&
-            body.count("data") != 0 && body["data"].is_object() && body.count("metaValue") !=0  && body["metaValue"].is_string()) {
+                body.count("data") != 0 && body["data"].is_object() && body.count("metaValue") !=0  && body["metaValue"].is_string()) {
             // it's msg to edge.
             return sendEdgeMsg(body);
-        }else{
+        }
+        else {
             return ret;
         }
     }
 
-    json getReleaseBundle(string bid) {
+    json getReleaseBundle(string bid)
+    {
         json ret;
         return ret;
     }
 
-    json addReleaseBundle(json &bundle) {
+    json addReleaseBundle(json &bundle)
+    {
         json ret;
         return ret;
     }
@@ -752,10 +763,11 @@ public:
             string msg;
             ret["code"] = 0;
             ret["msg"] = "ok";
-            try{
+            try {
                 auto body = json::parse(req.body);
                 ret = this->handleCmd(body);
-            }catch(exception &e) {
+            }
+            catch(exception &e) {
                 ret["code"] = -1;
                 msg = fmt::format("evcloudsvc Post /cmd Exception: {}", e.what());
                 spdlog::error(msg);
@@ -807,12 +819,13 @@ public:
                 }
 
                 if(this->configMap.count("mod2mgr") ==0 || this->configMap["mod2mgr"].size() ==0) {
-                }else{
+                }
+                else {
                     for(auto &k:mods) {
                         this->configMap["mod2mgr"].erase(k);
                     }
                 }
-                
+
                 this->configMap.erase(sn);
                 this->peerData.erase(sn);
                 spdlog::info("evcloudsvc removed sn: {}", sn);
@@ -827,11 +840,12 @@ public:
             string msg;
             ret["code"] = 0;
             ret["msg"] = "ok";
-            try{
+            try {
                 string bundleId = req.get_param_value("bId");
                 auto body = json::parse(req.body);
                 ret = this->getReleaseBundle(bundleId);
-            }catch(exception &e) {
+            }
+            catch(exception &e) {
                 ret["code"] = -1;
                 msg = fmt::format("evcloudsvc Get /release Exception: {}", e.what());
                 spdlog::error(msg);
@@ -846,10 +860,11 @@ public:
             string msg;
             ret["code"] = 0;
             ret["msg"] = "ok";
-            try{
+            try {
                 auto body = json::parse(req.body);
                 ret = this->addReleaseBundle(body);
-            }catch(exception &e) {
+            }
+            catch(exception &e) {
                 ret["code"] = -1;
                 msg = fmt::format("evcloudsvc Post /release Exception: {}", e.what());
                 spdlog::error(msg);
@@ -883,7 +898,7 @@ public:
             spdlog::error("evcloudsvc failed setup router: {}", addr);
             exit(1);
         }
-        
+
         // setup edge msg processor
         thMsgProcessor = thread([this]() {
             while(true) {

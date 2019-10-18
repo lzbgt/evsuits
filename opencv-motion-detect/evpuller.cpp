@@ -91,17 +91,19 @@ private:
         return ret;
     }
 
-    void sendAVInputCtxMsg(string peerId){
+    void sendAVInputCtxMsg(string peerId)
+    {
         json meta;
         auto msgBody = data2body(const_cast<char*>(pAVFmtCtxBytes), lenAVFmtCtxBytes);
-        if(peerId.empty()){
+        if(peerId.empty()) {
             meta["type"] = EV_MSG_META_TYPE_BROADCAST;
             meta["value"] = EV_MSG_META_AVFORMATCTX;
             peerId = this->mgrSn + ":evmgr:0";
-        }else{
+        }
+        else {
             meta["type"] = EV_MSG_META_AVFORMATCTX;
         }
-        
+
         vector<vector<uint8_t> > rep = {str2body(peerId), str2body(meta.dump()), msgBody};
         int ret = z_send_multiple(pDealer, rep);
         if(ret < 0) {
@@ -236,14 +238,16 @@ private:
             int portPub = 5556;
             if(evpuller.count("portPub") != 0 && evpuller["portPub"].is_number_integer()) {
                 portPub = evpuller["portPub"];
-            }else if(evpuller.count("port-pub") != 0 && evpuller["port-pub"].is_number_integer()){
+            }
+            else if(evpuller.count("port-pub") != 0 && evpuller["port-pub"].is_number_integer()) {
                 portPub = evpuller["port-pub"];
             }
 
             int portRouter = 5550;
             if(evmgr.count("portRouter") != 0 && evmgr["portRouter"].is_number_integer()) {
                 portRouter = evmgr["portRouter"];
-            }else if(evmgr.count("port-router") != 0 && evmgr["port-router"].is_number_integer()) {
+            }
+            else if(evmgr.count("port-router") != 0 && evmgr["port-router"].is_number_integer()) {
                 portRouter = evmgr["port-router"];
             }
 

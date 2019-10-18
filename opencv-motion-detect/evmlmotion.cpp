@@ -159,7 +159,8 @@ private:
                             AVFormatCtxSerializer::decode((char *)(v[2].data()), v[2].size(), pAVFormatInput);
                             gotFormat = true;
                             cvMsg.notify_one();
-                        }else{
+                        }
+                        else {
                             spdlog::warn("evmlmotion {} received avformatctx msg from {}, but already proceessed before, ignored. TODO: reinit", selfId, peerId);
                         }
                         bProcessed = true;
@@ -223,14 +224,16 @@ private:
             int portPub = 5556;
             if(evpuller.count("portPub") != 0 && evpuller["portPub"].is_number_integer()) {
                 portPub = evpuller["portPub"];
-            }else if(evpuller.count("port-pub") != 0 && evpuller["port-pub"].is_number_integer()){
+            }
+            else if(evpuller.count("port-pub") != 0 && evpuller["port-pub"].is_number_integer()) {
                 portPub = evpuller["port-pub"];
             }
 
             int portRouter = 5550;
             if(evmgr.count("portRouter") != 0 && evmgr["portRouter"].is_number_integer()) {
                 portRouter = evmgr["portRouter"];
-            }else if(evmgr.count("port-router") != 0 && evmgr["port-router"].is_number_integer()) {
+            }
+            else if(evmgr.count("port-router") != 0 && evmgr["port-router"].is_number_integer()) {
                 portRouter = evmgr["port-router"];
             }
 
@@ -646,7 +649,7 @@ protected:
         zmq_msg_t msg;
         AVPacket packet;
         json eventToSlicer;
-        
+
         // eventToSlicer["type"] = "event";
         // eventTOSlicer["extraInfo"] = json(); //array
         // eventToSlicer["start"]

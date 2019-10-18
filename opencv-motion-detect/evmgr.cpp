@@ -155,7 +155,7 @@ error_exit:
                 this->handleCloudMsg(body);
             }
         });
-        thCloudMsgHandler.detach();   
+        thCloudMsgHandler.detach();
 
         spdlog::info("evmgr {} successfuly inited", devSn);
     }
@@ -273,7 +273,8 @@ error_exit:
                 }
 
                 bProcessed = true;
-            } catch(exception &e) {
+            }
+            catch(exception &e) {
                 bProcessed = false;
                 spdlog::error("evmgr {} exception parse event msg from {} to {}: ", devSn, selfId, peerId, e.what());
             }
@@ -300,7 +301,7 @@ error_exit:
                 bProcessed = true;
             }
             else {
-                try{
+                try {
                     json jmeta = json::parse(meta);
                     if(jmeta["type"] == EV_MSG_META_TYPE_BROADCAST) {
                         if(jmeta.count("value") != 0) {
@@ -313,20 +314,23 @@ error_exit:
                                     ret = z_send_multiple(pRouter, broadCastMsg);
                                     if(ret < 0) {
                                         spdlog::error("evmgr {} failed to broadcast msg from {} because {}. msg meta: {}", devSn, selfId, zmq_strerror(zmq_errno()), meta);
-                                    }else{
+                                    }
+                                    else {
                                         spdlog::info("evmgr {} successfully broadcast msg from {} to {}. msg meta: {}", devSn, selfId, k, meta);
                                     }
                                 }
                             }
                         }
                         bProcessed = true;
-                    }else if(jmeta["type"] == EV_MSG_META_AVFORMATCTX) {
+                    }
+                    else if(jmeta["type"] == EV_MSG_META_AVFORMATCTX) {
                         bProcessed = true;
                         // ignore;
                     }
-                }catch(exception &e) {
+                }
+                catch(exception &e) {
                     bProcessed = false;
-                    spdlog::error("evmgr {} exception process msg from {} with meta {}: {}", devSn, selfId, meta, e.what());      
+                    spdlog::error("evmgr {} exception process msg from {} with meta {}: {}", devSn, selfId, meta, e.what());
                 }
             }
         }
@@ -349,12 +353,12 @@ protected:
                 bStopSig = true;
                 break;
             }
-            
+
             // if(1 == getppid()) {
             //     spdlog::error("evmgr {} exit since evdaemon is dead", devSn);
             //     exit(1);
             // }
-            
+
             auto body = z_recv_multiple(pRouter,false);
             if(body.size() == 0) {
                 spdlog::error("evmgr {} failed to receive multiple msg: {}", devSn, zmq_strerror(zmq_errno()));

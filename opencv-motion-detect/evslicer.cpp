@@ -98,9 +98,10 @@ private:
                         gotFormat = true;
                         cvMsg.notify_one();
                         spdlog::info("evslicer {} got avformat from {}", selfId, peerId);
-                    }else{
+                    }
+                    else {
                         spdlog::warn("evslicer {} received avformatctx msg from {}, but already proceessed before, ignored. TODO: reinit", selfId, peerId);
-                    }                    
+                    }
                 }
                 else if(meta == EV_MSG_META_EVENT) {
                     data = json::parse(body2str(v[2]));
@@ -168,8 +169,9 @@ private:
                         spdlog::info("evslicer {} received {} cmd from cluster mgr {}", selfId, metaValue, daemonId);
                         bProcessed = true;
                         exit(0);
-                    }else if(metaValue == "debug:record") {
-                        try{
+                    }
+                    else if(metaValue == "debug:record") {
+                        try {
                             json body = json::parse(body2str(v[2]));
                             if(body.count("data") != 0 && body["data"].is_object() && body["data"].count("start") != 0 && body["data"]["start"].is_number() && body["data"].count("end") != 0 && body["data"]["end"].is_number()) {
                                 json evt;
@@ -180,26 +182,31 @@ private:
                                     lock_guard<mutex> lock(this->mutEvent);
                                     eventQueue.push(evt.dump());
                                     cvEvent.notify_one();
-                                }       
+                                }
                                 bProcessed = true;
                             }
-                        }catch(exception &e) {
+                        }
+                        catch(exception &e) {
                             spdlog::error("evslicer {} exception in handleCloudMsg: {}", selfId, e.what());
                         }
-                    }else if(metaValue == "debug:xxx"){
+                    }
+                    else if(metaValue == "debug:xxx") {
                         // TODO: remove debug feature
                         bProcessed = true;
-                    }else if(metaValue == "debug:list_files"){
+                    }
+                    else if(metaValue == "debug:list_files") {
                         // TODO: remove debug feature
                         printVideoFiles(this->sTsList);
                         bProcessed = true;
-                    }else if(metaValue == "debug:toggle_log") {
+                    }
+                    else if(metaValue == "debug:toggle_log") {
                         // TODO: remove debug feature
                         static bool toggle = false;
                         toggle = !toggle;
-                        if(toggle){
+                        if(toggle) {
                             spdlog::set_level(spdlog::level::debug);
-                        }else{
+                        }
+                        else {
                             spdlog::set_level(spdlog::level::info);
                         }
 
@@ -309,14 +316,16 @@ private:
             int portPub = 5556;
             if(evpuller.count("portPub") != 0 && evpuller["portPub"].is_number_integer()) {
                 portPub = evpuller["portPub"];
-            }else if(evpuller.count("port-pub") != 0 && evpuller["port-pub"].is_number_integer()){
+            }
+            else if(evpuller.count("port-pub") != 0 && evpuller["port-pub"].is_number_integer()) {
                 portPub = evpuller["port-pub"];
             }
 
             int portRouter = 5550;
             if(evmgr.count("portRouter") != 0 && evmgr["portRouter"].is_number_integer()) {
                 portRouter = evmgr["portRouter"];
-            }else if(evmgr.count("port-router") != 0 && evmgr["port-router"].is_number_integer()) {
+            }
+            else if(evmgr.count("port-router") != 0 && evmgr["port-router"].is_number_integer()) {
                 portRouter = evmgr["port-router"];
             }
 
@@ -698,7 +707,8 @@ protected:
         }
     }
 
-    void insertTsList(set<long> &_list, long elem, int maxSize) {
+    void insertTsList(set<long> &_list, long elem, int maxSize)
+    {
         // _list.insert(lower_bound(_list.begin(), _list.end(), elem), elem);
         if(_list.size() == 0) {
             _list.insert(_list.begin(),elem);
@@ -708,14 +718,15 @@ protected:
         auto itr = _list.rbegin();
 
         for(; itr != _list.rend(); itr++) {
-            if(*itr < elem){
+            if(*itr < elem) {
                 break;
             }
         }
 
         if(itr == _list.rbegin() ) {
             _list.insert(_list.end(), elem);
-        }else{
+        }
+        else {
             _list.insert(itr.base(), elem);
         }
 
@@ -731,7 +742,7 @@ protected:
 
     // file monitor callback
     static void fileMonHandler(const std::vector<event>& evts, void *pUserData)
-    {    
+    {
         static string lastFile;
         string ext = ".mp4";
         auto self = static_cast<EvSlicer*>(pUserData);
@@ -755,7 +766,8 @@ protected:
                     auto ts = self->videoFileName2Ts(baseName);
                     if(ts == -1) {
                         spdlog::error("evslicer {} fileMonHandler failed to process file: {}", self->selfId, lastFile);
-                    }else{
+                    }
+                    else {
                         self->insertTsList(self->sTsList, ts, self->numSlices);
                     }
                 }
@@ -774,7 +786,7 @@ protected:
     vector<string> findSlicesByRange(long tss, long tse, int offsetS, int offsetE)
     {
         vector<string> ret;
-        
+
         lock_guard<mutex> lg(mutTsList);
         if(this->sTsList.size() == 0) {
             return ret;
@@ -788,7 +800,7 @@ protected:
             spdlog::info("evslicer {} event range ({}, {}) is not in range ({}, {}).", selfId, tss, tse, first, end);
             return ret;
         }
-    
+
         first = end = 0;
         set<long> tmp;
         int found = 0;
@@ -920,7 +932,7 @@ public:
                         this->eventQueue.pop();
                     }
                 }
-                
+
                 if(evt.empty()) {
                     continue;
                 }
@@ -947,9 +959,10 @@ public:
                     if(tse < first) {
                         spdlog::info("evslicer {} thEventHandler event range ({}, {}) is not in range ({}, {}).", selfId, tss, tse, first, end);
                         continue;
-                    }else if(first == 0||tse > end) {
+                    }
+                    else if(first == 0||tse > end) {
                         spdlog::info("evslicer {} thEventHandler event range ({}, {}) is not in range ({}, {}), resched to run in {}s.", selfId, tss, tse, first, end, this->seconds + 5);
-                        auto th = thread([evt, this](){
+                        auto th = thread([evt, this]() {
                             this_thread::sleep_for(chrono::seconds(this->seconds + 5));
                             lock_guard<mutex> lock(this->mutEvent);
                             this->eventQueue.push(evt);
@@ -987,6 +1000,7 @@ public:
                             fileNames.push_back(fname);
                             sf+="\tfile\t" + fname + "\n";
                         }
+
                         if(hasError) {
                             continue;
                         }
@@ -1010,18 +1024,19 @@ public:
                                     postArgs["params"] = params;
                                     postArgs["fileNames"] = fileNames;
                                     string fname = dirDest + params["startTime"].get<string>() + "_" + params["endTime"].get<string>() + "evt.json";
-                                    try{
+                                    try {
                                         ofstream ofs(fname);
                                         ofs << postArgs;
-                                        for(auto &f:fileNames){
+                                        for(auto &f:fileNames) {
                                             fs::copy(fs::path(string(f)),fs::path(dirDest));
                                         }
-
-                                    }catch(exception &e) {
+                                    }
+                                    catch(exception &e) {
                                         spdlog::error("evcloudsvc {} {}:{} exception: {}", selfId, __FILE__, __LINE__, e.what());
                                     }
-                                    
-                                }else{
+
+                                }
+                                else {
                                     spdlog::info("evslicer {} retrying upload", selfId);
                                     jEvt["cnt"] = jEvt["cnt"].get<int>() - 1;
                                     lock_guard<mutex> lock(this->mutEvent);
@@ -1030,24 +1045,26 @@ public:
                                         eventQueue.pop();
                                     }
                                     cvEvent.notify_one();
-                                } 
+                                }
                             }
                         }
                         else {
                             spdlog::info("evslicer {} upload ({}, {}). local({}, {}). resp: {} files:\n{}", selfId, tss, tse, first, end, strResp, sf);
-                            if(ret > 0){
-                                try{
+                            if(ret > 0) {
+                                try {
                                     auto resp = json::parse(strResp);
                                     //TODO: open this swith when video server has implemented this functionality
-                                    if(true){
+                                    if(true) {
                                         if(resp.count("code") != 0 && resp["code"] != 0) {
                                             if(resp["code"] == 4|| resp["code"] == 7) {
                                                 if(jEvt.count("cnt") == 0) {
                                                     jEvt["cnt"] = 2;
-                                                }else{
+                                                }
+                                                else {
                                                     if(jEvt["cnt"].get<int>() <= 0) {
                                                         spdlog::error("evslicer {} failed to upload videos over N times, abort retrying: {}", this->selfId, evt);
-                                                    }else{
+                                                    }
+                                                    else {
                                                         jEvt["cnt"] = jEvt["cnt"].get<int>() - 1;
                                                         lock_guard<mutex> lock(this->mutEvent);
                                                         this->eventQueue.push(jEvt.dump());
@@ -1057,15 +1074,18 @@ public:
                                                         cvEvent.notify_one();
                                                     }
                                                 }
-                                            }else if(resp["code"] == 6) {
+                                            }
+                                            else if(resp["code"] == 6) {
                                                 // TODO: cloud storage issue. need stratigy policy
                                                 spdlog::warn("evslicer {} TODO: handle cloud storage", this->selfId);
-                                            }else{
+                                            }
+                                            else {
                                                 spdlog::error("evslicer {} failed to upload videos. abort retry.", this->selfId);
                                             }
                                         }
                                     }
-                                }catch(exception &e) {
+                                }
+                                catch(exception &e) {
                                     spdlog::error("evslicer {} {}:{} exception: {}", this->selfId, __FILE__, __LINE__, e.what());
                                 }
                             }
