@@ -23,6 +23,7 @@ int postFiles(string &&url, vector<tuple<string, string> > &&params, vector<stri
   curl_mime *form = NULL;
   curl_mimepart *field = NULL;
   struct curl_slist *headerlist = NULL;
+  int ret = 0;
 
   libcurlInit();
   curl = curl_easy_init();
@@ -63,7 +64,27 @@ int postFiles(string &&url, vector<tuple<string, string> > &&params, vector<stri
   /* Check for errors */
   if(res != CURLE_OK){
     spdlog::error("failed to upload files: {}", curl_easy_strerror(res));
-    return -1;
+    switch(res){
+      case CURLE_READ_ERROR:
+      case CURLE_UPLOAD_FAILED:
+      case CURLE_OPERATION_TIMEDOUT:
+      case CURLE_SEND_ERROR:
+      case CURLE_AGAIN:
+      case CURLE_COULDNT_RESOLVE_PROXY:
+      case CURLE_COULDNT_RESOLVE_HOST:
+      case CURLE_COULDNT_CONNECT:
+      case CURLE_WEIRD_SERVER_REPLY:
+      case CURLE_REMOTE_ACCESS_DENIED:
+      case CURLE_FAILED_INIT:
+      //case CURLE_OUT_OF_MEMORY:
+      case CURLE_HTTP_POST_ERROR:
+      case CURLE_FILE_COULDNT_READ_FILE:{
+        ret = 2;
+        break;
+      }
+      default:
+        ret = -1;
+    }
   }
 
   /* always cleanup */
@@ -73,7 +94,7 @@ int postFiles(string &&url, vector<tuple<string, string> > &&params, vector<stri
   /* free slist */
   curl_slist_free_all(headerlist);
 
-  return 0;
+  return ret;
 }
 
 }
