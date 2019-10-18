@@ -1034,7 +1034,6 @@ public:
                                     catch(exception &e) {
                                         spdlog::error("evcloudsvc {} {}:{} exception: {}", selfId, __FILE__, __LINE__, e.what());
                                     }
-
                                 }
                                 else {
                                     spdlog::info("evslicer {} retrying upload", selfId);
