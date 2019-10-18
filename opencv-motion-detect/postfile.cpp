@@ -17,7 +17,7 @@ static size_t WriteCallback(char *contents, size_t size, size_t nmemb, void *use
     return size * nmemb;
 }
 
-int postFiles(string &&url, vector<tuple<string, string> > &&params, vector<string> &&fileNames, string &response){
+int postFiles(string &url, json &params, json &fileNames, string &response){
   CURL *curl;
   CURLcode res;
   curl_mime *form = NULL;
@@ -38,14 +38,14 @@ int postFiles(string &&url, vector<tuple<string, string> > &&params, vector<stri
   for(auto &f: fileNames) {
     field = curl_mime_addpart(form);
     curl_mime_name(field, "files[]");
-    curl_mime_filedata(field, f.c_str());
-    spdlog::debug("curl file: {}", f);
+    curl_mime_filedata(field, string(f).c_str());
+    spdlog::debug("curl file: {}", string(f));
   }
 
   string queryString;
   int cnt = 0;
-  for(auto &[k, v]: params) {
-    queryString += (cnt == 0?string(""):string("&")) + k + "=" + v;
+  for(auto &[k, v]: params.items()) {
+    queryString += (cnt == 0?string(""):string("&")) + string(k) + "=" + string(v);
     cnt++;
   }
 
@@ -63,9 +63,10 @@ int postFiles(string &&url, vector<tuple<string, string> > &&params, vector<stri
   res = curl_easy_perform(curl);
   /* Check for errors */
   if(res != CURLE_OK){
-    spdlog::error("failed to upload files: {}", curl_easy_strerror(res));
+    spdlog::error("failed to upload files: {} - {}", res, curl_easy_strerror(res));
     switch(res){
       case CURLE_READ_ERROR:
+      case CURLE_RECV_ERROR:
       case CURLE_UPLOAD_FAILED:
       case CURLE_OPERATION_TIMEDOUT:
       case CURLE_SEND_ERROR:

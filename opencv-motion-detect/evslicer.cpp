@@ -964,8 +964,13 @@ public:
                         spdlog::error("evslicer {} thEventHandler event ({}, {}) = ({}, {}) not in range: ({}, {}), ({}, {})", this->selfId, tss, tse, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse), first, end, this->videoFileTs2Name(first), this->videoFileTs2Name(end));
                     }
                     else {
-                        vector<tuple<string, string> > params= {{"startTime", to_string(tss)},{"endTime", to_string(tse)},{"cameraId", ipcSn}, {"headOffset", to_string(offsetS)},{"tailOffset", to_string(offsetE)}};
-                        vector<string> fileNames;
+                        json params;
+                        params["startTime"] = to_string(tss);
+                        params["endTime"] = to_string(tse);
+                        params["cameraId"] = ipcSn;
+                        params["headOffset"] = to_string(offsetS);
+                        params["tailOffset"] = to_string(offsetE);
+                        json fileNames;
                         string sf;
                         for(auto &i: v) {
                             string fname = this->urlOut + "/" + i + ".mp4";
@@ -975,25 +980,28 @@ public:
 
                         spdlog::info("evslicer {} file upload range:({},{}) = ({}, {}), url: {}", selfId, tss, tse, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse), this->videoFileServerApi);
                         string strResp;
-                        ret = netutils::postFiles(std::move(this->videoFileServerApi), std::move(params), std::move(fileNames), strResp);
+                        ret = netutils::postFiles(this->videoFileServerApi, params, fileNames, strResp);
                         if( ret != 0 ) {
                             spdlog::info("evslicer {} failed uploaded ({}, {}). local({}, {}). resp: {} files:\n{}", selfId, tss, tse, first, end, strResp, sf);
                             if(ret > 0) {
                                 if(jEvt.count("cnt") == 0) {
                                     jEvt["cnt"] = ret;
-                                }else{
-                                    if(jEvt["cnt"].get<int>() <= 0) {
-                                        spdlog::error("evslicer {} failed to upload videos over N times, abort retrying: {}", this->selfId, evt);
-                                    }else{
-                                        jEvt["cnt"] = jEvt["cnt"].get<int>() - 1;
-                                        lock_guard<mutex> lock(this->mutEvent);
-                                        this->eventQueue.push(jEvt.dump());
-                                        if(eventQueue.size() > MAX_EVENT_QUEUE_SIZE) {
-                                            eventQueue.pop();
-                                        }
-                                        cvEvent.notify_one();
-                                    }
                                 }
+
+                                if(jEvt["cnt"].get<int>() <= 0) {
+                                    spdlog::error("evslicer {} failed to upload videos over N times, abort retrying: {}", selfId, evt);
+                                    // move to failed folder
+                                    system(string("mkdir -p /var/data/evsuits/failed_events/").c_str());
+                                }else{
+                                    spdlog::info("evslicer {} retrying upload", selfId);
+                                    jEvt["cnt"] = jEvt["cnt"].get<int>() - 1;
+                                    lock_guard<mutex> lock(this->mutEvent);
+                                    this->eventQueue.push(jEvt.dump());
+                                    if(eventQueue.size() > MAX_EVENT_QUEUE_SIZE) {
+                                        eventQueue.pop();
+                                    }
+                                    cvEvent.notify_one();
+                                } 
                             }
                         }
                         else {
@@ -1006,7 +1014,7 @@ public:
                                         if(resp.count("code") != 0 && resp["code"] != 0) {
                                             if(resp["code"] == 4|| resp["code"] == 7) {
                                                 if(jEvt.count("cnt") == 0) {
-                                                    jEvt["cnt"] = 10;
+                                                    jEvt["cnt"] = 2;
                                                 }else{
                                                     if(jEvt["cnt"].get<int>() <= 0) {
                                                         spdlog::error("evslicer {} failed to upload videos over N times, abort retrying: {}", this->selfId, evt);

@@ -3,13 +3,13 @@
 
 #include <string>
 #include <curl/curl.h>
-#include <tuple>
-#include <vector>
 #include "inc/spdlog/spdlog.h"
+#include "inc/json.hpp"
 
 namespace netutils{
 using namespace std;
-int postFiles(string &&url, vector<tuple<string, string> > &&params, vector<string> &&fileNames, string &resp);
+using namespace nlohmann;
+int postFiles(string &url, json &params, json &fileNames, string &resp);
 
 }
 
