@@ -27,6 +27,7 @@ using namespace zmqhelper;
 
 //
 #define KEY_CONFIG_MAP "configmap"
+#define KEY_RELEASE_BUNDLE "release_bundle"
 class EvCloudSvc {
 private:
     Server svr;
@@ -36,6 +37,7 @@ private:
     string devSn = "evcloudsvc";
 
     json configMap;
+    json releaseBundle;
 
     // peer data
     json peerData;
@@ -77,6 +79,16 @@ private:
                 this->peerData["config"][k] = cfg;
                 spdlog::info("evcloudsvc loaded config for device: {}", k);
             }
+        }
+
+        // release bundle
+        json relBund;
+        ret = LVDB::getValue(relBund, KEY_RELEASE_BUNDLE);
+        if(ret <0 || relBund.size() == 0) {
+            this->releaseBundle["bundles"] = json();
+            this->releaseBundle["activeIdx"] = -1;
+        }else{
+            this->releaseBundle = relBund;
         }
     }
 
@@ -628,12 +640,199 @@ private:
     json getReleaseBundle(string bid)
     {
         json ret;
+        int stackId = -1;
+        if(bid.empty()) {
+            ret = this->releaseBundle;
+        }else{
+            try{
+                stackId = stoi(bid);
+            }catch(exception &e) {
+                stackId = -1;
+            }
+
+            if(this->releaseBundle.size() != 0 && this->releaseBundle.count("bundles") != 0) {
+                auto &bunds = this->releaseBundle["bundles"];
+                int idx = bunds.size() - 1 - stackId;
+                if(stackId >=0 && idx >= 0) {
+                    // idx style
+                    ret = bunds[idx];
+                }else{
+                    // releaseId style
+                    for(auto &r: bunds) {
+                        if(r["releaseId"] == bid) {
+                            ret = r;
+                            break;
+                        }
+                    }
+                }       
+            }
+        }
+
         return ret;
     }
 
-    json addReleaseBundle(json &bundle)
+    string enableRelease(string bid, bool enable){
+        string ret;
+        int stackId = -1;
+        bool handled = false;
+        bool isNumber = true;
+        if(bid.empty()) {
+            if(enable) {
+                if(this->releaseBundle.size() > 0) {
+                    this->releaseBundle["activeIdx"] = this->releaseBundle.size() - 1;
+                    handled = true;
+                    // TODO: send release to edge
+                }
+            }else{
+                if(this->releaseBundle["bundles"].size() <= 1) {
+                    ret = "no release to disable. (maybe only one or none release bundle configured)";
+                }
+            }
+        }else{
+            try{
+                stackId = stoi(bid);
+            }catch(exception &e) {
+                isNumber = false;
+            }
+            if(this->releaseBundle.size() != 0 && this->releaseBundle.count("bundles") != 0) {
+                auto &bunds = this->releaseBundle["bundles"];
+                if(isNumber) {
+                    int idx = bunds.size() - 1 - stackId;
+                    if(idx < 0) {
+                        ret = string("no left configure to ") + (enable?"enable":"disable");
+                        return ret;
+                    }
+
+                    if(this->releaseBundle["activeIdx"] == idx) {
+                        if(enable) {
+                            spdlog::info("evcloudsvc release {} is already in active. nop.", idx);
+                        }else{
+                            return enableRelease(to_string(idx - 1), true);
+                            // TODO: send release to edge
+                        }                        
+                    }else{
+                        if(enable) {
+                            this->releaseBundle["activeIdx"] = idx;
+                            handled = true;
+                            // TODO: send release to edge
+                        }else{
+                            ret = "this release is not in active. nop.";
+                        }
+                    }
+                }else{
+                    // releaseId style
+                    int idx = 0;
+                    for(auto &r: bunds) {
+                        if(r["releaseId"] == bid) {
+                            return enableRelease(to_string(idx), enable);
+                        }
+                        idx++;
+                    }
+                }       
+            }
+        }
+
+        return ret;
+    }
+
+    string delReleaseBundle(string bid) {
+        string ret;
+        int stackId = -1;
+        if(bid.empty()) {
+            ret = "empty release bundle id";
+        }else{
+            try{
+                stackId = stoi(bid);
+            }catch(exception &e) {
+                stackId = -1;
+            }
+
+            if(this->releaseBundle.size() != 0 && this->releaseBundle.count("bundles") != 0) {
+                auto &bunds = this->releaseBundle["bundles"];
+                bool handled = false;
+                int idx = bunds.size() - 1 - stackId;
+                spdlog::info("idx: {}", idx);
+                if(stackId >=0 && idx>= 0) {
+                    if(idx == this->releaseBundle["activeIdx"].get<int>()){
+                        ret = "can't delete active release bundle";
+                    }else{
+                        bunds.erase(idx);
+                        if(idx < this->releaseBundle["activeIdx"].get<int>()) {
+                            this->releaseBundle["activeIdx"] = this->releaseBundle["activeIdx"].get<int>() -1;
+                        }
+                        handled = true;
+                    }
+                }
+                else if(stackId >=0  && bunds.size() - 1 - stackId < 0)
+                {
+                    ret = "release bundle not exist";
+                }
+                else{
+                    // releaseId style
+                    int idx = 0;
+                    for(auto r: bunds) {
+                        if(r["releaseId"] == bid) {
+                            bunds.erase(idx);
+                            handled = true;
+                            break;
+                        }
+                        idx++;
+                    }
+                    if(handled) {
+                        if(idx < this->releaseBundle["activeIdx"]) {
+                            this->releaseBundle["activeIdx"] = this->releaseBundle["activeIdx"].get<int>() -1;
+                        }
+                    }else{
+                        ret = "release bundle not exist";
+                    }
+                }
+                if(handled) {
+                    // save
+                    int r = LVDB::setValue(this->releaseBundle, KEY_RELEASE_BUNDLE);
+                    if(r < 0) {
+                        string msg = fmt::format("evcloudsvc failed to save release bundle");
+                        spdlog::error(msg);
+                        ret = msg;
+                    }
+                }     
+            }
+        }
+
+        return ret;
+    }
+
+    string addReleaseBundle(json &bundle)
     {
-        json ret;
+        string ret;
+        if(bundle.count("releaseId") == 0) {
+            ret = "no releaseId field";
+        }else {
+            for(auto &b: this->releaseBundle["bundles"]) {
+                if(b["releaseId"] == bundle["releaseId"]) {
+                    ret = "releaseId already exist: " + b.dump();
+                    spdlog::error(string("evcloudsvc POST /release: ") + ret);
+                    break;
+                }
+            }
+            if(!ret.empty()) {
+                return ret;
+            }
+
+            this->releaseBundle["bundles"].push_back(bundle);
+            if(bundle.count("active") != 0 && bundle["active"] != 0) {
+                // TODO: release to edge
+                this->releaseBundle["activeIdx"] = this->releaseBundle["bundles"].size() - 1;
+                // sendRealseToEdge(bundle);
+            }
+            // save
+            int r = LVDB::setValue(this->releaseBundle, KEY_RELEASE_BUNDLE);
+            if(r < 0) {
+                string msg = fmt::format("evcloudsvc failed to save release bundle");
+                spdlog::error(msg);
+                ret = msg;
+            }
+        }
+
         return ret;
     }
 
@@ -841,9 +1040,14 @@ public:
             ret["code"] = 0;
             ret["msg"] = "ok";
             try {
-                string bundleId = req.get_param_value("bId");
-                auto body = json::parse(req.body);
-                ret = this->getReleaseBundle(bundleId);
+                string bundleId = req.get_param_value("bid");
+                auto bundle = this->getReleaseBundle(bundleId);
+                if(bundle.size() == 0) {
+                    ret["code"] = 1;
+                    ret["msg"] = "not found";
+                }else{
+                    ret["data"] = bundle;
+                }
             }
             catch(exception &e) {
                 ret["code"] = -1;
@@ -862,11 +1066,38 @@ public:
             ret["msg"] = "ok";
             try {
                 auto body = json::parse(req.body);
-                ret = this->addReleaseBundle(body);
+                auto s = this->addReleaseBundle(body);
+                if(!s.empty()){
+                    ret["code"] = 1;
+                    ret["msg"] = s;
+                }
             }
             catch(exception &e) {
                 ret["code"] = -1;
                 msg = fmt::format("evcloudsvc Post /release Exception: {}", e.what());
+                spdlog::error(msg);
+                ret["msg"] = msg;
+            }
+
+            res.set_content(ret.dump(), "text/json");
+        });
+
+        svr.Delete("/release", [this](const Request& req, Response& res) {
+            json ret;
+            string msg;
+            ret["code"] = 0;
+            ret["msg"] = "ok";
+            try {
+                string bundleId = req.get_param_value("bid");
+                auto s = this->delReleaseBundle(bundleId);
+                if(!s.empty()) {
+                    ret["msg"] = s;
+                    ret["code"] = 1;
+                }
+            }
+            catch(exception &e) {
+                ret["code"] = -1;
+                msg = fmt::format("evcloudsvc Get /release Exception: {}", e.what());
                 spdlog::error(msg);
                 ret["msg"] = msg;
             }

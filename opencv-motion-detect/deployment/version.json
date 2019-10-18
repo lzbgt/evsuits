@@ -1,40 +1,45 @@
 {
-    "b1.0.0": {
-        "evcloudsvc": {
-            "url": "",
-            "version": "0.1.1",
-            "updateTime": 123
-        },
-        "evdaemon": {
-            "url": "",
-            "version": "0.1.1",
-            "updateTime": 123
-        },
-        "evmgr": {
-            "url": "",
-            "version": "0.1.1",
-            "updateTime": 123
-        },
-        "evpuller": {
-            "url": "",
-            "version": "0.1.1",
-            "updateTime": 123
-        },
-        "evpusher": {
-            "url": "",
-            "version": "0.1.1",
-            "updateTime": 123
-        },
-        "evslicer": {
-            "url": "",
-            "version": "0.1.1",
-            "updateTime": 123
-        },
-        "evmlmotion": {
-            "url": "",
-            "version": "0.1.1",
-            "updateTime": 123
+    "activeIdx": -1,
+    "bundles": [
+        {
+            "releaseId": "aabbcc",
+            "updateTime": 123,
+            "evcloudsvc": {
+                "url": "",
+                "version": "0.1.1",
+                "updateTime": 123
+            },
+            "evdaemon": {
+                "url": "",
+                "version": "0.1.1",
+                "updateTime": 123
+            },
+            "evmgr": {
+                "url": "",
+                "version": "0.1.1",
+                "updateTime": 123
+            },
+            "evpuller": {
+                "url": "",
+                "version": "0.1.1",
+                "updateTime": 123
+            },
+            "evpusher": {
+                "url": "",
+                "version": "0.1.1",
+                "updateTime": 123
+            },
+            "evslicer": {
+                "url": "",
+                "version": "0.1.1",
+                "updateTime": 123
+            },
+            "evmlmotion": {
+                "url": "",
+                "version": "0.1.1",
+                "updateTime": 123     
+            }
         }
-    }
+    ]
 }
     
