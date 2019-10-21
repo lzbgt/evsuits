@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-Environment="LD_LIBRARY_PATH=/root/work/opencv-pocs/opencv-motion-detect/vendor/lib" "CLOUD_ADDR=tcp://ils.1iot.win:15548"
+Environment="LD_LIBRARY_PATH=/root/work/opencv-pocs/opencv-motion-detect/vendor/lib" "CLOUD_ADDR=tcp://evcloud.ilabservice.cloud:5548"
 ExecStart=/root/work/opencv-pocs/opencv-motion-detect/evdaemon
 WorkingDirectory=/root/work/opencv-pocs/opencv-motion-detect
 Restart=always
