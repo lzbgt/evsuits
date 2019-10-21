@@ -63,7 +63,7 @@ int z_send_multiple(void *s, vector<vector<uint8_t> >&body);
 int setupRouter(void **ctx, void **s, string addr);
 /// setup dealer
 /// @return 0 success, otherwise failed
-int setupDealer(void **ctx, void **s, string addr, string ident);
+int setupDealer(void **ctx, void **s, string addr, string ident, int timeout = 0);
 /// recv config msg:
 /// @return 0 success, otherwise failed.
 int recvConfigMsg(void *s, json &config, string addr, string ident);

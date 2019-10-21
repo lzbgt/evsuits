@@ -640,6 +640,7 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                                 newMgr[mgrSn] = json();
                                 newMgr[mgrSn] = newConfig[mgrSn];
                             }
+                            
                             if(newMgr.size() != 0) {
                                 json jret = cfgutils::getModuleGidsFromCfg(sn, newMgr, "");
                                 spdlog::info("{}:{} getModuleGidsFromCfg dump: {}", __FILE__, __LINE__, jret.dump());

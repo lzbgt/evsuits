@@ -59,12 +59,13 @@ private:
     mutex cacheLock;
     queue<string> eventQue;
     mutex eventQLock;
-    mutex cfgLock;
+
     mutex mutSubsystem;
 
     thread thHeartBeat;
     mutex mutHeartBeat;
-    bool bHeartBeatLive = false;
+    bool bGotHeartBeat = false;
+    int heartBeatTimeout = 60 * 1000;
 
 
     /// module gid to process id
@@ -660,6 +661,29 @@ private:
         return 0;
     }
 
+    void setUpDealer(){
+        lock_guard<mutex> lg(mutHeartBeat);
+        if(pDealer != nullptr) {
+            int i = 0;
+            zmq_setsockopt(pDealer, ZMQ_LINGER, &i, sizeof(i));
+            zmq_close(pDealer);
+            pDealer = nullptr;
+        }
+
+        if(pDealerCtx != nullptr) {
+            zmq_ctx_destroy(pDealerCtx);
+            pDealerCtx = nullptr;
+        }
+
+        int ret = 0;
+        ret = zmqhelper::setupDealer(&pDealerCtx, &pDealer, cloudAddr, devSn, heartBeatTimeout);
+        if(ret != 0) {
+            spdlog::error("evdaemon {} failed to setup dealer", devSn);
+            exit(1);
+        }
+        spdlog::info("evdaemon {} connecting to cloud {}", devSn, cloudAddr);
+    }
+
 protected:
 public:
     void run()
@@ -823,33 +847,45 @@ public:
             cloudAddr = strEnv;
         }
 
-        // setup dealer
-        ret = zmqhelper::setupDealer(&pDealerCtx, &pDealer, cloudAddr, devSn);
-        if(ret != 0) {
-            spdlog::error("evdaemon {} failed to setup dealer", devSn);
-            exit(1);
-        }
-        spdlog::info("evdaemon {} connecting to cloud {}", devSn, cloudAddr);
-        // setup cloud msg processor
+        setUpDealer();
 
+        // setup cloud msg processor
         thCloud = thread([this]() {
+            int cnt = 0;
             while(true) {
-                spdlog::info("evdaemon {} receiving evcloudsvc", this->devSn);
-                auto v = zmqhelper::z_recv_multiple(this->pDealer, true);
+                spdlog::info("evdaemon {} waiting msg from evcloudsvc", this->devSn);
+                auto v = zmqhelper::z_recv_multiple(this->pDealer, false);
                 if(v.size() == 0) {
-                    spdlog::error("evdaemon {} failed to receive msg {}, retrying", this->devSn, zmq_strerror(zmq_errno()));
-                    this_thread::sleep_for(chrono::seconds(3));
+                    if(cnt > 1) {
+                        // TODO: reset dealer socket;
+                        spdlog::error("evdaemon {} failed to receive from evcloudsvc, resetting connection: {}", this->devSn, zmq_strerror(zmq_errno()));
+                        this->setUpDealer();
+                        cnt = 0;
+                        continue;
+                    }
+                    cnt++;
                 }
                 else {
-                    handleCloudMsg(v);
+                    cnt = 0;
+                    this->handleCloudMsg(v);
                     spdlog::info("evdaemon {} successfully handled msg from evcloudsvc", this->devSn);
                 }
             }
         });
-
         thCloud.detach();
         spdlog::info("evdaemon {} cloud message processor had setup {}", devSn, cloudAddr);
-        ping(pDealer);
+
+        thHeartBeat = thread([this](){
+            while(true){
+                {
+                    lock_guard<mutex> lg(this->mutHeartBeat);
+                    if(this->pDealer != nullptr)
+                        this->ping(this->pDealer);
+                }
+                this_thread::sleep_for(chrono::milliseconds(this->heartBeatTimeout));
+            }
+        });
+        thHeartBeat.detach();
 
         this->thIdMain = this_thread::get_id();
     };

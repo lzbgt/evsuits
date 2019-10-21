@@ -117,17 +117,24 @@ int setupRouter(void **ctx, void **s, string addr){
 
 /// setup dealer
 /// @return 0 success, otherwise failed
-int setupDealer(void **ctx, void **s, string addr, string ident) {
+int setupDealer(void **ctx, void **s, string addr, string ident, int timeout) {
     int ret = 0;
     *ctx = zmq_ctx_new();
     *s = zmq_socket(*ctx, ZMQ_DEALER);
     ret = 1;
     zmq_setsockopt(*s, ZMQ_TCP_KEEPALIVE, &ret, sizeof (ret));
-    ret = 5;
+    ret = 20;
     zmq_setsockopt(*s, ZMQ_TCP_KEEPALIVE_IDLE, &ret, sizeof (ret));
     zmq_setsockopt(*s, ZMQ_TCP_KEEPALIVE_INTVL, &ret, sizeof (ret));
     ret = 2;
     zmq_setsockopt(*s, ZMQ_TCP_KEEPALIVE_CNT, &ret, sizeof (ret));
+    if(timeout != 0) {
+        if(timeout == -1) {
+            timeout = 10*1000;
+        }
+        zmq_setsockopt(*s, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
+    }
+    
     ret = zmq_setsockopt(*s, ZMQ_IDENTITY, ident.c_str(), ident.size());
     ret += zmq_setsockopt (*s, ZMQ_ROUTING_ID, ident.c_str(), ident.size());
     if(ret < 0) {

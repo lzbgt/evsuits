@@ -1024,7 +1024,7 @@ public:
                     this->peerData["config"].erase(sn);
                 if(this->peerData["status"].contains(sn))
                     this->peerData["status"].erase(sn);
-                    
+
                 spdlog::info("evcloudsvc removed sn: {}", sn);
                 LVDB::setValue(this->configMap, KEY_CONFIG_MAP);
             }
