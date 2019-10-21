@@ -172,7 +172,7 @@ json getModuleGidsFromCfg(string sn, json &data, string caller, int ipcIdx)
             if(ipcIdx == -1) {
                 if(k == sn || sn.empty()) {
                     peerId = v["sn"].get<string>() + ":evmgr:0";
-                    ret["data"].push_back(peerId);
+                    ret["data"][peerId] = 1;
                 }
             }
 

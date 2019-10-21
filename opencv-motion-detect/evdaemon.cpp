@@ -62,6 +62,11 @@ private:
     mutex cfgLock;
     mutex mutSubsystem;
 
+    thread thHeartBeat;
+    mutex mutHeartBeat;
+    bool bHeartBeatLive = false;
+
+
     /// module gid to process id
     json mapModsToPids;
 
@@ -826,19 +831,19 @@ public:
         }
         spdlog::info("evdaemon {} connecting to cloud {}", devSn, cloudAddr);
         // setup cloud msg processor
+
         thCloud = thread([this]() {
             while(true) {
                 spdlog::info("evdaemon {} waiting for msg from evcloudsvc", this->devSn);
-                auto v = zmqhelper::z_recv_multiple(this->pDealer);
+                auto v = zmqhelper::z_recv_multiple(this->pDealer, true);
                 if(v.size() == 0) {
-                    spdlog::error("evdaemon {} failed to receive msg {}", this->devSn, zmq_strerror(zmq_errno()));
+                    spdlog::error("evdaemon {} failed to receive msg {}, retrying", this->devSn, zmq_strerror(zmq_errno()));
+                    this_thread::sleep_for(chrono::seconds(3));
                 }
                 else {
                     handleCloudMsg(v);
                     spdlog::info("evdaemon {} successfully handled msg from evcloudsvc", this->devSn);
                 }
-
-
             }
         });
 
