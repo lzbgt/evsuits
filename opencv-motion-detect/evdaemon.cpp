@@ -834,7 +834,7 @@ public:
 
         thCloud = thread([this]() {
             while(true) {
-                spdlog::info("evdaemon {} waiting for msg from evcloudsvc", this->devSn);
+                spdlog::info("evdaemon {} receiving evcloudsvc", this->devSn);
                 auto v = zmqhelper::z_recv_multiple(this->pDealer, true);
                 if(v.size() == 0) {
                     spdlog::error("evdaemon {} failed to receive msg {}, retrying", this->devSn, zmq_strerror(zmq_errno()));
