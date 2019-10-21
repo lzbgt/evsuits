@@ -284,6 +284,7 @@ private:
                     srcJson[k] = this->peerData["config"][k];
                     targetJson[k] = v;
                     json diff = json::diff(srcJson, targetJson);
+                    spdlog::info("evcloudsvc patching: \n\told: {},\n\tnew: {}", srcJson.dump(), targetJson.dump());
                     if(diff.size() == 0) {
                         spdlog::info("evcloudsvc no diffrence for cluster {}", k);
                         deltaCfg[k] = 1;
