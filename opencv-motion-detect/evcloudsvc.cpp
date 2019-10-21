@@ -1018,10 +1018,13 @@ public:
                     }
                 }
 
-                this->configMap.erase(sn);
-                this->peerData.erase(sn);
-                this->peerData["config"].erase(sn);
-                this->peerData["status"].erase(sn);
+                if(this->configMap.contains(sn))
+                    this->configMap.erase(sn);
+                if(this->peerData["config"].contains(sn))
+                    this->peerData["config"].erase(sn);
+                if(this->peerData["status"].contains(sn))
+                    this->peerData["status"].erase(sn);
+                    
                 spdlog::info("evcloudsvc removed sn: {}", sn);
                 LVDB::setValue(this->configMap, KEY_CONFIG_MAP);
             }
