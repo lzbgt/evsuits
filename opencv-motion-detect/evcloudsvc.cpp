@@ -237,7 +237,6 @@ private:
         ret["code"] = 0;
         ret["msg"] = "ok";
         ret["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
-        spdlog::info("evcloudsvc config:{}",newConfig.dump());
         string msg;
         bool hasError = false;
         try {
