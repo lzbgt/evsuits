@@ -162,7 +162,10 @@ json getModuleGidsFromCfg(string sn, json &data, string caller, int ipcIdx)
         // lock_guard<mutex> lock(cacheLock);
         string peerId;
         for(auto &[k,v]:data.items()) {
-            if(v.size()!= 0 && (v.count("sn") == 0|| v["sn"].size() == 0 || v.count("ipcs") == 0 || v["ipcs"].size() == 0) ) {
+            if(v.size() == 0) {
+                continue;
+            }
+            if(v.count("sn") == 0|| v["sn"].size() == 0 || v.count("ipcs") == 0 || v["ipcs"].size() == 0) {
                 msg += fmt::format( "\t\tcluster {} has no sn/ipcs field {}:{}", v.dump(), __FILE__, __LINE__);
                 spdlog::warn(msg);
                 ret["msg"] = msg;
