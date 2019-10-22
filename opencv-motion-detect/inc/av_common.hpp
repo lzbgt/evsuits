@@ -61,6 +61,9 @@ int encode(AVPacket &pkt, char **bytes)
 
     // 4 + 8: wholeSize + DEADBEAF
     wholeSize += sizeof(pkt.pts) * 4 + sizeof(pkt.flags) + sizeof(pkt.stream_index) + sizeof(wholeSize) + strlen(PS_MARK_E);
+    // timestamp
+    wholeSize += 8;
+    auto now = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
     *bytes = (char *)malloc(wholeSize);
 
     memcpy((*bytes) + cnt, PS_MARK_S, strlen(PS_MARK_S));
@@ -102,6 +105,10 @@ int encode(AVPacket &pkt, char **bytes)
     cnt += sizeof(pkt.flags);
     memcpy((*bytes) + cnt, &(pkt.stream_index), sizeof(pkt.stream_index));
     cnt += sizeof(pkt.stream_index);
+    // ts
+    memcpy((*bytes) + cnt, &now, sizeof(now));
+    cnt+= sizeof(now);
+    // size
     memcpy((*bytes) + cnt, &wholeSize, sizeof(wholeSize));
     cnt += sizeof(wholeSize);
     memcpy((*bytes) + cnt, PS_MARK_E, strlen(PS_MARK_E));
@@ -111,7 +118,7 @@ int encode(AVPacket &pkt, char **bytes)
     return wholeSize;
 }
 
-int decode(char *bytes, int len, AVPacket *pkt)
+int decode(char *bytes, int len, AVPacket *pkt, long long *ts = nullptr)
 {
     // allocate packet mem on heap
     //AVPacket *pkt = (AVPacket*)malloc(sizeof(AVPacket));
@@ -157,6 +164,12 @@ int decode(char *bytes, int len, AVPacket *pkt)
     got += sizeof(pkt->flags);
     memcpy(&(pkt->stream_index), bytes + got, sizeof(pkt->stream_index));
     got += sizeof(pkt->stream_index);
+
+    // ts
+    if(ts != nullptr) {
+        memcpy(ts, bytes + got, sizeof(long long));
+    }
+    got += sizeof(long long);
 
     int wholeSize = 0;
     memcpy(&wholeSize, bytes + got, sizeof(wholeSize));

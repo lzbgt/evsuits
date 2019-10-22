@@ -83,6 +83,8 @@ private:
     condition_variable cvMsg;
     mutex mutMsg;
     bool gotFormat = false;
+    long long packetTs = 0;
+    long long packetTsDelta = 0;
 
     //
 
@@ -579,7 +581,9 @@ private:
                     p["type"] = EV_MSG_TYPE_AI_MOTION;
                     p["gid"] = selfId;
                     p["event"] = EV_MSG_EVENT_MOTION_START;
-                    p["ts"] = chrono::duration_cast<chrono::seconds>(evtStartTmLast.time_since_epoch()).count();
+                    auto tmp =  chrono::duration_cast<chrono::seconds>(evtStartTmLast.time_since_epoch()).count();
+                    p["ts"] = packetTs;
+                    packetTsDelta = tmp - packetTs;
                     //p["frame"] = origin.clone();
                     evtQueue->push(p.dump());
                     if(evtQueue->size() > MAX_EVENT_QUEUE_SIZE * 2) {
@@ -621,7 +625,8 @@ private:
                     p["type"] = EV_MSG_TYPE_AI_MOTION;
                     p["gid"] = selfId;
                     p["event"] = EV_MSG_EVENT_MOTION_END;
-                    p["ts"] = chrono::duration_cast<chrono::seconds>(evtStartTmLast.time_since_epoch()).count() + (int)(detPara.post/2);
+                    auto tmp = chrono::duration_cast<chrono::seconds>(evtStartTmLast.time_since_epoch()).count() + (int)(detPara.post/2);
+                    p["ts"] = tmp - packetTsDelta;
                     evtQueue->push(p.dump());
                     if(evtQueue->size() > MAX_EVENT_QUEUE_SIZE*2) {
                         evtQueue->pop();
@@ -737,7 +742,7 @@ protected:
                 spdlog::error("evmlmotion {} failed to recv zmq msg: {}", selfId, zmq_strerror(ret));
                 continue;
             }
-            ret = AVPacketSerializer::decode((char*)zmq_msg_data(&msg), ret, &packet);
+            ret = AVPacketSerializer::decode((char*)zmq_msg_data(&msg), ret, &packet, &packetTs);
             {
                 if (ret < 0) {
                     spdlog::error("evmlmotion {} packet decode failed: {}", selfId, ret);
