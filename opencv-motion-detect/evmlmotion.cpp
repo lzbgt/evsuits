@@ -627,6 +627,7 @@ private:
                     p["event"] = EV_MSG_EVENT_MOTION_END;
                     auto tmp = chrono::duration_cast<chrono::seconds>(evtStartTmLast.time_since_epoch()).count() + (int)(detPara.post/2);
                     p["ts"] = tmp - packetTsDelta;
+                    spdlog::info("evmlmotion {} packet ts delta: {}", selfId, packetTsDelta);
                     evtQueue->push(p.dump());
                     if(evtQueue->size() > MAX_EVENT_QUEUE_SIZE*2) {
                         evtQueue->pop();
