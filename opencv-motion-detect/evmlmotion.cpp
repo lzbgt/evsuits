@@ -216,12 +216,12 @@ private:
             }
             // TODO: currently just take the first puller, but should test connectivity
             json evpuller = ipc["modules"]["evpuller"][0];
-            pullerGid = evpuller["sn"].get<string>() + ":evpuller:" + to_string(evpuller["iid"]);
+            pullerGid = evpuller["sn"].get<string>() + ":" + ipcSn + ":evpuller:" + to_string(evpuller["iid"]);
             mgrSn = evmgr["sn"];
 
             // TODO: connect to the first slicer
             json evslicer = ipc["modules"]["evslicer"][0];
-            slicerGid = evslicer["sn"].get<string>()+":evslicer:" + to_string(evslicer["iid"]);
+            slicerGid = evslicer["sn"].get<string>()+ ":" + ipcSn + ":evslicer:" + to_string(evslicer["iid"]);
 
             int portPub = 5556;
             if(evpuller.count("portPub") != 0 && evpuller["portPub"].is_number_integer()) {

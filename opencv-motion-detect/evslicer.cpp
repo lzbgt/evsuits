@@ -269,7 +269,7 @@ private:
             this->videoFileServerApi += this->ipcSn;
 
             json evpuller = ipc["modules"]["evpuller"][0];
-            pullerGid = evpuller["sn"].get<string>() + ":evpuller:" + to_string(evpuller["iid"]);
+            pullerGid = evpuller["sn"].get<string>() + ":" + ipcSn + ":evpuller:" + to_string(evpuller["iid"]);
             mgrSn = evmgr["sn"];
 
             if(evslicer.count("path") == 0) {

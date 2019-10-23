@@ -380,7 +380,7 @@ private:
             bool eventConn = false;
             // XTF2BJR9:evslicer:1
             auto sp = strutils::split(selfId, ':');
-            if(sp.size() != 3) {
+            if(sp.size() != 4 && sp[1] != "evmgr") {
                 spdlog::warn("evdaemon {} inproper peer id: {}", devSn, selfId);
                 return -1;
             }
