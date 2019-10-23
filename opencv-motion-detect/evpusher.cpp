@@ -318,6 +318,7 @@ private:
                 spdlog::error("evpusher {} {} failed set output pOptsRemux", devSn, iid);
                 ret = AVERROR_UNKNOWN;
             }
+            av_dict_set_int(&pOptsRemux, "stimeout", (int64_t)(1000* 1000 * 1), 0);
             ret = avformat_alloc_output_context2(&pAVFormatRemux, nullptr, "rtsp", urlOut.c_str());
         }
         else if(proto == "rtmp") {
@@ -383,6 +384,7 @@ private:
         ret = avformat_write_header(pAVFormatRemux, &pOptsRemux);
         if (ret < 0) {
             spdlog::error("evpusher {} {} error occurred when opening output file", devSn, iid);
+            exit(1);
         }
 
         return ret;
@@ -472,9 +474,9 @@ protected:
             av_packet_unref(&packet);
             if (ret < 0) {
                 spdlog::error("evpusher {} error muxing packet: {}, {}, {}, {}, restreaming...", selfId, av_err2str(ret), packet.dts, packet.pts, packet.dts==AV_NOPTS_VALUE);
-                if(pktCnt != 0 && packet.pts == AV_NOPTS_VALUE) {
+                if(packet.pts == AV_NOPTS_VALUE) {
                     // reset
-                    av_write_trailer(pAVFormatRemux);
+                    // av_write_trailer(pAVFormatRemux);
                     freeStream();
                     getInputFormat();
                     setupStream();
@@ -532,11 +534,11 @@ public:
             {
                 auto body = z_recv_multiple(pDaemon,false);
                 if(body.size() == 0) {
-                    spdlog::error("evslicer {} failed to receive multiple msg: {}", selfId, zmq_strerror(zmq_errno()));
-                    continue;
-                }
-                // full proto msg received.
-                this->handleCloudMsg(body);
+                    spdlog::error("evslicer {} failed to receive multiple cloud msg: {}", selfId, zmq_strerror(zmq_errno()));
+                }else{
+                    // full proto msg received.
+                    this->handleCloudMsg(body);
+                }    
             }
         });
         thCloudMsgHandler.detach();
@@ -546,11 +548,11 @@ public:
             {
                 auto body = z_recv_multiple(pDealer,false);
                 if(body.size() == 0) {
-                    spdlog::error("evslicer {} failed to receive multiple msg: {}", selfId, zmq_strerror(zmq_errno()));
-                    continue;
-                }
-                // full proto msg received.
-                this->handleEdgeMsg(body);
+                    spdlog::error("evslicer {} failed to receive multiple edge msg: {}", selfId, zmq_strerror(zmq_errno()));
+                }else{
+                    // full proto msg received.
+                    this->handleEdgeMsg(body);
+                }     
             }
         });
         thEdgeMsgHandler.detach();
@@ -588,7 +590,7 @@ public:
             zmq_close(pDaemon);
             pDaemon = nullptr;
         }
-        
+
         if(pDaemonCtx != nullptr) {
             zmq_ctx_destroy(pDaemonCtx);
             pDaemonCtx = nullptr;

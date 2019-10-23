@@ -148,11 +148,11 @@ error_exit:
             {
                 auto body = z_recv_multiple(pDealer,false);
                 if(body.size() == 0) {
-                    spdlog::error("evslicer {} failed to receive multiple msg: {}", this->devSn, zmq_strerror(zmq_errno()));
-                    continue;
-                }
-                // full proto msg received.
-                this->handleCloudMsg(body);
+                    spdlog::error("evslicer {} failed to receive multiple cloud msg: {}", this->devSn, zmq_strerror(zmq_errno()));
+                }else{
+                    // full proto msg received.
+                    this->handleCloudMsg(body);
+                } 
             }
         });
         thCloudMsgHandler.detach();

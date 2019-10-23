@@ -308,6 +308,7 @@ protected:
     {
         int ret = 0;
         AVDictionary * optsIn = nullptr;
+        av_dict_set_int(&optsIn, "stimeout", (int64_t)(1000* 1000 * 1), 0);
         string proto = urlIn.substr(0,4);
         if(proto == "rtsp") {
             av_dict_set(&optsIn, "rtsp_transport", "tcp", 0);
@@ -388,7 +389,7 @@ protected:
             ret = av_read_frame(pAVFormatInput, &packet);
             if (ret < 0) {
                 spdlog::error("evpuller {} failed read packet: {}", selfId, av_err2str(ret));
-                break;
+                exit(1);
             }
             in_stream  = pAVFormatInput->streams[packet.stream_index];
             if (packet.stream_index >= numStreams || streamList[packet.stream_index] < 0) {
@@ -469,16 +470,17 @@ public:
             {
                 auto body = z_recv_multiple(pDealer,false);
                 if(body.size() == 0) {
-                    spdlog::error("evslicer {} failed to receive multiple msg: {}", selfId, zmq_strerror(zmq_errno()));
-                    continue;
+                    spdlog::error("evslicer {} failed to receive multiple cloud msg: {}", selfId, zmq_strerror(zmq_errno()));
+                }else{
+                    // full proto msg received.
+                    string msg;
+                    for(auto &v: body) {
+                        msg += body2str(v) + ",";
+                    }
+                    spdlog::info("evpuller {} received edge msg: {}", selfId, msg);
+                    this->handleEdgeMsg(body);
                 }
-                // full proto msg received.
-                string msg;
-                for(auto &v: body) {
-                    msg += body2str(v) + ",";
-                }
-                spdlog::info("evpuller {} received edge msg: {}", selfId, msg);
-                this->handleEdgeMsg(body);
+                
             }
         });
         thEdgeMsgHandler.detach();
@@ -489,11 +491,11 @@ public:
             {
                 auto body = z_recv_multiple(pDaemon,false);
                 if(body.size() == 0) {
-                    spdlog::error("evslicer {} failed to receive multiple msg: {}", selfId, zmq_strerror(zmq_errno()));
-                    continue;
+                    spdlog::error("evslicer {} failed to receive multiple edge msg: {}", selfId, zmq_strerror(zmq_errno()));
+                }else{
+                    // full proto msg received.
+                    this->handleCloudMsg(body);
                 }
-                // full proto msg received.
-                this->handleCloudMsg(body);
             }
         });
         thCloudMsgHandler.detach();

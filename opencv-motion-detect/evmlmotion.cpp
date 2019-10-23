@@ -823,11 +823,11 @@ public:
             {
                 auto body = z_recv_multiple(pDaemon,false);
                 if(body.size() == 0) {
-                    spdlog::error("evslicer {} failed to receive multiple msg: {}", selfId, zmq_strerror(zmq_errno()));
-                    continue;
+                    spdlog::error("evslicer {} failed to receive multiple cloud msg: {}", selfId, zmq_strerror(zmq_errno()));
+                }else{
+                    // full proto msg received.
+                    this->handleCloudMsg(body);
                 }
-                // full proto msg received.
-                this->handleCloudMsg(body);
             }
         });
         thCloudMsgHandler.detach();
@@ -837,11 +837,11 @@ public:
             {
                 auto body = z_recv_multiple(pDealer,false);
                 if(body.size() == 0) {
-                    spdlog::error("evslicer {} failed to receive multiple msg: {}", selfId, zmq_strerror(zmq_errno()));
-                    continue;
+                    spdlog::error("evslicer {} failed to receive multiple edge msg: {}", selfId, zmq_strerror(zmq_errno()));
+                }else{
+                    // full proto msg received.
+                    this->handleEdgeMsg(body);
                 }
-                // full proto msg received.
-                this->handleEdgeMsg(body);
             }
         });
         thEdgeMsgHandler.detach();
