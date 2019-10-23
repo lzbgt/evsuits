@@ -322,9 +322,6 @@ private:
             pDealerCtx = zmq_ctx_new();
             pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
             spdlog::info("evmlmotion {} connect to router {}", selfId, urlRouter);
-            //ZMQ_TCP_KEEPALIVE
-            //ZMQ_TCP_KEEPALIVE_IDLE
-            //ZMQ_TCP_KEEPALIVE_INTVL
             ret = 1;
             zmq_setsockopt(pDealer, ZMQ_TCP_KEEPALIVE, &ret, sizeof (ret));
             ret = 5;
