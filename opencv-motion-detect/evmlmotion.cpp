@@ -65,7 +65,7 @@ class EvMLMotion: public TinyThread {
 private:
     void *pSubCtx = nullptr, *pDealerCtx = nullptr; // for packets relay
     void *pSub = nullptr, *pDealer = nullptr, *pDaemonCtx = nullptr, *pDaemon = nullptr;
-    string urlOut, urlPub, urlRouter, devSn, mgrSn, selfId, pullerGid, slicerGid;
+    string urlOut, urlPub, urlRouter, devSn, mgrSn, selfId, pullerGid, slicerGid, ipcSn;
     int iid;
     AVFormatContext *pAVFormatInput = nullptr;
     AVCodecContext *pCodecCtx = nullptr;
@@ -192,25 +192,25 @@ private:
             json ipc;
             json ipcs = evmgr["ipcs"];
             for(auto &j: ipcs) {
-                json mls = j["modules"]["evml"];
-                for(auto &p:mls) {
-                    if(p["sn"] == devSn && p["type"] == "motion" && p["iid"] == iid && p["enabled"] != 0) {
-                        evmlmotion = p;
-                        iid = p["iid"];
-                        break;
+                if(j["sn"] == ipcSn) {
+                    ipc = j;
+                    json mls = j["modules"]["evml"];
+                    for(auto &p:mls) {
+                        if(p["sn"] == devSn && p["type"] == "motion" && p["iid"] == iid && p["enabled"] != 0) {
+                            evmlmotion = p;
+                            iid = p["iid"];
+                            break;
+                        }
                     }
                 }
                 if(evmlmotion.size() != 0) {
-                    ipc = j;
                     break;
                 }
             }
 
             if(ipc.size()!=0 && evmlmotion.size()!=0) {
                 found = true;
-            }
-
-            if(!found) {
+            }else{
                 spdlog::error("evmlmotion {}: no valid config found. retrying load config...", devSn);
                 exit(1);
             }
@@ -786,12 +786,13 @@ public:
         if(strEnv != nullptr) {
             selfId = strEnv;
             auto v = strutils::split(selfId, ':');
-            if(v.size() != 3||v[1] != "evmlmotion") {
+            if(v.size() != 4||v[2] != "evmlmotion") {
                 spdlog::error("evmlmotion received invalid gid: {}", selfId);
                 exit(1);
             }
+            ipcSn = v[1];
             devSn = v[0];
-            iid = stoi(v[2]);
+            iid = stoi(v[3]);
         }
         else {
             spdlog::error("evmlmotion failed to start. no SN set");

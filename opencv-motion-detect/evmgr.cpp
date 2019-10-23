@@ -186,11 +186,11 @@ error_exit:
                 spdlog::warn("evmg {} inproper peer id: {}", devSn, selfId);
                 return -1;
             }
-            json *mod = LVDB::findConfigModule(config, sp[0], sp[1], stoi(sp[2]));
-            if(mod == nullptr) {
-                spdlog::warn("evmgr {} failed to find the connecting/disconnecting module with id {} in config. please check if it was terminated correctly", devSn, selfId);
-                return -1;
-            }
+            // json *mod = LVDB::findConfigModule(config, sp[0], sp[1], stoi(sp[2]));
+            // if(mod == nullptr) {
+            //     spdlog::warn("evmgr {} failed to find the connecting/disconnecting module with id {} in config. please check if it was terminated correctly", devSn, selfId);
+            //     return -1;
+            // }
 
             if(peerData["status"].count(selfId) == 0||peerData["status"][selfId] == 0) {
                 peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();

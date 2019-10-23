@@ -124,7 +124,7 @@ bool isIpStr(string ip)
 }//namespace strutils
 
 namespace cfgutils {
-int getPeerId(string modName, json& modElem, string &peerId, string &peerName)
+int getPeerId(string ipcSn, string modName, json& modElem, string &peerId, string &peerName)
 {
     try {
         if(modName == "evmgr") {
@@ -132,11 +132,11 @@ int getPeerId(string modName, json& modElem, string &peerId, string &peerName)
             peerName = modName;
         }
         else if(modName == "evml") {
-            peerId = modElem["sn"].get<string>() + ":evml" + modElem["type"].get<string>() + ":" + to_string(modElem["iid"]);
+            peerId = modElem["sn"].get<string>() + ":" + ipcSn + ":evml" + modElem["type"].get<string>() + ":" + to_string(modElem["iid"]);
             peerName = modName + modElem["type"].get<string>();
         }
         else {
-            peerId = modElem["sn"].get<string>() + ":" + modName + ":" + to_string(modElem["iid"]);
+            peerId = modElem["sn"].get<string>() + ":" + ipcSn + ":" + modName + ":" + to_string(modElem["iid"]);
             peerName = modName;
         }
     }
@@ -209,7 +209,7 @@ json getModuleGidsFromCfg(string sn, json &data, string caller, int ipcIdx)
                         }
 
                         string peerName;
-                        int iret = cfgutils::getPeerId(mn, m, peerId, peerName);
+                        int iret = cfgutils::getPeerId(ipc["sn"].get<string>(), mn, m, peerId, peerName);
                         
                         if(iret != 0) {
                             // TODO: do we need to treat it more strictly, to make it fails fast???
@@ -368,7 +368,7 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                                 newMgr[mgrSn]["ipcs"].push_back(newIpc);
                             }
 
-                            if(newIpc.size() != 0 && newIpc.count("modules") != 0 && newIpc.count("addr") != 0) {
+                            if(newIpc.size() != 0 && newIpc.count("modules") != 0 && newIpc.count("addr") != 0 && newIpc.count("sn") != 0) {
                                 for(auto &[mn, v]: newIpc["modules"].items()) {
                                     string modName = mn;
                                     json &mods = v;
@@ -394,7 +394,7 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                                                 break;
                                             }
 
-                                            string modGid = modSn + ":" + modName + ":" + to_string(modObj["iid"].get<int>());
+                                            string modGid = modSn + ":" + newIpc["sn"].get<string>() +  ":" + modName + ":" + to_string(modObj["iid"].get<int>());
                                             if(modObj.count("enabled") == 0 ||modObj["enabled"] == 0 ) {
                                                 ret["data"][modGid] = 0; // disabled
                                             }else{
@@ -406,7 +406,7 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                                 }      
                             }
 
-                            if(oldIpc.size() != 0 && oldIpc.count("modules") != 0 && oldIpc.count("addr") != 0) {
+                            if(oldIpc.size() != 0 && oldIpc.count("modules") != 0 && oldIpc.count("addr") != 0 && oldIpc.count("sn") != 0) {
                                 for(auto &[mn,v]: oldIpc["modules"].items()) {
                                     string modName = mn;
                                     json &mods = v;
@@ -432,7 +432,7 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                                                 break;
                                             }
 
-                                            string modGid = modSn + ":" + modName + ":" + to_string(modObj["iid"].get<int>());
+                                            string modGid = modSn + ":" + oldIpc["sn"].get<string>() +  ":" + modName + ":" + to_string(modObj["iid"].get<int>());
                                             if(ret["data"].count(modGid) != 0 && ret["data"][modGid] == 2) {
                                                 ret["data"][modGid] = 3; // restart
                                             }else{
@@ -466,6 +466,7 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                             if(true){        //d["op"] == "replace"||d["op"] == "add" || d["op"] == "remove") {   
                                 auto &oldMod = oldConfig[mgrSn]["ipcs"][ipcIdx]["modules"][modName][modIdx];
                                 auto &newMod = newConfig[mgrSn]["ipcs"][ipcIdx]["modules"][modName][modIdx];
+                                auto &ipcObj = oldConfig[mgrSn]["ipcs"][ipcIdx];
                                 if(oldMod.count("iid") == 0 || newMod.count("iid") == 0) {
                                     string msg = fmt::format("invalid module config ipcs[{}]['modules'][{}][{}] having no iid field", ipcIdx, modName, modIdx);
                                     spdlog::error(msg);
@@ -484,8 +485,8 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                                         }
                                     }
 
-                                    if(newMod.count("sn") == 0||oldMod.count("sn") == 0) {
-                                        string msg = fmt::format("invalid module config ipcs[{}]['modules'][{}][{}] having no sn field", ipcIdx, modName, modIdx);
+                                    if(newMod.count("sn") == 0||oldMod.count("sn") == 0 || ipcObj.count("sn") == 0) {
+                                        string msg = fmt::format("invalid module config ipcs[{}]['modules'][{}][{}] (or ipc) having no sn field", ipcIdx, modName, modIdx);
                                         spdlog::error(msg);
                                         hasError = true;
                                         break;
@@ -494,8 +495,8 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                                     string oldSn = oldMod["sn"];
                                     string newSn = newMod["sn"];
 
-                                    string oldGid = oldSn + ":" + modName + ":" + to_string(oldMod["iid"].get<int>());
-                                    string newGid = newSn + ":" + modName + ":" + to_string(newMod["iid"].get<int>());
+                                    string oldGid = oldSn + ":" + ipcObj["sn"].get<string>() + ":" + modName + ":" + to_string(oldMod["iid"].get<int>());
+                                    string newGid = newSn + ":" + ipcObj["sn"].get<string>() + ":" + modName + ":" + to_string(newMod["iid"].get<int>());
 
                                     if(oldGid != newGid) {
                                         ret["data"][oldGid] = 1; // perm stop
@@ -545,6 +546,8 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                             string modName = results[3].str();
                             json oldModObj, newModObj;
 
+                            auto &ipcObj = newConfig[mgrSn]["ipcs"][ipcIdx];
+
                             if(oldConfig[mgrSn]["ipcs"][ipcIdx]["modules"][modName].size() >= modIdx +1) {
                                 oldModObj = oldConfig[mgrSn]["ipcs"][ipcIdx]["modules"][modName][modIdx];
                             }
@@ -574,7 +577,7 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                                         break;
                                     }
 
-                                    string modGid = modSn + ":" + modName + ":" + to_string(newModObj["iid"].get<int>());
+                                    string modGid = modSn + ":" + ipcObj["sn"].get<string>() + ":" + modName + ":" + to_string(newModObj["iid"].get<int>());
                                     if(newModObj.count("enabled") == 0 ||newModObj["enabled"] == 0 ) {
                                         ret["data"][modGid] = 0; // disabled
                                     }else{
@@ -605,7 +608,7 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
                                         continue;
                                     }
 
-                                    string modGid = modSn + ":" + modName + ":" + to_string(oldModObj["iid"].get<int>());
+                                    string modGid = modSn + ":" + ipcObj["sn"].get<string>() + ":" + modName + ":" + to_string(oldModObj["iid"].get<int>());
                                     if(ret["data"].count(modGid) != 0 && ret["data"][modGid] == 2 ) {
                                         ret["data"][modGid] = 3; // restart
                                     }else{

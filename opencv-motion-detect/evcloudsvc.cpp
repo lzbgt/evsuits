@@ -144,12 +144,13 @@ private:
                     if(hasError) {
                         break;
                     }
-                    if(ipc.count("modules") == 0||ipc["modules"].size() == 0) {
-                        msg += fmt::format("\tedge cluster {} has no modules for ipc {}", k, ipcIdx);
+                    if(ipc.count("modules") == 0||ipc["modules"].size() == 0||ipc.count("sn") == 0 || ipc["sn"].size() == 0) {
+                        msg += fmt::format("\tedge cluster {} has no sn/modules field for ipc {}", k, ipcIdx);
                         ret["msg"] = msg;
                     }
                     else {
                         json &modules = ipc["modules"];
+                        string ipcSn = ipc["sn"].get<string>();
                         for(auto &[mn, ma]: modules.items()) {
                             if(hasError) {
                                 break;
@@ -186,10 +187,10 @@ private:
                                 }
                                 //ml
                                 if(mn == "evml") {
-                                    modKey = sn +":evml" + m["type"].get<string>();
+                                    modKey = sn + ":" + ipcSn + ":evml" + m["type"].get<string>();
                                 }
                                 else {
-                                    modKey = sn + ":" + mn;
+                                    modKey = sn + ":" + ipcSn + ":" + mn;
                                 }
 
                                 // modules
@@ -839,9 +840,10 @@ public:
             ret["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
             ret["msg"] = "ok";
             string sn = req.get_param_value("sn");
+            string ipcSn = req.get_param_value("ipcSn");
             string module = req.get_param_value("module");
             try {
-                if(!sn.empty() && !module.empty() && module.size()> 4) {
+                if(!sn.empty() && !module.empty() && module.size()> 4 && !ipcSn.empty()) {
                     spdlog::info("evcloudsvc get module config with sn {},  module {}", sn, module);
                     string modname = module.substr(0,4);
                     string key;
@@ -856,7 +858,7 @@ public:
                             modname = module;
                         }
 
-                        key = this->configMap["mod2mgr"].at(sn + ":" + modname);
+                        key = this->configMap["mod2mgr"].at(sn + ":" + ipcSn + ":" + modname);
                         spdlog::debug("key: ", key);
                     }
 

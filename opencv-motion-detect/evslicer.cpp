@@ -235,39 +235,28 @@ private:
             json evslicer;
             json &evmgr = this->config;
             json ipc;
-
             json ipcs = evmgr["ipcs"];
             for(auto &j: ipcs) {
-                json pullers = j["modules"]["evslicer"];
-                for(auto &p:pullers) {
-                    if(p["sn"] == devSn && p["enabled"] != 0 && p["iid"] == iid) {
-                        evslicer = p;
-                        break;
-                    }
-                }
-                if(evslicer.size() != 0) {
+                if(j["sn"] == ipcSn) {
                     ipc = j;
+                    json pullers = j["modules"]["evslicer"];
+                    for(auto &p:pullers) {
+                        if(p["sn"] == devSn && p["enabled"] != 0 && p["iid"] == iid) {
+                            evslicer = p;
+                            break;
+                        }
+                    }
+                } 
+
+                if(evslicer.size() != 0) {
                     break;
                 }
             }
 
             if(ipc.size()!=0 && evslicer.size()!=0) {
-                found = true;
-            }
-
-            if(!found) {
+            }else{
                 spdlog::error("evslicer {}: no valid config found. retrying load config...", devSn);
                 exit(1);
-            }
-
-            selfId = devSn + ":evslicer:" + to_string(iid);
-
-            //
-            if(ipc.count("sn") == 0) {
-                ipcSn = "unkown";
-            }
-            else {
-                ipcSn = ipc["sn"];
             }
 
             if(evslicer.count("videoServerAddr") != 0  && !evslicer["videoServerAddr"].get<string>().empty()) {
@@ -852,12 +841,13 @@ public:
         if(strEnv != nullptr) {
             selfId = strEnv;
             auto v = strutils::split(selfId, ':');
-            if(v.size() != 3||v[1] != "evslicer") {
+            if(v.size() != 4||v[2] != "evslicer") {
                 spdlog::error("evslicer received invalid gid: {}", selfId);
                 exit(1);
             }
+            ipcSn = v[1];
             devSn = v[0];
-            iid = stoi(v[2]);
+            iid = stoi(v[3]);
         }
         else {
             spdlog::error("evslicer failed to start. no SN set");

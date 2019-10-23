@@ -50,7 +50,7 @@ namespace LVDB {
     #define LVDB_ERROR_HELD -1
     #define LVDB_ERROR_OTHER -2
 
-    json * findConfigModule(json &config, string sn, string moduleName, int iid) {
+    json * findConfigModule(json &config, string sn, string ipcSn, string moduleName, int iid) {
         json *ret = NULL;
         json &mgr = config;
         if(mgr.count("ipcs") == 0) {
@@ -58,8 +58,9 @@ namespace LVDB {
         }else{
             json &ipcs = mgr["ipcs"];
             for(auto &ipc:ipcs) {
-                if(ipc.count("modules") == 0) {
-                    break;
+                if(ipc.count("modules") == 0 || ipc.count("sn") == 0|| ipc["sn"].size() == 0) {
+                    spdlog::error("ipc has no sn/modules: {}", ipc.dump());
+                    continue;
                 }else{
                     json &modules = ipc["modules"];
                     string modname = moduleName.substr(0,4);

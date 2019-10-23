@@ -39,7 +39,7 @@ private:
     AVFormatContext *pAVFormatInput = nullptr;
     char *pAVFmtCtxBytes = nullptr;
     int lenAVFmtCtxBytes = 0;
-    string urlIn, urlPub, urlDealer, mgrSn, devSn, selfId, ipcPort;
+    string urlIn, urlPub, urlDealer, mgrSn, devSn, selfId, ipcPort, ipcSn;
     int *streamList = nullptr, numStreams = 0, iid;
     time_t tsLastBoot, tsUpdateTime;
     json config;
@@ -172,25 +172,24 @@ private:
             json ipc;
             json ipcs = evmgr["ipcs"];
             for(auto &j: ipcs) {
-                json pullers = j["modules"]["evpuller"];
-                for(auto &p:pullers) {
-                    if(p["sn"] == devSn && p["enabled"] != 0 && p["iid"] == iid) {
-                        evpuller = p;
-                        break;
-                    }
-                }
-                if(evpuller.size() != 0) {
+                if(j["sn"] == ipcSn) {
                     ipc = j;
+                    json pullers = j["modules"]["evpuller"];
+                    for(auto &p:pullers) {
+                        if(p["sn"] == devSn && p["enabled"] != 0 && p["iid"] == iid) {
+                            evpuller = p;
+                            break;
+                        }
+                    }
+                } 
+
+                if(evpuller.size() != 0) {
                     break;
                 }
             }
 
             if(ipc.size()!=0 && evpuller.size()!=0) {
-                found = true;
-            }
-
-
-            if(!found) {
+            }else{
                 spdlog::error("evpuller {} no valid config found", devSn);
                 exit(1);
             }
@@ -198,6 +197,7 @@ private:
             mgrSn = evmgr["sn"];
             user = ipc["user"];
             passwd = ipc["password"];
+            ipcSn = ipc["sn"];
 
             // default stream port
             if(ipc.count("port") == 0) {
@@ -437,12 +437,13 @@ public:
         if(strEnv != nullptr) {
             selfId = strEnv;
             auto v = strutils::split(selfId, ':');
-            if(v.size() != 3||v[1] != "evpuller") {
+            if(v.size() != 4||v[2] != "evpuller") {
                 spdlog::error("evpuller {} received invalid gid: {}", selfId);
                 exit(1);
             }
             devSn = v[0];
-            iid = stoi(v[2]);
+            ipcSn = v[1];
+            iid = stoi(v[3]);
         }
         else {
             spdlog::error("evpuller {} failed to start. no SN set", selfId);

@@ -35,7 +35,7 @@ class EvPusher: public TinyThread {
 private:
     void *pSubCtx = nullptr, *pDealerCtx = nullptr; // for packets relay
     void *pSub = nullptr, *pDealer = nullptr, *pDaemonCtx = nullptr, *pDaemon = nullptr;
-    string urlOut, urlPub, urlDealer, devSn, pullerGid, mgrSn, selfId;
+    string urlOut, urlPub, urlDealer, devSn, pullerGid, mgrSn, selfId, ipcSn;
     int iid;
     bool enablePush = false;
     int *streamList = nullptr;
@@ -60,11 +60,13 @@ private:
             json ipc;
             json ipcs = evmgr["ipcs"];
             for(auto &j: ipcs) {
-                json pullers = j["modules"]["evpusher"];
-                for(auto &p:pullers) {
-                    if(p["sn"] == devSn && p["enabled"] != 0 && p["iid"] == iid ) {
-                        evpusher = p;
-                        break;
+                if(j["sn"] == ipcSn) {
+                    json pullers = j["modules"]["evpusher"];
+                    for(auto &p:pullers) {
+                        if(p["sn"] == devSn && p["enabled"] != 0 && p["iid"] == iid ) {
+                            evpusher = p;
+                            break;
+                        }
                     }
                 }
 
@@ -78,10 +80,7 @@ private:
             spdlog::info("evpusher {} {}, ipc: {}",devSn, iid, ipc.dump());
 
             if(ipc.size()!=0 && evpusher.size()!=0) {
-                found = true;
-            }
-
-            if(!found) {
+            }else{
                 spdlog::error("evpusher {} : no valid config found: {}", selfId, config.dump());
                 exit(1);
             }
@@ -500,12 +499,13 @@ public:
         if(strEnv != nullptr) {
             selfId = strEnv;
             auto v = strutils::split(selfId, ':');
-            if(v.size() != 3||v[1] != "evpusher") {
+            if(v.size() != 4||v[2] != "evpusher") {
                 spdlog::error("evpusher received invalid gid: {}", selfId);
                 exit(1);
             }
+            ipcSn = v[1];
             devSn = v[0];
-            iid = stoi(v[2]);
+            iid = stoi(v[3]);
         }
         else {
             spdlog::error("evpusher failed to start. no SN set");

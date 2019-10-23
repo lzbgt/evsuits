@@ -125,6 +125,10 @@ private:
                 // startup other submodules
                 json &ipcs = v["ipcs"];
                 for(auto &ipc : ipcs) {
+                    if(ipc.count("sn == 0")) {
+                        spdlog::error("evdaemon {} ipc {} has no sn field", devSn, ipc.dump());
+                        continue;
+                    }
                     json &modules = ipc["modules"];
                     for(auto &[mn, ml] : modules.items()) {
                         for(auto &m : ml) {
@@ -133,7 +137,7 @@ private:
                             }
 
                             string peerName;
-                            ret = cfgutils::getPeerId(mn, m, peerId, peerName);
+                            ret = cfgutils::getPeerId(ipc["sn"].get<string>(), mn, m, peerId, peerName);
                             if(ret != 0) {
                                 continue;
                             }

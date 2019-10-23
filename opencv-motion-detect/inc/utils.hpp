@@ -44,7 +44,7 @@ bool isIpStr(string ip);
 }//namespace strutils
 
 namespace cfgutils {
-   int getPeerId(string modName, json& modElem, string &peerId, string &peerName);
+   int getPeerId(string ipcSn, string modName, json& modElem, string &peerId, string &peerName);
    json *findModuleConfig(string peerId, json &data);
    json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, string sn);
    json getModuleGidsFromCfg(string sn, json &data, string caller = "", int ipcIdx = -1);

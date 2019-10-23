@@ -183,8 +183,11 @@ int forkSubsystem(string devSn, string peerId, int drPort, pid_t &pid){
     auto v = strutils::split(peerId, ':');
     string modName = v[1];
     string sn = v[0];
+    if(modName != "evmgr") {
+        modName = v[2];
+    }
     if( (pid = fork()) == -1 ) {
-        spdlog::error("evdamon {} failed to fork subsytem - evmgr", devSn);
+        spdlog::error("evdamon {} failed to fork subsytem {}", devSn, modName);
         return -1;
     }else if(pid == 0) {
         ret += setenv("PEERID", peerId.c_str(), 1);
@@ -194,7 +197,7 @@ int forkSubsystem(string devSn, string peerId, int drPort, pid_t &pid){
             return -2;
         }
         execl((string("./") + modName).c_str(), NULL, NULL, NULL);
-        spdlog::error("evdaemon {} failed to startup evmgr", devSn);
+        spdlog::error("forkSubsystem {} failed to startup evmgr", devSn);
     }else{
         // parent
     }
