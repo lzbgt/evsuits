@@ -291,6 +291,9 @@ private:
                 urlOut = evslicer["path"];
             }
 
+            // ipc specific
+            urlOut += string("/") + ipcSn;
+
             if(evslicer.count("hours") == 0) {
                 spdlog::info("evslicer {} no params for hours, using default: {}", selfId, NUM_HOURS_DEFAULT);
                 hours = NUM_HOURS_DEFAULT;
@@ -902,7 +905,7 @@ public:
                 }else{
                     // full proto msg received.
                     this->handleCloudMsg(body);
-                } 
+                }
             }
         });
         thCloudMsgHandler.detach();
