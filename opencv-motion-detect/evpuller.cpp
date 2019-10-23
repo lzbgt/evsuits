@@ -502,6 +502,8 @@ public:
     ~EvPuller()
     {
         if(pPub != nullptr) {
+            int i = 0;
+            zmq_setsockopt(pPub, ZMQ_LINGER, &i, sizeof(i));
             zmq_close(pPub);
             pPub = nullptr;
         }
@@ -510,12 +512,26 @@ public:
             pPubCtx = nullptr;
         }
         if(pDealer != nullptr) {
+            int i = 0;
+            zmq_setsockopt(pDealer, ZMQ_LINGER, &i, sizeof(i));
             zmq_close(pDealer);
             pDealer= nullptr;
         }
         if(pDealerCtx != nullptr) {
-            zmq_ctx_destroy(pPubCtx);
+            zmq_ctx_destroy(pDealerCtx);
             pDealerCtx = nullptr;
+        }
+
+        if(pDaemon != nullptr) {
+            int i = 0;
+            zmq_setsockopt(pDaemon, ZMQ_LINGER, &i, sizeof(i));
+            zmq_close(pDaemon);
+            pDaemon = nullptr;
+        }
+        
+        if(pDaemonCtx != nullptr) {
+            zmq_ctx_destroy(pDaemonCtx);
+            pDaemonCtx = nullptr;
         }
     }
 };
