@@ -86,7 +86,9 @@ private:
     bool gotFormat = false;
     long long packetTs = 0;
     long long packetTsDelta = 0;
-    int pps = 0;
+    float pps = 0;
+    int pktLag = 0;
+    int schmittriStatus = 0;
     //
 
     int handleCloudMsg(vector<vector<uint8_t> > v)
@@ -484,9 +486,17 @@ private:
                 );
                 // string name = urlOut + "/"+ to_string(chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count()) + ".pgm";
                 // TODO: dynamic pps adapting
-                if(this->pps < this->detPara.fpsProc) {
+                if(this->schmittriStatus == 0 && this->pktLag >= 10) {
+                    this->schmittriStatus = 1;
+                }else if(this->schmittriStatus == 1 && this->pktLag <= 5){
+                    this->schmittriStatus = 2;
+                }else if(this->schmittriStatus == 2 && this->pktLag < 10) {
+                    this->schmittriStatus = 0;
+                }
+
+                if(this->pps < this->detPara.fpsProc|| this->schmittriStatus != 0) {
                     if(this->pps != 0) {
-                        spdlog::info("evmlmotion {} pps {} is below {}, skip processing", this->selfId, this->pps, this->detPara.fpsProc);
+                        spdlog::info("evmlmotion pps {}, parProc {}, lag {}, skip processing", this->selfId, this->pps, this->detPara.fpsProc, this->pktLag);
                     }
                     detectMotion(pCodecContext->pix_fmt, pFrame, false);
                 }else{
@@ -786,10 +796,10 @@ protected:
             if((pktCnt  - pktCntLast ) == 180) {
                 auto now = chrono::system_clock::now();
                 auto delta = chrono::duration_cast<chrono::seconds>(now - start).count();
-                auto lag = chrono::duration_cast<chrono::seconds>(now.time_since_epoch()).count() - this->packetTs;
-                this->pps = int(180/delta);
+                pktLag = chrono::duration_cast<chrono::seconds>(now.time_since_epoch()).count() - this->packetTs;
+                this->pps = 180.0/delta;
                 if(pktCnt % (180 * 5) == 0) {
-                    spdlog::info("evmlmotion {} metering: 180 packet in {}s, pps: {}, lag:{}", selfId, delta, pps, lag);
+                    spdlog::info("evmlmotion {} metering: 180 packet in {}s, pps: {}, lag:{}", selfId, delta, pps, pktLag);
                 }
                 
                 pktCntLast = pktCnt;
