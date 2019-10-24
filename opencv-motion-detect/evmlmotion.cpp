@@ -550,6 +550,7 @@ private:
         cv::GaussianBlur(thresh, gray, cv::Size(21, 21), cv::THRESH_BINARY);
         if(first) {
             // avg = cv::Mat::zeros(gray.size(), CV_32FC3);
+            avg.release();
             avg = gray.clone();
             first = false;
             return;
@@ -564,6 +565,7 @@ private:
         // TODO: AVG
         // cv::accumulateWeighted(gray, avg, 0.5);
         cv::absdiff(gray, avg, thresh);
+        avg.release();
         avg = gray.clone();
 
         if(!detect || fent < detPara.entropy) {
