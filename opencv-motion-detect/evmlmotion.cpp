@@ -498,7 +498,7 @@ private:
                 int factor = 0;
                 bool proc = true;
                 if(this->pps != 0) {
-                    factor = int(int(this->pps) / this->detPara.fpsProc);
+                    factor = int(int(this->pps) / this->detPara.fpsProc); // regulator to 0 if it was set inresonably high
                 }
                 if(factor != 0 ){
                     if(called % factor == 0) {
