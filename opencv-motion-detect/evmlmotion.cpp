@@ -813,7 +813,7 @@ protected:
                 pktLag = chrono::duration_cast<chrono::seconds>(now.time_since_epoch()).count() - this->packetTs;
                 this->pps = 18.0 * 1000/delta;
                 if(pktCnt % (180 * 5) == 0) {
-                    spdlog::info("evmlmotion {} metering: 18 packet in {}s, pps: {}, lag:{}", selfId, delta, pps, pktLag);
+                    spdlog::info("evmlmotion {} metering: 18 packet in {}ms, pps: {}, lag:{}", selfId, delta, pps, pktLag);
                 }
                 
                 pktCntLast = pktCnt;
