@@ -786,7 +786,10 @@ protected:
             if((pktCnt  - pktCntLast ) == 180) {
                 auto delta = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now() - start).count();
                 this->pps = int(180/delta);
-                spdlog::info("evmlmotion {} metering: 180 packet in {}s, pps: {}", selfId, delta, pps);
+                if(pktCnt % (180 * 5) == 0) {
+                    spdlog::info("evmlmotion {} metering: 180 packet in {}s, pps: {}", selfId, delta, pps);
+                }
+                
                 pktCntLast = pktCnt;
                 start = chrono::system_clock::now();
             }
