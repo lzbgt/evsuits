@@ -496,7 +496,7 @@ private:
 
                 if(this->pps < this->detPara.fpsProc|| this->schmittriStatus != 0) {
                     if(this->pps != 0) {
-                        spdlog::info("evmlmotion pps {}, parProc {}, lag {}, skip processing", this->selfId, this->pps, this->detPara.fpsProc, this->pktLag);
+                        spdlog::info("evmlmotion {}  pps {}, parProc {}, lag {}, skip processing", this->selfId, this->pps, this->detPara.fpsProc, this->pktLag);
                     }
                     detectMotion(pCodecContext->pix_fmt, pFrame, false);
                 }else{
