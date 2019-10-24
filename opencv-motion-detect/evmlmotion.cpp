@@ -512,7 +512,7 @@ private:
                 if(factor != 0 ){
                     if(called % factor == 0) {
                         proc = true;
-                        factor = 0; // reset it open to change
+                        //factor = 0; // reset it open to change
                     }else{
                         proc = false;
                     }
@@ -528,6 +528,7 @@ private:
                         spdlog::info("evmlmotion {} pps {}, fpsFactor {}, called {}, lag {}", this->selfId, this->pps, factor, called, this->pktLag);
                     }
                     detectMotion(pCodecContext->pix_fmt, pFrame, detect);
+                    factor = 0; // refresh to latest value
                 }
                 
                 break;
