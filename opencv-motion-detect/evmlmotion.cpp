@@ -784,10 +784,12 @@ protected:
             }
 
             if((pktCnt  - pktCntLast ) == 180) {
-                auto delta = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now() - start).count();
+                auto now = chrono::system_clock::now();
+                auto delta = chrono::duration_cast<chrono::seconds>(now - start).count();
+                auto lag = chrono::duration_cast<chrono::seconds>(now.time_since_epoch()).count() - this->packetTs;
                 this->pps = int(180/delta);
                 if(pktCnt % (180 * 5) == 0) {
-                    spdlog::info("evmlmotion {} metering: 180 packet in {}s, pps: {}", selfId, delta, pps);
+                    spdlog::info("evmlmotion {} metering: 180 packet in {}s, pps: {}, lag:{}", selfId, delta, pps, lag);
                 }
                 
                 pktCntLast = pktCnt;
