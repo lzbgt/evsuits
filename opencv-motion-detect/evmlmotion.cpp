@@ -565,12 +565,13 @@ private:
         }
         case PRE: {
             if(hasEvent) {
-                if(dura > detPara.pre) {
+                if(dura > detPara.pre && evtCnt < detPara.pre) {
                     spdlog::debug("state: PRE->PRE ({}, {})", dura, evtCnt);
                     evtState = PRE;
+                    evtStartTmLast = evtStartTm;
                     evtCnt = 0;
                 }
-                else {
+                else if (dura > detPara.pre && evtCnt >= detPara.pre) {
                     evtState = IN;
                     json p;
                     spdlog::debug("state: PRE->IN ({}, {})", dura, evtCnt);

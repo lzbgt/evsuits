@@ -292,7 +292,7 @@ private:
             }
 
             // ipc specific
-            urlOut += string("/") + ipcSn;
+            urlOut += string("/") + ipcSn + "_" + to_string(iid);
 
             if(evslicer.count("hours") == 0) {
                 spdlog::info("evslicer {} no params for hours, using default: {}", selfId, NUM_HOURS_DEFAULT);
