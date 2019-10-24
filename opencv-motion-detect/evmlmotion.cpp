@@ -21,6 +21,7 @@ update: 2019/09/10
 #include <future>
 #include <vector>
 #include <queue>
+#include <atomic>
 
 #include <cstdlib>
 #include <ctime>
@@ -85,7 +86,7 @@ private:
     bool gotFormat = false;
     long long packetTs = 0;
     long long packetTsDelta = 0;
-
+    int pps = 0;
     //
 
     int handleCloudMsg(vector<vector<uint8_t> > v)
@@ -482,7 +483,16 @@ private:
                     pFrame->coded_picture_number
                 );
                 // string name = urlOut + "/"+ to_string(chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count()) + ".pgm";
-                detectMotion(pCodecContext->pix_fmt, pFrame, detect);
+                // TODO: dynamic pps adapting
+                if(this->pps < this->detPara.fpsProc) {
+                    if(this->pps != 0) {
+                        spdlog::info("evmlmotion {} pps {} is below {}, skip processing", this->selfId, this->pps, this->detPara.fpsProc);
+                    }
+                    detectMotion(pCodecContext->pix_fmt, pFrame, false);
+                }else{
+                    detectMotion(pCodecContext->pix_fmt, pFrame, detect);
+                }
+                
                 break;
             }
         }
@@ -724,8 +734,10 @@ protected:
             spdlog::error("evmlmotion {} failed to allocated memory for AVFrame", selfId);
             exit(1);
         }
+
+        auto start = chrono::system_clock::now();
+        auto pktCntLast = pktCnt;
         while(true) {
-            auto start = chrono::system_clock::now();
             if(checkStop() == true) {
                 bStopSig = true;
                 break;
@@ -757,7 +769,7 @@ protected:
 
             if (packet.stream_index == streamIdx) {
                 spdlog::debug("AVPacket.pts {}", packet.pts);
-                if(pktCnt < NUM_PKT_IGNORE && gFirst) {
+                if(pktCnt < NUM_PKT_IGNORE && gFirst) { // protecting against overflow
                     ret = decode_packet(false, &packet, pCodecCtx, pFrame);
                 }
                 else {
@@ -769,6 +781,14 @@ protected:
             av_packet_unref(&packet);
             if (ret < 0) {
                 spdlog::error("evmlmotion error muxing packet");
+            }
+
+            if((pktCnt  - pktCntLast ) == 180) {
+                auto delta = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now() - start).count();
+                this->pps = int(180/delta);
+                spdlog::info("evmlmotion {} metering: 180 packet in {}s, pps: {}", selfId, delta, pps);
+                pktCntLast = pktCnt;
+                start = chrono::system_clock::now();
             }
         }
 
