@@ -565,13 +565,13 @@ private:
         }
         case PRE: {
             if(hasEvent) {
-                if(dura > detPara.pre && evtCnt < detPara.pre) {
+                if(dura > detPara.pre /*&& evtCnt < detPara.pre*/) {
                     spdlog::debug("state: PRE->PRE ({}, {})", dura, evtCnt);
                     evtState = PRE;
                     evtStartTmLast = evtStartTm;
                     evtCnt = 0;
                 }
-                else if (dura > detPara.pre && evtCnt >= detPara.pre) {
+                else if (true/*dura > detPara.pre && evtCnt >= detPara.pre*/) {
                     evtState = IN;
                     json p;
                     spdlog::debug("state: PRE->IN ({}, {})", dura, evtCnt);
@@ -582,6 +582,7 @@ private:
                     auto tmp =  chrono::duration_cast<chrono::seconds>(evtStartTmLast.time_since_epoch()).count();
                     p["ts"] = packetTs;
                     packetTsDelta = tmp - packetTs;
+                    evtStartTmLast = evtStartTm;
                     //p["frame"] = origin.clone();
                     evtQueue->push(p.dump());
                     if(evtQueue->size() > MAX_EVENT_QUEUE_SIZE * 2) {
