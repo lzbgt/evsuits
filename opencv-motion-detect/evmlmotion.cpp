@@ -515,12 +515,15 @@ private:
                     }
                 }
 
-                if(this->pps < this->detPara.fpsProc || !proc) {
-                    if(this->pps != 0 && called %180 == 0) {
-                        spdlog::info("evmlmotion {}  pps {}, fpsFactor {}, called {}, lag {}, skip processing", this->selfId, this->pps, factor, called, this->pktLag);
+                if(!proc) {
+                    if(this->pps != 0 && (called %180) == 0) {
+                        spdlog::info("evmlmotion {} pps {}, fpsFactor {}, called {}, lag {}, skip processing", this->selfId, this->pps, factor, called, this->pktLag);
                     }
                     detectMotion(pCodecContext->pix_fmt, pFrame, false);
                 }else{
+                    if((called % (180*4)) == 0){
+                        spdlog::info("evmlmotion {} pps {}, fpsFactor {}, called {}, lag {}", this->selfId, this->pps, factor, called, this->pktLag);
+                    }
                     detectMotion(pCodecContext->pix_fmt, pFrame, detect);
                 }
                 
@@ -819,9 +822,9 @@ protected:
                 auto delta = chrono::duration_cast<chrono::milliseconds>(now - start).count();
                 pktLag = chrono::duration_cast<chrono::seconds>(now.time_since_epoch()).count() - this->packetTs;
                 this->pps = 18.0 * 1000/delta;
-                if(pktCnt % (180 * 5) == 0) {
-                    spdlog::info("evmlmotion {} metering: 18 packet in {}ms, pps: {}, lag:{}", selfId, delta, pps, pktLag);
-                }
+                // if(pktCnt % (180 * 5) == 0) {
+                //     spdlog::info("evmlmotion {} metering: 18 packet in {}ms, pps: {}, lag:{}", selfId, delta, pps, pktLag);
+                // }
                 
                 pktCntLast = pktCnt;
                 start = now;
