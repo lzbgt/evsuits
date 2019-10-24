@@ -297,7 +297,14 @@ private:
                 detPara.entropy = evmlmotion["entropy"];
             }
 
-            spdlog::info("evmlmotion {} detection params: entropy {}, area {}, thresh {}", selfId, detPara.entropy, detPara.area, detPara.thre);
+            if(evmlmotion.count("fpsProc") == 0|| !evmlmotion["fpsProc"].is_number_integer() ||evmlmotion["fpsProc"] < 0 || evmlmotion["fpsProc"] >= 40) {
+                spdlog::info("evmlmotion {} invalid fpsProc value. should be in (0, 40) as int, default to {}", selfId, detPara.fpsProc);
+            }
+            else {
+                detPara.fpsProc = evmlmotion["fpsProc"];
+            }
+
+            spdlog::info("evmlmotion {} detection params: entropy {}, area {}, thresh {}, fpsProc {}", selfId, detPara.entropy, detPara.area, detPara.thre, detPara.fpsProc);
 
             // setup sub
             pSubCtx = zmq_ctx_new();
@@ -510,7 +517,7 @@ private:
 
                 if(this->pps < this->detPara.fpsProc || !proc) {
                     if(this->pps != 0 && called %180 == 0) {
-                        spdlog::info("evmlmotion {}  pps {}, parProc {}, lag {}, skip processing", this->selfId, this->pps, this->detPara.fpsProc, this->pktLag);
+                        spdlog::info("evmlmotion {}  pps {}, fpsFactor {}, called {}, lag {}, skip processing", this->selfId, this->pps, factor, called, this->pktLag);
                     }
                     detectMotion(pCodecContext->pix_fmt, pFrame, false);
                 }else{

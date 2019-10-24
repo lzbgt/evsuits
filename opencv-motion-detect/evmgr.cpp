@@ -196,6 +196,19 @@ error_exit:
                 peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                 spdlog::info("evmgr {} peer connected: {}", devSn, selfId);
                 eventConn = true;
+                
+                if(cachedMsg.count(selfId) != 0) {
+                    spdlog::info("evmgr {}, send cached msg to {}", devSn, selfId);
+                    while(!cachedMsg[selfId].empty()) {
+                        lock_guard<mutex> lock(cacheLock);
+                        auto v = cachedMsg[selfId].front();
+                        cachedMsg[selfId].pop();
+                        ret = z_send_multiple(pRouter, v);
+                        if(ret < 0) {
+                            spdlog::error("evmgr {} failed to send multiple: {}", devSn, zmq_strerror(zmq_errno()));
+                        }
+                    }      
+                }
             }
             else {
                 peerData["status"][selfId] = 0;
@@ -205,23 +218,6 @@ error_exit:
             if(ret < 0) {
                 spdlog::error("evmgr {} failed to update localconfig", devSn);
             }
-
-            // event
-            // json jEvt;
-            // jEvt["type"] = EV_MSG_TYPE_CONN_STAT;
-            // jEvt["gid"] = selfId;
-            // jEvt["ts"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
-            // if(eventConn) {
-            //     jEvt["event"] = EV_MSG_EVENT_CONN_CONN;
-            // }
-            // else {
-            //     jEvt["event"] = EV_MSG_EVENT_CONN_DISCONN;
-            // }
-
-            // eventQue.push(jEvt.dump());
-            // if(eventQue.size() > MAX_EVENT_QUEUE_SIZE) {
-            //     eventQue.pop();
-            // }
 
             return 0;
         }
