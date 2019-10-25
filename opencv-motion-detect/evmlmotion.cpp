@@ -491,15 +491,7 @@ private:
                     pFrame->key_frame,
                     pFrame->coded_picture_number
                 );
-                // string name = urlOut + "/"+ to_string(chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count()) + ".pgm";
-                // TODO: dynamic pps adapting
-                // if(this->schmittriStatus == 0 && this->pktLag >= 10) {
-                //     this->schmittriStatus = 1;
-                // }else if(this->schmittriStatus == 1 && this->pktLag <= 5){
-                //     this->schmittriStatus = 2;
-                // }else if(this->schmittriStatus == 2 && this->pktLag < 10) {
-                //     this->schmittriStatus = 0;
-                // }
+                
                 static long long called = 0;
                 static int factor = 0;
                 called++;
@@ -522,7 +514,7 @@ private:
                     if(this->pps != 0 && (called %180) == 0) {
                         spdlog::info("evmlmotion {} pps {}, fpsFactor {}, called {}, lag {}, skip processing", this->selfId, this->pps, factor, called, this->pktLag);
                     }
-                    detectMotion(pCodecContext->pix_fmt, pFrame, false);
+                    // detectMotion(pCodecContext->pix_fmt, pFrame, false);
                 }else{
                     if((called % (180*4)) == 0){
                         spdlog::info("evmlmotion {} pps {}, fpsFactor {}, called {}, lag {}", this->selfId, this->pps, factor, called, this->pktLag);
