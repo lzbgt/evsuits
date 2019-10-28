@@ -26,7 +26,6 @@ update: 2019/09/10
 #include "inc/common.hpp"
 #include "inc/database.h"
 #include "inc/spdlog/spdlog.h"
-#define MAX_ZMQ_MSG_SIZE 1204 * 1024 * 2
 
 using namespace std;
 using namespace zmqhelper;
