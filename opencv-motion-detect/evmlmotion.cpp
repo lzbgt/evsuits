@@ -6,13 +6,6 @@ created: 2019/08/23
 update: 2019/09/10
 */
 
-#pragma GCC diagnostic ignored "-Wpragmas"
-#pragma GCC diagnostic ignored "-Wunknown-warning-option"
-#pragma GCC diagnostic ignored "-Wunused-private-field"
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wsign-compare"
-#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
-
 #include <stdlib.h>
 #include <string>
 #include <thread>
@@ -70,13 +63,11 @@ private:
     int iid;
     AVFormatContext *pAVFormatInput = nullptr;
     AVCodecContext *pCodecCtx = nullptr;
-    AVDictionary *pOptsRemux = nullptr;
     DetectParam detPara = {25, 500, -1, 10, 3, 30, 0.3};
     EventState evtState = EventState::NONE;
     chrono::system_clock::time_point evtStartTm, evtStartTmLast;
     queue<string> *evtQueue;
     int streamIdx = -1;
-    time_t tsLastBoot, tsUpdateTime;
     json config;
     thread thEdgeMsgHandler, thCloudMsgHandler;
     thread thEvent;
@@ -88,7 +79,6 @@ private:
     long long packetTsDelta = 0;
     float pps = 0;
     int pktLag = 0;
-    int schmittriStatus = 0;
     //
 
     int handleCloudMsg(vector<vector<uint8_t> > v)
@@ -415,7 +405,6 @@ private:
         int ret = 0;
         //  find video
         for (int i = 0; i < pAVFormatInput->nb_streams; i++) {
-            AVStream *out_stream;
             AVStream *in_stream = pAVFormatInput->streams[i];
             AVCodecParameters *in_codecpar = in_stream->codecpar;
             if (in_codecpar->codec_type != AVMEDIA_TYPE_VIDEO) {
@@ -693,8 +682,6 @@ protected:
     void run()
     {
         bool bStopSig = false;
-        int ret = 0;
-        int idx = 0;
         uint64_t pktCnt = 0;
         zmq_msg_t msg;
         AVPacket packet;

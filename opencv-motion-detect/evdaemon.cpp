@@ -6,10 +6,6 @@ created: 2019/09/04
 update: 2019/09/10
 */
 
-
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored  "-Wunused-lambda-capture"
-
 #include <queue>
 #include <cstdlib>
 #include <algorithm>
@@ -64,7 +60,7 @@ private:
 
     thread thHeartBeat;
     mutex mutHeartBeat;
-    bool bGotHeartBeat = false;
+    // bool bGotHeartBeat = false;
     int heartBeatTimeout = 60 * 1000;
 
 
@@ -107,7 +103,6 @@ private:
             // lock_guard<mutex> lock(cacheLock);
             json &data = this->config;
             string peerId;
-            pid_t pid;
             for(auto &[k,v]:data.items()) {
                 if(k == this->devSn) {
                     peerId = v["sn"].get<string>() + ":evmgr:0";
@@ -368,7 +363,6 @@ private:
     int handleEdgeMsg(vector<vector<uint8_t> > &body)
     {
         int ret = 0;
-        zmq_msg_t msg;
         // ID_SENDER, ID_TARGET, meta ,MSG
         string selfId, peerId, meta;
         if(body.size() == 2 && body[1].size() == 0) {
@@ -718,7 +712,7 @@ public:
             res.set_content(this->config.dump(), "text/json");
         });
 
-        svr.Post("/config", [this](const Request& req, Response& res) {
+        svr.Post("/config", [](const Request& req, Response& res) {
             json ret;
             ret["code"] = 0;
             ret["msg"] = "ok";
@@ -894,7 +888,6 @@ public:
 
 void cleanup(int signal)
 {
-    int status;
     while (waitpid((pid_t) (-1), 0, WNOHANG) > 0) {}
 }
 

@@ -6,13 +6,6 @@ created: 2019/08/23
 update: 2019/09/10
 */
 
-#pragma GCC diagnostic ignored "-Wpragmas"
-#pragma GCC diagnostic ignored "-Wunknown-warning-option"
-#pragma GCC diagnostic ignored "-Wunused-private-field"
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wsign-compare"
-#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
-
 #include <stdlib.h>
 #include <string>
 #include <thread>
@@ -36,11 +29,9 @@ private:
     void *pSub = nullptr, *pDealer = nullptr, *pDaemonCtx = nullptr, *pDaemon = nullptr;
     string urlOut, urlPub, urlDealer, devSn, pullerGid, mgrSn, selfId;
     int iid;
-    bool enablePush = false;
     int *streamList = nullptr;
     AVFormatContext *pAVFormatRemux = nullptr;
     AVFormatContext *pAVFormatInput = nullptr;
-    time_t tsLastBoot, tsUpdateTime;
     json config;
     thread thCloudMsgHandler, thEdgeMsgHandler;
     string drport = "5549";
@@ -414,12 +405,9 @@ protected:
     void run()
     {
         int ret = 0;
-        bool bStopSig = false;
         zmq_msg_t msg;
         AVPacket packet;
         uint64_t pktCnt = 0;
-        int pktIgnore = 0;
-        int64_t lastPts = 0;
         while (true) {
             ret =zmq_msg_init(&msg);
             if(ret != 0) {

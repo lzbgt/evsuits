@@ -6,13 +6,6 @@ created: 2019/08/23
 update: 2019/09/10
 */
 
-#pragma GCC diagnostic ignored "-Wpragmas"
-#pragma GCC diagnostic ignored "-Wunknown-warning-option"
-#pragma GCC diagnostic ignored "-Wunused-private-field"
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wsign-compare"
-#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
-
 #include <stdlib.h>
 #include <string>
 #include <thread>
@@ -50,12 +43,10 @@ private:
     string urlOut, urlPub, urlRouter, devSn, mgrSn, selfId, pullerGid, ipcSn;
     int iid, hours, seconds, numSlices;
     long bootTime = 0;
-    bool enablePush = false;
     AVFormatContext *pAVFormatRemux = nullptr;
     AVFormatContext *pAVFormatInput = nullptr;
     AVDictionary *pOptsRemux = nullptr;
     int *streamList = nullptr;
-    time_t tsLastBoot, tsUpdateTime;
     json config;
     thread thEdgeMsgHandler, thCloudMsgHandler, thSliceMgr;
     string drport = "5549";
@@ -448,7 +439,6 @@ private:
         // find all video & audio streams for remuxing
         streamList = (int *)av_mallocz_array(pAVFormatInput->nb_streams, sizeof(*streamList));
         for (int i = 0; i < pAVFormatInput->nb_streams; i++) {
-            AVStream *out_stream;
             AVStream *in_stream = pAVFormatInput->streams[i];
             AVCodecParameters *in_codecpar = in_stream->codecpar;
             if (in_codecpar->codec_type != AVMEDIA_TYPE_AUDIO &&
@@ -497,9 +487,7 @@ private:
 protected:
     void run()
     {
-        bool bStopSig = false;
         int ret = 0;
-        int idx = 0;
         int pktCnt = 0;
         AVStream * out_stream = nullptr;
         zmq_msg_t msg;

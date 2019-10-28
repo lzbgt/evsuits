@@ -197,7 +197,6 @@ namespace AVFormatCtxSerializer
 
 int encode(AVFormatContext *ctx, char **bytes)
 {
-    int ret = 0;
     int wholeSize = 0;
     int got = 0;
     // calc total size

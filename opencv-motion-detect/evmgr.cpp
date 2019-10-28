@@ -6,13 +6,6 @@ created: 2019/08/23
 update: 2019/09/10
 */
 
-#pragma GCC diagnostic ignored "-Wpragmas"
-#pragma GCC diagnostic ignored "-Wunknown-warning-option"
-#pragma GCC diagnostic ignored "-Wunused-private-field"
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wsign-compare"
-#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
-
 #include <stdlib.h>
 #include <string>
 #include <thread>
@@ -42,7 +35,6 @@ private:
     mutex cacheLock;
     queue<string> eventQue;
     mutex eventQLock;
-    time_t tsLastBoot,  tsUpdateTime;
     string drport = "5549";
     thread thCloudMsgHandler;
 
@@ -171,7 +163,6 @@ error_exit:
     int handleEdgeMsg(vector<vector<uint8_t> > &body)
     {
         int ret = 0;
-        zmq_msg_t msg;
         // ID_SENDER, ID_TARGET, meta ,MSG
         string selfId, peerId, meta;
         bool bProcessed = false;
@@ -342,8 +333,6 @@ protected:
     void run()
     {
         bool bStopSig = false;
-        int ret = 0;
-
         while (true) {
             if(checkStop() == true) {
                 bStopSig = true;

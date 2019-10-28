@@ -95,8 +95,6 @@ float getEntropy(cv::Mat &frame){
     /// Set the ranges ( for B,G,R) )
     float range[] = { 0, 256 } ;
     const float* histRange = { range };
-    bool uniform = true; 
-    bool accumulate = false;
     /// Compute the histograms:
     cv::Mat hist;
     cv::calcHist( &frame, 1, 0, cv::Mat(), hist, 1, &histSize, &histRange, true, false );
