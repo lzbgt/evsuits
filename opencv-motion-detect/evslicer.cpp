@@ -86,6 +86,7 @@ private:
             msg +=body2str(b) + ";";
         }
 
+        msg = msg.substr(0, msg.size()> EV_MSG_DEBUG_LEN? EV_MSG_DEBUG_LEN:msg.size());
         if(v.size() == 3) {
             try {
                 peerId = body2str(v[0]);

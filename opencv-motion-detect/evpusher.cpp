@@ -239,6 +239,8 @@ private:
             msg +=body2str(b) + ";";
         }
 
+        msg = msg.substr(0, msg.size()> EV_MSG_DEBUG_LEN? EV_MSG_DEBUG_LEN:msg.size());
+
         bool bProcessed = false;
         if(v.size() == 3) {
             try {

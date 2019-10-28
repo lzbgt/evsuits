@@ -22,6 +22,7 @@ using namespace std;
 using namespace nlohmann;
 
 namespace zmqhelper {
+#define EV_MSG_DEBUG_LEN 128
 #define EV_HEARTBEAT_SECONDS 30
 #define MSG_HELLO "hello"
 #define EV_MSG_META_PING "ping"

@@ -100,6 +100,7 @@ private:
             msg +=body2str(b) + ";";
         }
 
+        // msg = msg.substr(0, msg.size()> 100? 15:msg.size());
         bool bProcessed = false;
         if(v.size() == 3) {
             try {
@@ -140,6 +141,8 @@ private:
         for(auto &b:v) {
             msg +=body2str(b) + ";";
         }
+
+        msg = msg.substr(0, msg.size()> EV_MSG_DEBUG_LEN? EV_MSG_DEBUG_LEN:msg.size());
 
         bool bProcessed = false;
         if(v.size() == 3) {
@@ -774,10 +777,6 @@ protected:
                 bStopSig = true;
                 break;
             }
-            // if(1 == getppid()) {
-            //     spdlog::error("evmlmotion {} exit since evdaemon is dead", selfId);
-            //     exit(1);
-            // }
 
             // business logic
             int ret =zmq_msg_init(&msg);

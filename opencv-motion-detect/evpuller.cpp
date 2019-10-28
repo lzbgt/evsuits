@@ -129,7 +129,7 @@ private:
             string sMeta = body2str(v[1]);
             string peerId = body2str(v[0]);
             auto meta = json::parse(sMeta);
-            if(meta["type"].get<string>() == EV_MSG_META_AVFORMATCTX) {
+            if(meta["type"].get<string>() == EV_MSG_META_AVFORMATCTX && body2str(v[2]) == MSG_HELLO) {
                 sendAVInputCtxMsg(peerId);
             }
             else if(meta["type"].get<string>() == EV_MSG_META_EVENT) {
@@ -477,6 +477,8 @@ public:
                     for(auto &v: body) {
                         msg += body2str(v) + ",";
                     }
+
+                    msg = msg.substr(0, msg.size()> EV_MSG_DEBUG_LEN? EV_MSG_DEBUG_LEN:msg.size());
                     spdlog::info("evpuller {} received edge msg: {}", selfId, msg);
                     this->handleEdgeMsg(body);
                 }
