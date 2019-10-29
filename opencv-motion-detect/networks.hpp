@@ -40,7 +40,13 @@ map<string, string> getIps()
                 string ifStr(ifa->ifa_name);
                 ret[addrStr] = ifStr;
             }
-        }  
+        }
+        // else if (ifa->ifa_addr->sa_family == AF_INET6) { // check it is IP6
+        //     // is a valid IP6 Address
+        //     tmpAddrPtr=&((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr;
+        //     char addressBuffer[INET6_ADDRSTRLEN];
+        //     inet_ntop(AF_INET6, tmpAddrPtr, addressBuffer, INET6_ADDRSTRLEN);
+        // }  
     }
     if (ifAddrStruct!=nullptr) freeifaddrs(ifAddrStruct);
     return ret;
