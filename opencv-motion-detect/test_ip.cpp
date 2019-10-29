@@ -1,0 +1,52 @@
+#include <sys/types.h>
+#include <ifaddrs.h>
+#include <netinet/in.h>
+#include <string>
+#include <arpa/inet.h>
+#include <map>
+#include <spdlog/spdlog.h>
+
+using namespace std;
+
+map<string, string> getIps()
+{
+    map<string, string> ret;
+    struct ifaddrs * ifAddrStruct=nullptr;
+    struct ifaddrs * ifa=nullptr;
+    void * tmpAddrPtr=nullptr;
+    char addressBuffer[INET_ADDRSTRLEN];
+
+    getifaddrs(&ifAddrStruct);
+
+    for (ifa = ifAddrStruct; ifa != nullptr; ifa = ifa->ifa_next) {
+        if (!ifa->ifa_addr) {
+            continue;
+        }
+        if (ifa->ifa_addr->sa_family == AF_INET) { // check it is IP4
+            // is a valid IP4 Address
+            tmpAddrPtr=&((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
+            int ip = htonl(*(int*)tmpAddrPtr);
+            // printf("%d %d %d %d", ( ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip>> 8) & 0xFF, (ip >> 0) & 0xFF);
+            if(((ip >> 24) & 0xFF) == 127) {
+                continue;
+            }
+
+            if(inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN) != nullptr) {
+                string addrStr(addressBuffer);
+                string ifStr(ifa->ifa_name);
+                ret[addrStr] = ifStr;
+            }
+        }  
+    }
+    if (ifAddrStruct!=nullptr) freeifaddrs(ifAddrStruct);
+    return ret;
+}
+
+int main (int argc, const char * argv[])
+{
+    auto r = getIps();
+    for(const auto &[k,v]: r) {
+        spdlog::info("{} {}", k, v);
+    }
+    return 0;
+}

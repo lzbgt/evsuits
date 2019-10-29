@@ -18,6 +18,7 @@ update: 2019/09/10
 #include "inc/database.h"
 #include "inc/json.hpp"
 #include "inc/utils.hpp"
+#include "networks.hpp"
 #include <unistd.h>
 #include <sys/wait.h>
 
@@ -43,7 +44,6 @@ private:
     thread::id thIdMain;
     thread thRouter;
     thread thCloud;
-    bool bReload = false;
     bool bBootstrap = true;
     bool bColdStart = true;
 
@@ -74,11 +74,12 @@ private:
 
     /// tracking sub-systems: evmgr, evpuller, evpusher, evml*, evslicer etc.
     json mapSubSystems;
+    json jsonIPs;
 
     int ping(void *s)
     {
         int ret = 0;
-        vector<vector<uint8_t> >body = {str2body("evcloudsvc:0:0"), str2body(EV_MSG_META_PING), str2body(MSG_HELLO)};
+        vector<vector<uint8_t> >body = {str2body("evcloudsvc:0:0"), str2body(EV_MSG_META_PING), str2body(this->jsonIPs.dump())};
 
         ret = z_send_multiple(s, body);
         if(ret < 0) {
@@ -733,14 +734,6 @@ public:
             res.set_content(ret.dump(), "text/json");
         });
 
-        svr.Get("/sync-cloud", [this](const Request& req, Response& res) {
-            json ret;
-            ret["code"] = 0;
-            ret["msg"] = "syncing ...";
-            res.set_content(ret.dump(), "text/json");
-            this->bReload = true;
-        });
-
         svr.Get("/reset", [](const Request& req, Response& res) {
             json ret;
             ret["code"] = 0;
@@ -771,11 +764,21 @@ public:
             LVDB::getSn(info);
         }
         catch(exception &e) {
-            spdlog::error("evdaemon failed to get sn: {}", e.what());
+            spdlog::error("evdaemon failed to get local info: {}", e.what());
             exit(1);
         }
 
         spdlog::info("evdaemon boot \n{}",info.dump());
+
+        auto ipAddrs = netutils::getIps();
+        if(ipAddrs.size() == 0) {
+            spdlog::error("evdaemon failed to start: no network available!");
+            exit(2);
+        }
+
+        for(const auto &[k, v]: ipAddrs) {
+            jsonIPs.push_back(k);
+        }
 
         devSn = info["sn"];
 

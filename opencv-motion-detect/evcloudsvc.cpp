@@ -481,10 +481,13 @@ private:
             // message to evcloudsvc
             // spdlog::info("evcloudsvc {} subsystem report msg received: {}; {}; {}", devSn, zmqhelper::body2str(body[0]), zmqhelper::body2str(body[1]), zmqhelper::body2str(body[2]));
             if(meta == "pong"||meta == "ping") {
-                // update status
-                spdlog::info("evcloudsvc {}, ping msg from {}", devSn, selfId);
                 // handleConnection(selfId);
                 if(meta=="ping") {
+                    auto ips = body2str(body[3]);
+                    spdlog::info("evcloudsvc {}, ping msg from {}: {}", devSn, selfId, ips);
+
+                    this->peerData["info"]["ips"][selfId] = ips;
+
                     if(cachedMsg.find(selfId) != cachedMsg.end()) {
                         while(!cachedMsg[selfId].empty()) {
                             lock_guard<mutex> lock(cacheLock);
@@ -1109,6 +1112,11 @@ public:
     EvCloudSvc()
     {
         int ret = 0;
+        this->peerData["info"] = json();
+        this->peerData["info"]["ips"] = json();
+        this->peerData["config"] = json();
+        this->peerData["status"] = json();
+
         spdlog::info("evcloudsvc boot");
         loadConfigMap();
         char *strEnv = getenv("HTTP_PORT");
