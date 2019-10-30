@@ -30,6 +30,7 @@ namespace zmqhelper {
 #define EV_MSG_META_EVENT "event"
 
 #define EV_MSG_META_TYPE_CMD "cmd"
+#define EV_MSG_META_VALUE_CMD_REVESETUN "reversetun"
 #define EV_MSG_META_VALUE_CMD_RESTART "restart"
 #define EV_MSG_META_VALUE_CMD_UPDATE "update"
 #define EV_MSG_META_VALUE_CMD_STOP "stop"

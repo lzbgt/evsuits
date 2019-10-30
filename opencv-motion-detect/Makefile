@@ -36,7 +36,7 @@ CPP = g++
 CPPFLAGS = $(DEBUG) -Wall -std=gnu++1z
 CFLAGS = $(DEBUG) -Wall
 
-LIBOPENCV = `pkg-config opencv --cflags --libs`
+LIBOPENCV = `pkg-config opencv4 --cflags --libs`
 #LIBOPENCV=-Ivendor/include/opencv4 -lopencv_video -lopencv_videoio -lopencv_imgproc  -lopencv_core -lopencv_dnn -lopencv_highgui
 LIBFFMPEG = `pkg-config libavformat libavutil libavcodec libswscale --cflags --libs`
 LIBS +=-Lvendor/lib -lpthread -lleveldb

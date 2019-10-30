@@ -12,6 +12,10 @@ update: 2019/09/10
 #include <regex>
 #include <iterator>
 #include <set>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <fstream>
+
 #include "inc/tinythread.hpp"
 #include "inc/httplib.h"
 #include "inc/zmqhelper.hpp"
@@ -19,8 +23,6 @@ update: 2019/09/10
 #include "inc/json.hpp"
 #include "inc/utils.hpp"
 #include "networks.hpp"
-#include <unistd.h>
-#include <sys/wait.h>
 
 using namespace std;
 using namespace httplib;
@@ -29,6 +31,7 @@ using namespace zmqhelper;
 
 
 #define EV_FILE_LVDB_DAEMON "/opt/lvldb/daemon"
+#define EV_REVERSE_TUN_PIDS "/var/run/evdaemon-reverse-tun.pids"
 
 class EvDaemon {
 private:
@@ -534,6 +537,60 @@ private:
         return ret;
     }
 
+    int clearReverseTun(){
+        try{
+            std::ifstream fPids(EV_REVERSE_TUN_PIDS);
+            json jPids;
+            fPids >> jPids;
+
+            for(auto &pid:jPids) {
+                kill(pid, SIGTERM);
+            }
+        }catch(exception &e) {
+            spdlog::error("evdaemon {} exception in clearReverseTun: {}", devSn, e.what());
+        }
+
+        return 0;
+    }
+
+    int manageReverseTun(bool bStart, json &&tunCfg) {
+        int ret = 0;
+        if(tunCfg.count("remotePort") == 0 || tunCfg.count("host") == 0 || tunCfg.count("user") == 0 || tunCfg.count("remotePassword") == 0) {
+            spdlog::error("evcdaemon {} invalid reverse tunnel settings, shall have host, remotePort, user, remotePassword fields");
+            return -1;
+        }
+        // we only allow one tunnel per box, clear once called
+        clearReverseTun();
+        if(bStart){
+            pid_t pid;
+            if( (pid = fork()) == -1 ) {
+                spdlog::error("evdamon {} failed to fork reverse tunnel", devSn);
+                return -2;
+            }else if(pid == 0) {
+                // sshpass -p "Hz123456" ssh -oStrictHostKeyChecking=no -R 2202:127.0.0.1:22 -fgN root@ss.1ding.me
+                string cmd = "/usr/bin/sshpass";
+                string remotePort = fmt::format("{}:127.0.0.1:22", tunCfg["remotePort"].get<string>());
+                string remoteHost = fmt::format("{}@{}", tunCfg["user"].get<string>(), tunCfg["host"].get<string>());
+                execl(cmd.c_str(), cmd.c_str(), "-p", tunCfg["remotePassword"].get<string>().c_str(), "ssh", "-oStrictHostKeyChecking=no", "-R", remotePort.c_str(), "-fgN", remoteHost.c_str());
+                spdlog::error("evdaemon {} failed to create reverse tunnel in execl", devSn);
+            }else{
+                try{
+                    std::ofstream fPids("EV_REVERSE_TUN_PIDS");
+                    json jPids;
+                    jPids.push_back(pid);
+                    fPids << jPids.dump();
+                }catch(exception &e) {
+                    spdlog::error("evdaemon {} failed to create reverse tunnel exception: {}", devSn, e.what());
+                    return -3;
+                }
+            }
+        }else{
+            //
+        }
+
+        return ret;
+    }
+
     int handleCloudMsg(vector<vector<uint8_t> > &v)
     {
         int ret = 0;
@@ -599,7 +656,11 @@ private:
                             string target = data["target"];
                             auto v = strutils::split(target, ':');
                             if(v.size() == 1) {
-                                spdlog::info("evdaemon {} received msg {} from cloud to itself. TODO: functionality extending points such as debug tunnel", devSn, data.dump());
+                                if(data["metaValue"] == EV_MSG_META_VALUE_CMD_REVESETUN) {
+
+                                }else{
+                                    spdlog::info("evdaemon {} received msg {} from cloud to itself. but has no implementation for", devSn, data.dump());
+                                }
                             }
                             else if(v.size() == 3) {
                                 if(this->peerData["status"].count(target) == 0 || this->peerData["status"][target] == 0 || this->peerData["status"] == -1) {
