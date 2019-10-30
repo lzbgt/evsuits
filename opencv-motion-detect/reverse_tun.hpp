@@ -205,7 +205,7 @@ int createReverseTun(string host, int port, string user, string _password, threa
         closeFun(); return -1;
     }
 
-    spdlog::info("tun forwarding connection from remote {}:{}{} to local {}:{}\n",
+    spdlog::info("tun forwarding connection from remote {}:{} to local {}:{}\n",
                  remote_listenhost, remote_listenport, local_destip, local_destport);
 
     /* Must use non-blocking IO hereafter due to the current libssh2 API */
