@@ -24,6 +24,7 @@ update: 2019/09/10
 #include "inc/utils.hpp"
 #include "inc/fs.h"
 #include "networks.hpp"
+#include "reverse_tun.hpp"
 
 using namespace std;
 using namespace httplib;
@@ -538,25 +539,6 @@ private:
         return ret;
     }
 
-    int clearReverseTun(){
-        try{
-            if(!fs::exists(EV_REVERSE_TUN_PIDS) || fs::file_size(EV_REVERSE_TUN_PIDS) == 0){
-                return -1;
-            }
-
-            std::ifstream fPids(EV_REVERSE_TUN_PIDS);
-            json jPids;
-            fPids >> jPids;
-
-            for(auto &pid:jPids) {
-                kill(pid, SIGTERM);
-            }
-        }catch(exception &e) {
-            spdlog::error("evdaemon {} exception in clearReverseTun: {}", devSn, e.what());
-        }
-
-        return 0;
-    }
 
     int manageReverseTun(bool bStart, json &tunCfg) {
         int ret = 0;
@@ -564,35 +546,10 @@ private:
             spdlog::error("evcdaemon {} invalid reverse tunnel settings, shall have host, port, user, password fields");
             return -1;
         }
-        // we only allow one tunnel per box, clear once called
-        clearReverseTun();
-        spdlog::info("evdaemon {} cleared previous reverse tunnels", devSn);
-        if(bStart){
-            pid_t pid;
-            if( (pid = fork()) == -1 ) {
-                spdlog::error("evdamon {} failed to fork reverse tunnel", devSn);
-                return -2;
-            }else if(pid == 0) {
-                // /usr/bin/sshpass -p "Hz123456" ssh -oStrictHostKeyChecking=no -R 2202:127.0.0.1:22 -fgN root@ss.1ding.me
-                string cmd = "sshpass";
-                string remotePort = fmt::format("{}:127.0.0.1:22", to_string(tunCfg["port"].get<int>()));
-                string remoteHost = fmt::format("{}@{}", tunCfg["user"].get<string>(), tunCfg["host"].get<string>());
-                execlp(cmd.c_str(), cmd.c_str(), "-p", tunCfg["password"].get<string>().c_str(), "ssh", "-oStrictHostKeyChecking=no", "-R", remotePort.c_str(), "-fgN", remoteHost.c_str(), (char *) 0);
-                spdlog::error("evdaemon {} failed to create reverse tunnel in execl", devSn);
-            }else{
-                try{
-                    std::ofstream fPids("EV_REVERSE_TUN_PIDS");
-                    json jPids;
-                    jPids.push_back(pid);
-                    fPids << jPids.dump();
-                }catch(exception &e) {
-                    spdlog::error("evdaemon {} failed to create reverse tunnel exception: {}", devSn, e.what());
-                    return -3;
-                }
-            }
-        }else{
-            //
-        }
+        thread th;
+        auto port = createReverseTun(tunCfg["host"], tunCfg["port"], tunCfg["user"], tunCfg["password"], th);
+        spdlog::info("evdaemon {} created reverse tun to {}:{}", devSn, tunCfg["host"].get<string>(), port);
+        th.detach();
 
         return ret;
     }

@@ -81,7 +81,7 @@ evmlmotion_d: evmlmotion.cpp inc/common.hpp inc/av_common.hpp objs/utils.o inc/a
 	$(CPP) $(CPPFLAGS) -DDEBUG $(LD_FLAGS) -o evmlmotion_d evmlmotion.cpp objs/database.o objs/utils.o objs/zmqhelper.o $(SQLITE) $(LIBFFMPEG) $(HEADERS) $(LIBOPENCV) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
 
 evdaemon: evdaemon.cpp inc/common.hpp objs/utils.o objs/database.o objs/zmqhelper.o  inc/tinythread.hpp database.cpp
-	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evdaemon evdaemon.cpp objs/database.o objs/utils.o objs/zmqhelper.o $(SQLITE) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS)
+	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evdaemon evdaemon.cpp objs/database.o objs/utils.o objs/zmqhelper.o $(SQLITE) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS) -lssh2
 
 evcloudsvc: evcloudsvc.cpp objs/utils.o objs/database.o objs/zmqhelper.o  inc/tinythread.hpp
 	$(CPP) $(CPPFLAGS) $(LD_FLAGS) -o evcloudsvc evcloudsvc.cpp objs/utils.o objs/database.o objs/zmqhelper.o $(SQLITE) $(HEADERS) `pkg-config --cflags --libs vendor/lib/pkgconfig/libzmq.pc` $(LIBS) -lfmt
