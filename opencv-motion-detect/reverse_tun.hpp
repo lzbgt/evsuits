@@ -39,7 +39,7 @@ int createReverseTun(string host, int port, string user, string _password, threa
 {
     int remote_listenport = -1;
     const char *server_ip = host.c_str();
-    const char *remote_listenhost = "0.0.0.0"; /* resolved by the server */
+    const char *remote_listenhost = "localhost"; /* resolved by the server */
     int remote_wantport = port;
     const char *local_destip = "127.0.0.1";
     int local_destport = 22;
