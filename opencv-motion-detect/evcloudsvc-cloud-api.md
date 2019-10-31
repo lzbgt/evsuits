@@ -237,18 +237,38 @@ get value for specified key in cloud db. keys list is queried by /keys api
 ##### description
 *[NOT IMPLEMENTED]* get edge terminal hw & os infomation including resource usage of CPU, RAM, IO, DISK etc...
 
-#### POST /debug
+#### POST /cmd
 ##### description
-*[NOT IMPLEMENTED]* turn on/off debug tunnel
-##### params
-- sn: string
-- op: on|off
-- ip: string. ip of public accessable host
-- port(optional): number. ssh port of the public accessable host. default 22.
-- port_tun(optional): number. tunnuel port of the public accessable host. default 11222.
-- user: ssh user of the public accessable host
-- password: ssh password of the public accessable host
-##### return
+send cmd to edge.
+currently implemented cmd: reversetun, debug:list_files, debug:record, debug:toggle_log
+##### cmd: reversetun
+###### description
+create reverse ssh tunnel between edge box and an sshd server
+###### params
+none
+###### body
+```
+{
+   "target":"0017SRTC",
+   "metaType":"cmd",
+   "metaValue":"reversetun",
+   "data":{
+      "host":"47.56.83.236",
+      "user":"root",
+      "password":"Hz123456",
+      "port":9999
+   }
+}
+```
+- target: edge box SN
+- metaType: always being "cmd"
+- metaValue: "reversetun
+- data.host: cloud sshd host (with serving port on 22)
+- data.user: cloud sshd user name
+- data.password: cloud sshd password
+- data.port: port on cloud sshd host, which will be created and reversed tunneling to the port 22 of the edge box.
+
+###### return
 - type: json
 - example
 ```
