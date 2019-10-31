@@ -13,3 +13,9 @@
 [submodule "opencv-motion-detect/vendor/fmt"]
 	path = opencv-motion-detect/vendor/fmt
 	url = https://github.com/fmtlib/fmt
+[submodule "opencv-motion-detect/vendor/libssh2"]
+	path = opencv-motion-detect/vendor/libssh2
+	url = https://github.com/libssh2/libssh2
+[submodule "opencv-motion-detect/vendor/libgcrypt"]
+	path = opencv-motion-detect/vendor/libgcrypt
+	url = https://github.com/gpg/libgcrypt
