@@ -35,7 +35,7 @@ enum {
 };
 
 
-int createReverseTun(string host, int port, string user, string _password, thread &thWorker)
+int createReverseTun(string host, int port, string user, string _password)
 {
     int remote_listenport = -1;
     const char *server_ip = host.c_str();
@@ -56,7 +56,6 @@ int createReverseTun(string host, int port, string user, string _password, threa
     fd_set fds;
     struct timeval tv;
     ssize_t len, wr;
-    char buf[10240]; // 10K
     string msg = "Fingerprint: ";
     int sock = -1, forwardsock = -1;
 
@@ -211,75 +210,79 @@ int createReverseTun(string host, int port, string user, string _password, threa
     /* Must use non-blocking IO hereafter due to the current libssh2 API */
     libssh2_session_set_blocking(session, 0);
 
-    thWorker = thread([&]() {
-        bool hasError = false;
-        while(1) {
-            FD_ZERO(&fds);
-            FD_SET(forwardsock, &fds);
-            tv.tv_sec = 0;
-            tv.tv_usec = 100000;
-            rc = select(forwardsock + 1, &fds, nullptr, nullptr, &tv);
-            if(-1 == rc) {
-                spdlog::error("tun failed to select");
+    bool hasError = false;
+    char buf[10240]; // 10K
+    while(1) {
+        if(hasError) {
+            break;
+        }
+        FD_ZERO(&fds);
+        FD_SET(forwardsock, &fds);
+        tv.tv_sec = 0;
+        tv.tv_usec = 100000;
+        rc = select(forwardsock + 1, &fds, nullptr, nullptr, &tv);
+        if(-1 == rc) {
+            spdlog::error("tun failed to select");
+            break;
+        }
+
+        if(rc && FD_ISSET(forwardsock, &fds)) {
+            len = recv(forwardsock, buf, sizeof(buf), 0);
+            if(len < 0) {
+                spdlog::error("tun failed to read");
                 break;
             }
-
-            if(rc && FD_ISSET(forwardsock, &fds)) {
-                len = recv(forwardsock, buf, sizeof(buf), 0);
-                if(len < 0) {
-                    spdlog::error("tun failed to read");
-                    break;
-                }
-                else if(0 == len) {
-                    spdlog::info("tun the local server at {}:{} disconnected!\n",
-                                 local_destip, local_destport);
-                    break;
-                }
-                wr = 0;
-                do {
-                    i = libssh2_channel_write(channel, buf, len);
-                    if(i < 0) {
-                        spdlog::error("tun failed to libssh2_channel_write: {}", i);
-                        hasError = true;
-                        break;
-                    }
-                    wr += i;
-                }
-                while(i > 0 && wr < len);
+            else if(0 == len) {
+                spdlog::info("tun the local server at {}:{} disconnected!\n",
+                                local_destip, local_destport);
+                break;
             }
-
-            while(1) {
-                len = libssh2_channel_read(channel, buf, sizeof(buf));
-                if(LIBSSH2_ERROR_EAGAIN == len)
-                    break;
-                else if(len < 0) {
-                    spdlog::error("tun failed libssh2_channel_read: {}", (int)len);
+            wr = 0;
+            do {
+                i = libssh2_channel_write(channel, buf, len);
+                if(i < 0) {
+                    spdlog::error("tun failed to libssh2_channel_write: {}", i);
                     hasError = true;
                     break;
                 }
-                wr = 0;
-                while(wr < len) {
-                    i = send(forwardsock, buf + wr, len - wr, 0);
-                    if(i <= 0) {
-                        spdlog::error("tun failed to reverse write");
-                        hasError = true;
-                        break;
-                    }
-                    wr += i;
-                }
-
-                if(libssh2_channel_eof(channel)) {
-                    spdlog::error("tun the remote client at {}:{} disconnected!",
-                                  remote_listenhost, remote_listenport);
-                    break;
-                }
+                wr += i;
             }
+            while(i > 0 && wr < len);
         }
 
-        closeFun();
-    });
+        while(1) {
+            len = libssh2_channel_read(channel, buf, sizeof(buf));
+            if(LIBSSH2_ERROR_EAGAIN == len)
+                break;
+            else if(len < 0) {
+                spdlog::error("tun failed libssh2_channel_read: {}", (int)len);
+                hasError = true;
+                break;
+            }
+            wr = 0;
+            while(wr < len) {
+                i = send(forwardsock, buf + wr, len - wr, 0);
+                if(i <= 0) {
+                    spdlog::error("tun failed to reverse write");
+                    hasError = true;
+                    break;
+                }
+                wr += i;
+            }
 
-    return remote_listenport;
+            if(libssh2_channel_eof(channel)) {
+                spdlog::info("tun the remote client at {}:{} disconnected!",
+                                remote_listenhost, remote_listenport);
+                hasError = true;
+                break;
+            }
+        }
+    }
+
+    closeFun();
+    
+
+    return 0;//remote_listenport;
 }
 
 #endif

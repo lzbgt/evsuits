@@ -547,8 +547,13 @@ private:
             return -1;
         }
         thread th;
-        auto port = createReverseTun(tunCfg["host"], tunCfg["port"], tunCfg["user"], tunCfg["password"], th);
-        spdlog::info("evdaemon {} created reverse tun to {}:{}", devSn, tunCfg["host"].get<string>(), port);
+        string host = tunCfg["host"], user = tunCfg["user"], password = tunCfg["password"];
+        int port = tunCfg["port"];
+        th = thread([host, port, user, password](){
+            createReverseTun(host, port, user, password);
+        });
+        
+        spdlog::info("evdaemon {} created reverse tun to {}:{}", devSn, tunCfg["host"].get<string>(), tunCfg["port"].get<int>());
         th.detach();
 
         return ret;
