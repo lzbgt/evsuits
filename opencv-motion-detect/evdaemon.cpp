@@ -322,7 +322,8 @@ private:
                     else if(int(v) == 2||int(v) == 3) {
                         int status = (this->peerData["status"].count(k) == 0) ? -1:this->peerData["status"][k].get<int>();
                         spdlog::info("evdaemon {} module {} status {}", this->devSn, k, status);
-                        if(this->peerData["status"].count(k) == 0 || this->peerData["status"][k] == 0||this->peerData["status"][k] == -1) {
+                        // not running
+                        if(this->peerData["status"].count(k) == 0 || this->peerData["status"][k] == 0||this->peerData["status"][k] == -1||this->peerData["status"][k]== 1||this->peerData["status"][k] == 2) {
                             pid_t pid;
                             spdlog::info("evdaemon {} starting subsystem {}", this->devSn, k);
                             ret = zmqhelper::forkSubsystem(devSn, k, portRouter, pid);
@@ -336,9 +337,7 @@ private:
                             }
                         }
                         else {
-                            if(int(v) == 3) {
-                                sendCmd2Peer(k, EV_MSG_META_VALUE_CMD_STOP, to_string(v));
-                            }
+                            sendCmd2Peer(k, EV_MSG_META_VALUE_CMD_STOP, to_string(v));   
                         }
                     }
                     else {
