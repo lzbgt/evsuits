@@ -16,70 +16,72 @@ query configuration for edge device with specified sn
 - example
 ```
 {
-    "code": 0,
-    "data": {
-        "NMXH73Y2": {
-            "addr": "127.0.0.1",
-            "api-cloud": "http://127.0.0.1:8089",
-            "ipcs": [
-                {
-                    "addr": "172.31.0.51",
-                    "modules": {
-                        "evml": [
-                            {
-                                "area": 300,
-                                "enabled": 1,
-                                "iid": 1,
-                                "post": 30,
-                                "pre": 3,
-                                "sn": "NMXH73Y2",
-                                "thresh": 80,
-                                "type": "motion"
-                            }
-                        ],
-                        "evpuller": [
-                            {
-                                "addr": "127.0.0.1",
-                                "enabled": 1,
-                                "iid": 1,
-                                "port-pub": 5556,
-                                "sn": "NMXH73Y2"
-                            }
-                        ],
-                        "evpusher": [
-                            {
-                                "enabled": 1,
-                                "iid": 1,
-                                "password": "",
-                                "sn": "NMXH73Y2",
-                                "token": "",
-                                "urlDest": "rtsp://40.73.41.176:554/test1",
-                                "user": ""
-                            }
-                        ],
-                        "evslicer": [
-                            {
-                                "enabled": 1,
-                                "iid": 1,
-                                "path": "slices",
-                                "sn": "NMXH73Y2"
-                            }
-                        ]
-                    },
-                    "password": "FWBWTU",
-                    "port": 554,
-                    "proto": "rtsp",
-                    "user": "admin"
-                }
-            ],
-            "mqtt-cloud": "<cloud_addr>",
-            "port-cloud": 5556,
-            "port-router": 5550,
-            "proto": "zmq",
-            "sn": "NMXH73Y2"
-        }
-    },
-    "msg": "ok"
+   "data":{
+      "V2I0C7KC":{
+         "addr":"127.0.0.1",
+         "apiCloud":"http://127.0.0.1:8089",
+         "ipcs":[
+            {
+               "addr":"172.31.0.129",
+               "modules":{
+                  "evml":[
+                     {
+                        "area":200,
+                        "enabled":1,
+                        "iid":1,
+                        "post":30,
+                        "pre":4,
+                        "sn":"V2I0C7KC",
+                        "thresh":30,
+                        "entropy": 0.3,
+                        "type":"motion"
+                     }
+                  ],
+                  "evpuller":[
+                     {
+                        "addr":"127.0.0.1",
+                        "iid":1,
+                        "enabled": 1,
+                        "portPub":5556,
+                        "sn":"V2I0C7KC"
+                     }
+                  ],
+                  "evpusher":[
+                     {
+                        "enabled":1,
+                        "iid":2,
+                        "password":"",
+                        "sn":"V2I0C7KC",
+                        "token":"",
+                        "urlDest":"rtsp://40.73.41.176/V2I0C7KC",
+                        "user":""
+                     }
+                  ],
+                  "evslicer":[
+                     {
+                        "enabled":1,
+                        "iid":1,
+                        "path":"slices",
+                        "sn":"V2I0C7KC",
+                        "videoServerAddr": "http://40.73.41.176:10009/upload/evtvideos/"
+                     }
+                  ]
+               },
+               "password":"iLabService",
+               "port":554,
+               "proto":"rtsp",
+               "user":"admin",
+               "sn": "V2I0C7KC"
+            }
+         ],
+         "mqttCloud":"<cloud_addr>",
+         "portCloud":5556,
+         "portRouter":5550,
+         "proto":"zmq",
+         "sn":"V2I0C7KC"
+      }
+   },
+   "lastupdated":1567669674
 }
 ```
 
