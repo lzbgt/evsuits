@@ -560,6 +560,13 @@ private:
                 ret["msg"] = msg;
                 spdlog::warn(msg);
             }
+
+            auto now = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+            if(peerData["status"].count(sn) != 0 && ((now - peerData["status"][sn].get<decltype(now)>()) < 60) ){
+                ret["online"] = true;
+            }else{
+                ret["online"] = false;
+            }
         }
         catch(exception &e) {
             string msg = "evcloudsvc exception in file " + string(__FILE__) + ":" + to_string(__LINE__) + " for: " + e.what();
@@ -832,6 +839,34 @@ private:
         return ret;
     }
 
+    json getClusterInfo(set<string> sns) {
+        json ret;
+        ret["code"] = 0;
+        ret["msg"] = "ok";
+        ret["data"] = json();
+
+        if(sns.size() == 0) {
+            for(auto&[k,v]: configMap["sn2mods"].items()) {
+                sns.insert(k);
+            }
+        }
+
+        for(auto &k: sns) {
+            auto conf = getConfigForDevice(k);
+            auto now = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+
+            if(peerData["status"].count(k) != 0 && ((now - peerData["status"][k].get<decltype(now)>()) < 60) ){
+                conf["online"] = true;
+            }else{
+                conf["online"] = false;
+            }
+            ret["data"][k] = conf;
+
+        }
+
+        return ret;
+    }
+
 protected:
 public:
     void run()
@@ -842,46 +877,9 @@ public:
             ret["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
             ret["msg"] = "ok";
             string sn = req.get_param_value("sn");
-            string module = req.get_param_value("module");
+            // string module = req.get_param_value("module");
             try {
-                if(!sn.empty() && !module.empty() && module.size()> 4) {
-                    spdlog::info("evcloudsvc get module config with sn {},  module {}", sn, module);
-                    string modname = module.substr(0,4);
-                    string key;
-                    if(module == "evmgr") {
-                        key = sn;
-                    }
-                    else {
-                        if(modname == "evml") {
-                            modname = "evml:" + module.substr(4, module.size());
-                        }
-                        else {
-                            modname = module;
-                        }
-
-                        key = this->configMap["mod2mgr"].at(sn + ":" + modname);
-                        spdlog::debug("key: ", key);
-                    }
-
-                    if(!key.empty()) {
-                        json config;
-                        int iret = LVDB::getLocalConfig(config, key);
-                        if(iret < 0) {
-                            ret["code"] = 1;
-                            ret["msg"] = "evcloud failed to get config with key: " + key ;
-                            spdlog::error(ret["msg"].get<string>());
-                        }
-                        else {
-                            ret["data"] = config["data"];
-                            ret["lastupdated"] = config["lastupdated"];
-                        }
-                    }
-                    else {
-                        ret["code"] = 1;
-                        ret["msg"] = "no config for sn " +  sn + ", module " + module;
-                    }
-                }
-                else if(!sn.empty() && module.empty()) {
+                if(!sn.empty()) {
                     ret = getConfigForDevice(sn);
                 }
                 else {
