@@ -884,7 +884,7 @@ public:
                 }
                 else {
                     ret["code"] = 2;
-                    ret["msg"] = "invalid request. no param for sn/module";
+                    ret["msg"] = "invalid request. no param for sn";
                 }
             }
             catch(exception &e) {
