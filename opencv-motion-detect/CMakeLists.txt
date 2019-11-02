@@ -64,13 +64,13 @@ add_library(post STATIC postfile.cpp)
 add_library(util STATIC inc/utils.cpp)
 
 add_executable(evcloudsvc evcloudsvc.cpp)
-target_link_libraries(evcloudsvc PUBLIC zmq fmt leveldb database zmqhelper util)
+target_link_libraries(evcloudsvc PUBLIC zmq fmt leveldb database zmqhelper util ${EXTRA_LIBS})
 
 add_executable(evdaemon evdaemon.cpp)
-target_link_libraries(evdaemon PUBLIC zmq fmt leveldb ${SSH2LIB}  database zmqhelper util)
+target_link_libraries(evdaemon PUBLIC zmq fmt leveldb ${SSH2LIB}  database zmqhelper util ${EXTRA_LIBS})
 
 add_executable(evmgr evmgr.cpp)
-target_link_libraries(evmgr PUBLIC zmq fmt leveldb avutil avformat database zmqhelper util)
+target_link_libraries(evmgr PUBLIC zmq fmt leveldb avutil avformat database zmqhelper util ${EXTRA_LIBS})
 
 add_executable(evpuller evpuller.cpp)
 target_link_libraries(evpuller PUBLIC zmq fmt avformat swscale avcodec avutil swresample leveldb database zmqhelper util ${EXTRA_LIBS})
