@@ -46,18 +46,17 @@ add_library(dirmon STATIC dirmon.cpp)
 add_library(post STATIC postfile.cpp)
 add_library(util STATIC inc/utils.cpp)
 
-LIST(APPEND COMM_LIBS fmt zmq zmqhelper util)
+LIST(APPEND COMM_LIBS zmqhelper util fmt zmq)
 LIST(APPEND AV_LIBS avformat swscale avcodec avutil swresample)
-LIST(APPEND DB_LIBS leveldb database)
 
 add_executable(evcloudsvc evcloudsvc.cpp)
-target_link_libraries(evcloudsvc PUBLIC ${DB_LIBS} ${COMM_LIBS} ${EXTRA_LIBS})
+target_link_libraries(evcloudsvc PUBLIC database leveldb ${COMM_LIBS} ${EXTRA_LIBS})
 
 add_executable(evdaemon evdaemon.cpp)
-target_link_libraries(evdaemon PUBLIC ${DB_LIBS} ${COMM_LIBS} ${SSH2LIB}  ${EXTRA_LIBS})
+target_link_libraries(evdaemon PUBLIC database leveldb ${COMM_LIBS} ${SSH2LIB}  ${EXTRA_LIBS})
 
 add_executable(evmgr evmgr.cpp)
-target_link_libraries(evmgr PUBLIC ${DB_LIBS} ${AV_LIBS} ${COMM_LIBS} ${EXTRA_LIBS})
+target_link_libraries(evmgr PUBLIC database leveldb ${AV_LIBS} ${COMM_LIBS} ${EXTRA_LIBS})
 
 add_executable(evpuller evpuller.cpp)
 target_link_libraries(evpuller PUBLIC ${COMM_LIBS} ${AV_LIBS} ${EXTRA_LIBS})
@@ -66,7 +65,7 @@ add_executable(evpusher evpusher.cpp)
 target_link_libraries(evpusher PUBLIC ${COMM_LIBS} ${AV_LIBS} ${EXTRA_LIBS})
 
 add_executable(evslicer evslicer.cpp)
-target_link_libraries(evslicer PUBLIC curl fswatch dirmon post ${AV_LIBS} ${COMM_LIBS} ${EXTRA_LIBS})
+target_link_libraries(evslicer PUBLIC dirmon post ${COMM_LIBS} ${AV_LIBS} curl fswatch  ${EXTRA_LIBS})
 
 add_executable(evmlmotion evmlmotion.cpp)
 target_link_libraries(evmlmotion PUBLIC ${COMM_LIBS} ${AV_LIBS} ${CV_LIBRARIES} ${EXTRA_LIBS})
