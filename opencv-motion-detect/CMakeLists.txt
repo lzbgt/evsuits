@@ -1,39 +1,80 @@
-#
-#INFO: DRAFT, not completed
-#
-#
-
 cmake_minimum_required (VERSION 3.0) 
 project (evsuits)
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    set(MACOSX TRUE)
+endif()
+
 add_definitions(-std=c++1z)
 
-FIND_PACKAGE(OpenCV 4.0.0 REQUIRED)
+#set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-include_directories(inc vendor/include)
-link_directories(vendor/lib)
+set(ENV{PKG_CONFIG_PATH}  "${CMAKE_SOURCE_DIR}/vendor/lib/pkgconfig:${PKG_CONFIG_PATH}")
+FIND_PACKAGE(PkgConfig REQUIRED)
 
-set(COMMON_SOURCES file1.cpp file2.cpp)
-set(TARGET_SOURCES main.cpp)
-set(TEST_SOURCES  run_tests.cpp test_file1.cpp test_file2.cpp)
-add_library(database database.cpp hello.h)
+
+if(MACOSX)
+    include_directories("/usr/local/Cellar/libssh2/1.9.0_1/include")
+    link_directories("/usr/local/Cellar/libssh2/1.9.0_1/lib")
+    list(APPEND SSH2LIB ssh2)
+else()
+    list(APPEND SSH2LIB ssh2 gcrypt)
+endif()
+
+pkg_search_module(FMT REQUIRED fmt)
+MESSAGE("FMT_VERSION: ${FMT_VERSION}")
+pkg_search_module(ZMQ REQUIRED libzmq)
+MESSAGE("ZMQ_VERSION: ${ZMQ_VERSION}")
+
+pkg_search_module(CV REQUIRED opencv4)
+MESSAGE("CV_VERSION: ${CV_VERSION}")
+
+pkg_search_module(CURL REQUIRED libcurl)
+MESSAGE("CURL_VERSION: ${CURL_VERSION}")
+
+pkg_search_module(AVF REQUIRED libavformat)
+MESSAGE("AVF_VERSION: ${AVF_VERSION}")
+pkg_search_module(AVU REQUIRED libavutil)
+MESSAGE("AVU_VERSION: ${AVU_VERSION},")
+pkg_search_module(AVC REQUIRED libavcodec)
+MESSAGE("AVC_VERSION: ${AVC_VERSION}")
+pkg_search_module(AVS REQUIRED libswscale)
+MESSAGE("AVS_VERSION: ${AVS_VERSION}")
+
+# if(AV_FOUND)
+#     list(APPEND AV_INCLUDE_DIRS ${AVF_INCLUDE_DIR} ${AV_INCLUDE_DIR} ${AV_INCLUDE_DIR} ${AV_INCLUDE_DIR})
+#     list(APPEND VA_LIBRARY_DIRS ${AV_LIBRARY_DIRS} ${AV_LIBRARY_DIRS} ${AV_LIBRARY_DIRS} ${AV_LIBRARY_DIRS})
+#     list(APPEND VA_LIBRARIES ${AV_LIBRARY_DIRS} ${AV_LIBRARY_DIRS} ${AV_LIBRARY_DIRS} ${AV_LIBRARY_DIRS})
+# else()
+#     message(FATAL_ERROR "${LIBAV_INCLUDE_DIR} ${LIBAV_LIBRARY} libavformat not available")
+# endif()
+
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}" "inc" "vendor/include" "${CV_INCLUDE_DIRS}" "${AVF_INCLUDE_DIRS}" "${AVU_INCLUDE_DIRS}" "${AVC_INCLUDE_DIRS}" "${AVS_INCLUDE_DIRS}")
+link_directories("vendor/lib" "${CV_LIBRARY_DIRS}" "${AVF_LIBRARY_DIRS}" "${AVC_LIBRARY_DIRS}" "${AVU_LIBRARY_DIRS}" "${AVS_LIBRARY_DIRS}")
+
+add_library(database STATIC database.cpp)
+add_library(zmqhelper STATIC inc/zmqhelper.cpp)
+add_library(dirmon STATIC dirmon.cpp)
+add_library(post STATIC postfile.cpp)
+add_library(util STATIC inc/utils.cpp)
+
+add_executable(evcloudsvc evcloudsvc.cpp)
+target_link_libraries(evcloudsvc PUBLIC zmq fmt leveldb database zmqhelper util)
+
+add_executable(evdaemon evdaemon.cpp)
+target_link_libraries(evdaemon PUBLIC zmq fmt leveldb ${SSH2LIB}  database zmqhelper util)
 
 add_executable(evmgr evmgr.cpp)
-target_link_libraries(evmgr )
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_FLAGS "-D__STDC_CONSTANT_MACROS")
+target_link_libraries(evmgr PUBLIC zmq fmt leveldb avutil avformat database zmqhelper util)
 
-find_path(AVCODEC_INCLUDE_DIR libavcodec/avcodec.h)
-find_library(AVCODEC_LIBRARY avcodec)
+add_executable(evpuller evpuller.cpp)
+target_link_libraries(evpuller PUBLIC zmq fmt avformat avutil leveldb database zmqhelper util)
 
-find_path(AVFORMAT_INCLUDE_DIR libavformat/avformat.h)
-find_library(AVFORMAT_LIBRARY avformat)
+add_executable(evpusher evpusher.cpp)
+target_link_libraries(evpusher PUBLIC zmq fmt avformat avutil leveldb database zmqhelper util)
 
-find_path(AVUTIL_INCLUDE_DIR libavutil/avutil.h)
-find_library(AVUTIL_LIBRARY avutil)
+add_executable(evslicer evslicer.cpp)
+target_link_libraries(evslicer PUBLIC zmq curl fmt fswatch avformat avutil database zmqhelper dirmon post util)
 
-find_path(AVDEVICE_INCLUDE_DIR libavdevice/avdevice.h)
-find_library(AVDEVICE_LIBRARY avdevice)
-
-add_executable(decode_encode main.cpp)
-target_include_directories(decode_encode PRIVATE ${AVCODEC_INCLUDE_DIR} ${AVFORMAT_INCLUDE_DIR} ${AVUTIL_INCLUDE_DIR} ${AVDEVICE_INCLUDE_DIR})
-target_link_libraries(decode_encode PRIVATE ${AVCODEC_LIBRARY} ${AVFORMAT_LIBRARY} ${AVUTIL_LIBRARY} ${AVDEVICE_LIBRARY})
+add_executable(evmlmotion evmlmotion.cpp)
+target_link_libraries(evmlmotion PUBLIC zmq fmt avformat avutil swscale leveldb ${CV_LIBRARIES} database zmqhelper util)
