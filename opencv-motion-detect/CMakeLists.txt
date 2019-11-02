@@ -24,6 +24,7 @@ else()
     list(APPEND SSH2LIB ssh2 gcrypt)
     set(CV_INCLUDE_DIRS "vendor/include/opencv4")
     set(CV_LIBRARY_DIRS "vendor/lib")
+    list(APPEND EXTRA_LIBS pthread x264 m z dl atomic)
 endif()
 
 LIST(APPEND CV_LIBRARIES opencv_video opencv_videoio opencv_imgproc opencv_core opencv_dnn opencv_highgui)
@@ -72,13 +73,13 @@ add_executable(evmgr evmgr.cpp)
 target_link_libraries(evmgr PUBLIC zmq fmt leveldb avutil avformat database zmqhelper util)
 
 add_executable(evpuller evpuller.cpp)
-target_link_libraries(evpuller PUBLIC zmq fmt avformat avutil leveldb database zmqhelper util)
+target_link_libraries(evpuller PUBLIC zmq fmt avformat avutil leveldb database zmqhelper util ${EXTRA_LIBS})
 
 add_executable(evpusher evpusher.cpp)
-target_link_libraries(evpusher PUBLIC zmq fmt avformat avutil leveldb database zmqhelper util)
+target_link_libraries(evpusher PUBLIC zmq fmt leveldb avformat swscale avcodec avutil swresample database zmqhelper util ${EXTRA_LIBS})
 
 add_executable(evslicer evslicer.cpp)
-target_link_libraries(evslicer PUBLIC zmq curl fmt fswatch avformat avutil database zmqhelper dirmon post util)
+target_link_libraries(evslicer PUBLIC zmq curl fmt fswatch avformat swscale avcodec avutil swresample database zmqhelper dirmon post util ${EXTRA_LIBS})
 
 add_executable(evmlmotion evmlmotion.cpp)
-target_link_libraries(evmlmotion PUBLIC zmq fmt avformat avutil swscale leveldb ${CV_LIBRARIES} database zmqhelper util)
+target_link_libraries(evmlmotion PUBLIC zmq fmt avformat swscale avcodec avutil swresample leveldb ${CV_LIBRARIES} database zmqhelper util ${EXTRA_LIBS})
