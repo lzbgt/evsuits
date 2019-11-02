@@ -73,7 +73,7 @@ add_executable(evmgr evmgr.cpp)
 target_link_libraries(evmgr PUBLIC zmq fmt leveldb avutil avformat database zmqhelper util)
 
 add_executable(evpuller evpuller.cpp)
-target_link_libraries(evpuller PUBLIC zmq fmt avformat avutil leveldb database zmqhelper util ${EXTRA_LIBS})
+target_link_libraries(evpuller PUBLIC zmq fmt avformat swscale avcodec avutil swresample leveldb database zmqhelper util ${EXTRA_LIBS})
 
 add_executable(evpusher evpusher.cpp)
 target_link_libraries(evpusher PUBLIC zmq fmt leveldb avformat swscale avcodec avutil swresample database zmqhelper util ${EXTRA_LIBS})
