@@ -46,6 +46,7 @@ add_library(dirmon STATIC dirmon.cpp)
 add_library(post STATIC postfile.cpp)
 add_library(util STATIC inc/utils.cpp)
 
+# order matters, local lib first
 LIST(APPEND COMM_LIBS zmqhelper util fmt zmq)
 LIST(APPEND AV_LIBS avformat swscale avcodec avutil swresample)
 
