@@ -16,15 +16,14 @@ FIND_PACKAGE(PkgConfig REQUIRED)
 if(MACOSX)
     include_directories("/usr/local/Cellar/libssh2/1.9.0_1/include")
     link_directories("/usr/local/Cellar/libssh2/1.9.0_1/lib")
-    list(APPEND SSH2LIB ssh2)
-
     pkg_search_module(CV REQUIRED opencv4)
     MESSAGE("CV_VERSION: ${CV_VERSION}")
+    list(APPEND SSH2LIB ssh2)
 else()
-    list(APPEND SSH2LIB ssh2 gcrypt)
     set(CV_INCLUDE_DIRS "vendor/include/opencv4")
     set(CV_LIBRARY_DIRS "vendor/lib")
     list(APPEND EXTRA_LIBS pthread x264 m z dl atomic)
+    list(APPEND SSH2LIB ssh2 gcrypt)
 endif()
 
 LIST(APPEND CV_LIBRARIES opencv_video opencv_videoio opencv_imgproc opencv_core opencv_dnn opencv_highgui)
@@ -63,23 +62,27 @@ add_library(dirmon STATIC dirmon.cpp)
 add_library(post STATIC postfile.cpp)
 add_library(util STATIC inc/utils.cpp)
 
+LIST(APPEND COMM_LIBS fmt zmq zmqhelper util)
+LIST(APPEND AV_LIBS avformat swscale avcodec avutil swresample)
+LIST(APPEND DB_LIBS leveldb database)
+
 add_executable(evcloudsvc evcloudsvc.cpp)
-target_link_libraries(evcloudsvc PUBLIC zmq fmt leveldb database zmqhelper util ${EXTRA_LIBS})
+target_link_libraries(evcloudsvc PUBLIC ${DB_LIBS} ${COMM_LIBS} ${EXTRA_LIBS})
 
 add_executable(evdaemon evdaemon.cpp)
-target_link_libraries(evdaemon PUBLIC zmq fmt leveldb ${SSH2LIB}  database zmqhelper util ${EXTRA_LIBS})
+target_link_libraries(evdaemon PUBLIC ${DB_LIBS} ${COMM_LIBS} ${SSH2LIB}  ${EXTRA_LIBS})
 
 add_executable(evmgr evmgr.cpp)
-target_link_libraries(evmgr PUBLIC zmq fmt leveldb avutil avformat database zmqhelper util ${EXTRA_LIBS})
+target_link_libraries(evmgr PUBLIC  ${DB_LIBS} ${AV_LIBS} ${COMM_LIBS} ${EXTRA_LIBS})
 
 add_executable(evpuller evpuller.cpp)
-target_link_libraries(evpuller PUBLIC zmq fmt avformat swscale avcodec avutil swresample leveldb database zmqhelper util ${EXTRA_LIBS})
+target_link_libraries(evpuller PUBLIC ${COMM_LIBS} ${AV_LIBS} ${EXTRA_LIBS})
 
 add_executable(evpusher evpusher.cpp)
-target_link_libraries(evpusher PUBLIC zmq fmt leveldb avformat swscale avcodec avutil swresample database zmqhelper util ${EXTRA_LIBS})
+target_link_libraries(evpusher PUBLIC ${COMM_LIBS} ${AV_LIBS} ${EXTRA_LIBS})
 
 add_executable(evslicer evslicer.cpp)
-target_link_libraries(evslicer PUBLIC zmq curl fmt fswatch avformat swscale avcodec avutil swresample database zmqhelper dirmon post util ${EXTRA_LIBS})
+target_link_libraries(evslicer PUBLIC curl fswatch dirmon post ${AV_LIBS} ${COMM_LIBS} ${EXTRA_LIBS})
 
 add_executable(evmlmotion evmlmotion.cpp)
-target_link_libraries(evmlmotion PUBLIC zmq fmt avformat swscale avcodec avutil swresample leveldb ${CV_LIBRARIES} database zmqhelper util ${EXTRA_LIBS})
+target_link_libraries(evmlmotion PUBLIC ${COMM_LIBS} ${AV_LIBS} ${CV_LIBRARIES} ${EXTRA_LIBS})
