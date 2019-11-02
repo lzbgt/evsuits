@@ -7,9 +7,13 @@ endif()
 
 add_definitions(-std=c++1z)
 
+if("${VENDOR}" STREQUAL "")
+    set(VENDOR "${CMAKE_SOURCE_DIR}/vendor")
+endif()
+
 #set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-set(ENV{PKG_CONFIG_PATH}  "${CMAKE_SOURCE_DIR}/vendor/lib/pkgconfig:${PKG_CONFIG_PATH}")
+set(ENV{PKG_CONFIG_PATH}  "${VENDOR}/lib/pkgconfig:${PKG_CONFIG_PATH}")
 FIND_PACKAGE(PkgConfig REQUIRED)
 
 
@@ -20,8 +24,8 @@ if(MACOSX)
     MESSAGE("CV_VERSION: ${CV_VERSION}")
     list(APPEND SSH2LIB ssh2)
 else()
-    set(CV_INCLUDE_DIRS "vendor/include/opencv4")
-    set(CV_LIBRARY_DIRS "vendor/lib")
+    set(CV_INCLUDE_DIRS "${VENDOR}/include/opencv4")
+    set(CV_LIBRARY_DIRS "${VENDOR}/lib")
     list(APPEND EXTRA_LIBS pthread x264 m z dl atomic)
     list(APPEND SSH2LIB ssh2 gcrypt)
 endif()
@@ -37,7 +41,7 @@ pkg_search_module(AVU REQUIRED libavutil)
 pkg_search_module(AVC REQUIRED libavcodec)
 pkg_search_module(AVS REQUIRED libswscale)
 
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}" "inc" "vendor/include" "${CV_INCLUDE_DIRS}" "${AVF_INCLUDE_DIRS}" "${AVU_INCLUDE_DIRS}" "${AVC_INCLUDE_DIRS}" "${AVS_INCLUDE_DIRS}")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}" "inc" "${VENDOR}/include" "${CV_INCLUDE_DIRS}" "${AVF_INCLUDE_DIRS}" "${AVU_INCLUDE_DIRS}" "${AVC_INCLUDE_DIRS}" "${AVS_INCLUDE_DIRS}")
 link_directories("vendor/lib" "${CV_LIBRARY_DIRS}" "${AVF_LIBRARY_DIRS}" "${AVC_LIBRARY_DIRS}" "${AVU_LIBRARY_DIRS}" "${AVS_LIBRARY_DIRS}")
 
 add_library(database STATIC database.cpp)
