@@ -45,14 +45,6 @@ MESSAGE("AVC_VERSION: ${AVC_VERSION}")
 pkg_search_module(AVS REQUIRED libswscale)
 MESSAGE("AVS_VERSION: ${AVS_VERSION}")
 
-# if(AV_FOUND)
-#     list(APPEND AV_INCLUDE_DIRS ${AVF_INCLUDE_DIR} ${AV_INCLUDE_DIR} ${AV_INCLUDE_DIR} ${AV_INCLUDE_DIR})
-#     list(APPEND VA_LIBRARY_DIRS ${AV_LIBRARY_DIRS} ${AV_LIBRARY_DIRS} ${AV_LIBRARY_DIRS} ${AV_LIBRARY_DIRS})
-#     list(APPEND VA_LIBRARIES ${AV_LIBRARY_DIRS} ${AV_LIBRARY_DIRS} ${AV_LIBRARY_DIRS} ${AV_LIBRARY_DIRS})
-# else()
-#     message(FATAL_ERROR "${LIBAV_INCLUDE_DIR} ${LIBAV_LIBRARY} libavformat not available")
-# endif()
-
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}" "inc" "vendor/include" "${CV_INCLUDE_DIRS}" "${AVF_INCLUDE_DIRS}" "${AVU_INCLUDE_DIRS}" "${AVC_INCLUDE_DIRS}" "${AVS_INCLUDE_DIRS}")
 link_directories("vendor/lib" "${CV_LIBRARY_DIRS}" "${AVF_LIBRARY_DIRS}" "${AVC_LIBRARY_DIRS}" "${AVU_LIBRARY_DIRS}" "${AVS_LIBRARY_DIRS}")
 
@@ -73,7 +65,7 @@ add_executable(evdaemon evdaemon.cpp)
 target_link_libraries(evdaemon PUBLIC ${DB_LIBS} ${COMM_LIBS} ${SSH2LIB}  ${EXTRA_LIBS})
 
 add_executable(evmgr evmgr.cpp)
-target_link_libraries(evmgr PUBLIC  ${DB_LIBS} ${AV_LIBS} ${COMM_LIBS} ${EXTRA_LIBS})
+target_link_libraries(evmgr PUBLIC ${DB_LIBS} ${AV_LIBS} ${COMM_LIBS} ${EXTRA_LIBS})
 
 add_executable(evpuller evpuller.cpp)
 target_link_libraries(evpuller PUBLIC ${COMM_LIBS} ${AV_LIBS} ${EXTRA_LIBS})
