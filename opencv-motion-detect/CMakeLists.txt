@@ -29,21 +29,13 @@ endif()
 LIST(APPEND CV_LIBRARIES opencv_video opencv_videoio opencv_imgproc opencv_core opencv_dnn opencv_highgui)
 
 pkg_search_module(FMT REQUIRED fmt)
-MESSAGE("FMT_VERSION: ${FMT_VERSION}")
 pkg_search_module(ZMQ REQUIRED libzmq)
-MESSAGE("ZMQ_VERSION: ${ZMQ_VERSION}")
-
 pkg_search_module(CURL REQUIRED libcurl)
-MESSAGE("CURL_VERSION: ${CURL_VERSION}")
 
 pkg_search_module(AVF REQUIRED libavformat)
-MESSAGE("AVF_VERSION: ${AVF_VERSION}")
 pkg_search_module(AVU REQUIRED libavutil)
-MESSAGE("AVU_VERSION: ${AVU_VERSION},")
 pkg_search_module(AVC REQUIRED libavcodec)
-MESSAGE("AVC_VERSION: ${AVC_VERSION}")
 pkg_search_module(AVS REQUIRED libswscale)
-MESSAGE("AVS_VERSION: ${AVS_VERSION}")
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}" "inc" "vendor/include" "${CV_INCLUDE_DIRS}" "${AVF_INCLUDE_DIRS}" "${AVU_INCLUDE_DIRS}" "${AVC_INCLUDE_DIRS}" "${AVS_INCLUDE_DIRS}")
 link_directories("vendor/lib" "${CV_LIBRARY_DIRS}" "${AVF_LIBRARY_DIRS}" "${AVC_LIBRARY_DIRS}" "${AVU_LIBRARY_DIRS}" "${AVS_LIBRARY_DIRS}")
