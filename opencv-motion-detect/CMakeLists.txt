@@ -17,17 +17,21 @@ if(MACOSX)
     include_directories("/usr/local/Cellar/libssh2/1.9.0_1/include")
     link_directories("/usr/local/Cellar/libssh2/1.9.0_1/lib")
     list(APPEND SSH2LIB ssh2)
+
+    pkg_search_module(CV REQUIRED opencv4)
+    MESSAGE("CV_VERSION: ${CV_VERSION}")
 else()
     list(APPEND SSH2LIB ssh2 gcrypt)
+    set(CV_INCLUDE_DIRS "vendor/include/opencv4")
+    set(CV_LIBRARY_DIRS "vendor/lib")
 endif()
+
+LIST(APPEND CV_LIBRARIES opencv_video opencv_videoio opencv_imgproc opencv_core opencv_dnn opencv_highgui)
 
 pkg_search_module(FMT REQUIRED fmt)
 MESSAGE("FMT_VERSION: ${FMT_VERSION}")
 pkg_search_module(ZMQ REQUIRED libzmq)
 MESSAGE("ZMQ_VERSION: ${ZMQ_VERSION}")
-
-pkg_search_module(CV REQUIRED opencv4)
-MESSAGE("CV_VERSION: ${CV_VERSION}")
 
 pkg_search_module(CURL REQUIRED libcurl)
 MESSAGE("CURL_VERSION: ${CURL_VERSION}")
