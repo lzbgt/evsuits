@@ -339,7 +339,7 @@ protected:
             data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
             data["status"] = "recover";
             meta["type"] = EV_MSG_META_TYPE_REPORT;
-            meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_FATAL;
+            meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_INFO;
             z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
             spdlog::info(msg);
         }

@@ -761,6 +761,7 @@ protected:
 
         auto start = chrono::system_clock::now();
         auto pktCntLast = pktCnt;
+        bool bStatsSent = false;
         while(true) {
             if(checkStop() == true) {
                 bStopSig = true;
@@ -807,6 +808,7 @@ protected:
                 data["msg"] = msg;
                 data["modId"] = selfId;
                 data["type"] = EV_MSG_META_TYPE_REPORT;
+                data["catId"] = EV_MSG_REPORT_CATID_AVWRITEPIPE;
                 data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
                 data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                 data["status"] = "active";
@@ -814,6 +816,24 @@ protected:
                 meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
                 z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
                 spdlog::error(msg);
+            }else{
+                if(!bStatsSent) {
+                    bStatsSent = true;
+                    string msg = fmt::format("evmlmotion {} successfully decode packet", selfId);
+                    json meta;
+                    json data;
+                    data["msg"] = msg;
+                    data["modId"] = selfId;
+                    data["type"] = EV_MSG_META_TYPE_REPORT;
+                    data["catId"] = EV_MSG_REPORT_CATID_AVWRITEPIPE;
+                    data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_INFO;
+                    data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                    data["status"] = "recover";
+                    meta["type"] = EV_MSG_META_TYPE_REPORT;
+                    meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_INFO;
+                    z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
+                    spdlog::info(msg);
+                }
             }
 
             if((pktCnt  - pktCntLast ) == 18) {

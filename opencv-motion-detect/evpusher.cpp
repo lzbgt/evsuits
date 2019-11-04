@@ -309,12 +309,13 @@ private:
         while(ret < 0)
         {
             if(cnt > 3) {
-                string msg = fmt::format("evpusher {} failed to write stream \"{}\": {}, {}", selfId, urlOut, ret, av_err2str(ret));
+                string msg = fmt::format("evpusher {} failed to write output header \"{}\": {}, {}", selfId, urlOut, ret, av_err2str(ret));
                 json meta;
                 json data;
                 data["msg"] = msg;
                 data["modId"] = selfId;
                 data["type"] = EV_MSG_META_TYPE_REPORT;
+                data["catId"] = EV_MSG_REPORT_CATID_AVWRITEHEADER;
                 data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_FATAL;
                 data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                 data["status"] = "active";
@@ -395,6 +396,7 @@ private:
                     data["msg"] = msg;
                     data["modId"] = selfId;
                     data["type"] = EV_MSG_META_TYPE_REPORT;
+                    data["catId"] = EV_MSG_REPORT_CATID_AVOPENOUTPUT;
                     data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_FATAL;
                     data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                     data["status"] = "active";
@@ -403,6 +405,21 @@ private:
                     z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
                     spdlog::error(msg);
                     exit(1);
+                }else{
+                    string msg = fmt::format("evpusher {} successfully open output \"{}\"", selfId, urlOut);
+                    json meta;
+                    json data;
+                    data["msg"] = msg;
+                    data["modId"] = selfId;
+                    data["type"] = EV_MSG_META_TYPE_REPORT;
+                    data["catId"] = EV_MSG_REPORT_CATID_AVOPENOUTPUT;
+                    data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_INFO;
+                    data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                    data["status"] = "recover";
+                    meta["type"] = EV_MSG_META_TYPE_REPORT;
+                    meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_INFO;
+                    z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
+                    spdlog::info(msg);
                 }
             }
 
@@ -415,8 +432,22 @@ private:
 
             cnt++;
         }
-        
 
+
+        string msg = fmt::format("evpusher {} successfullywrite output header \"{}\": {}, {}", selfId, urlOut, ret, av_err2str(ret));
+        json meta;
+        json data;
+        data["msg"] = msg;
+        data["modId"] = selfId;
+        data["type"] = EV_MSG_META_TYPE_REPORT;
+        data["catId"] = EV_MSG_REPORT_CATID_AVWRITEHEADER;
+        data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_INFO;
+        data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+        data["status"] = "recover";
+        meta["type"] = EV_MSG_META_TYPE_REPORT;
+        meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_INFO;
+        z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
+    
         return ret;
     }
 
