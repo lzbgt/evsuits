@@ -333,22 +333,6 @@ protected:
             spdlog::error("evpuller {} failed create avformatcontext for output: {}", selfId, av_err2str(AVERROR(ENOMEM)));
         }
 
-        // serialize formatctx to bytes
-        // be attention to the scope of lock guard!
-        {
-            lock_guard<mutex> lock(this->mutMsg);
-            lenAVFmtCtxBytes = AVFormatCtxSerializer::encode(pAVFormatInput, &pAVFmtCtxBytes);
-            if(lenAVFmtCtxBytes <= 0 || pAVFmtCtxBytes == nullptr) {
-                spdlog::error("evpuller {} failed to pull packet from {}. exiting...", selfId, urlIn);
-                // TODO: message report to cloud
-                exit(1);
-            }
-            // broadcast
-            sendAVInputCtxMsg("");
-            gotFormat = true;
-            cvMsg.notify_one();
-        }
-
         // find all video & audio streams for remuxing
         int i = 0, streamIdx = 0;
         for (; i < pAVFormatInput->nb_streams; i++) {
@@ -398,6 +382,27 @@ protected:
 
             pktCnt++;
             packet.stream_index = streamList[packet.stream_index];
+            // skip first 5 packets avoid pusher and slicer exception
+            if(pktCnt <= 5){
+                if(pktCnt == 5) {
+                    // serialize formatctx to bytes
+                    // be attention to the scope of lock guard!
+                    {
+                        lock_guard<mutex> lock(this->mutMsg);
+                        lenAVFmtCtxBytes = AVFormatCtxSerializer::encode(pAVFormatInput, &pAVFmtCtxBytes);
+                        if(lenAVFmtCtxBytes <= 0 || pAVFmtCtxBytes == nullptr) {
+                            spdlog::error("evpuller {} failed to pull packet from {}. exiting...", selfId, urlIn);
+                            // TODO: message report to cloud
+                            exit(1);
+                        }
+                        // broadcast
+                        sendAVInputCtxMsg("");
+                        gotFormat = true;
+                        cvMsg.notify_one();
+                    }
+                }
+                continue;
+            }
 
             // serialize packet to raw bytes
             char * data = nullptr;
