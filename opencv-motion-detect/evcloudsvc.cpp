@@ -506,12 +506,19 @@ private:
                         sendEdgeMsg(resp);
                     }
                 }
-            }else if(meta == EV_MSG_META_TYPE_REPORT) {
-                // TODO: handle report msg
-                spdlog::warn("{} received report msg from {}: {}", devSn, selfId, body2str(body[3]));
             }
             else {
-                spdlog::warn("{} received unknown meta {} from {}", devSn, meta, selfId);
+                try{
+                    json jmeta = json::parse(meta);
+                    if(jmeta["type"] == EV_MSG_META_TYPE_REPORT) {
+                        // TODO: handle report msg
+                        spdlog::warn("{} received report msg from {}: {}", devSn, selfId, body2str(body[3]));
+                    }else{
+                        spdlog::warn("{} received unknown msg {} from {}", devSn, meta, selfId);
+                    }
+                } catch(exception &e) {
+                    spdlog::warn("{} received unknown msg {} from {}", devSn, meta, selfId);
+                }  
             }
         }
 
