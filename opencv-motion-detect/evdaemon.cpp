@@ -370,6 +370,7 @@ private:
         int ret = 0;
         // ID_SENDER, ID_TARGET, meta ,MSG
         string selfId, peerId, meta;
+        // connection message
         if(body.size() == 2 && body[1].size() == 0) {
             selfId = body2str(body[0]);
             bool eventConn = false;
@@ -467,26 +468,32 @@ private:
         // update status;
         this->peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
 
-        // msg to peer
+        // msg to other peer
         int minLen = std::min(body[1].size(), this->daemonId.size());
         if(memcmp((void*)(body[1].data()), this->daemonId.data(), minLen) != 0) {
             // message to other peer
-            // check peer status
-            vector<vector<uint8_t> >v = {body[1], body[0], body[2], body[3]};
-            if(peerData["status"].count(peerId) != 0 && peerData["status"][peerId] != 0 && this->peerData["status"][peerId][peerId] != -1) {
-                spdlog::info("evdaemon {} route msg from {} to {}", devSn, selfId, peerId);
-                ret = z_send_multiple(pRouter, v);
-                if(ret < 0) {
-                    spdlog::error("evdaemon {} failed to send multiple: {}", devSn, zmq_strerror(zmq_errno()));
-                }
+            
+            // check if target is evcloudsvc
+            if(peerId == "evcloudsvc") {
+                zmqhelper::z_send(pDealer, peerId, body[2], body[3]);
             }
-            else {
-                // cache
-                spdlog::warn("evdaemon {} cached msg from {} to {}", devSn, selfId, peerId);
-                lock_guard<mutex> lock(cacheLock);
-                cachedMsg[peerId].push(v);
-                if(cachedMsg[peerId].size() > EV_NUM_CACHE_PERPEER) {
-                    cachedMsg[peerId].pop();
+            else{
+                vector<vector<uint8_t> >v = {body[1], body[0], body[2], body[3]};
+                if(peerData["status"].count(peerId) != 0 && peerData["status"][peerId] != 0 && this->peerData["status"][peerId][peerId] != -1) {
+                    spdlog::info("evdaemon {} route msg from {} to {}", devSn, selfId, peerId);
+                    ret = z_send_multiple(pRouter, v);
+                    if(ret < 0) {
+                        spdlog::error("evdaemon {} failed to send multiple: {}", devSn, zmq_strerror(zmq_errno()));
+                    }
+                }
+                else {
+                    // cache
+                    spdlog::warn("evdaemon {} cached msg from {} to {}", devSn, selfId, peerId);
+                    lock_guard<mutex> lock(cacheLock);
+                    cachedMsg[peerId].push(v);
+                    if(cachedMsg[peerId].size() > EV_NUM_CACHE_PERPEER) {
+                        cachedMsg[peerId].pop();
+                    }
                 }
             }
 
@@ -500,7 +507,6 @@ private:
                     }
                 }
             }
-
             catch(exception &e) {
                 spdlog::error("evdaemon {} exception parse event msg from {} to {}: ", devSn, selfId, peerId, e.what());
             }

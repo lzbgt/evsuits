@@ -291,6 +291,7 @@ private:
         ret = z_send_multiple(pDealer, body);
         if(ret < 0) {
             spdlog::error("evpusher {} {}, failed to send hello to puller: {}. exiting...", devSn, iid, zmq_strerror(zmq_errno()));
+            // TODO: message report to cloud
             exit(1);
         }
         unique_lock<mutex> lk(this->mutMsg);
@@ -322,6 +323,7 @@ private:
 
         if (ret < 0) {
             spdlog::error("evpusher {} {} failed create avformatcontext for output: %s", devSn, iid, av_err2str(ret));
+            // TODO: message report to cloud
             exit(1);
         }
 
@@ -369,13 +371,25 @@ private:
             ret = avio_open2(&pAVFormatRemux->pb, urlOut.c_str(), AVIO_FLAG_WRITE, NULL, &pOptsRemux);
             if (ret < 0) {
                 spdlog::error("evpusher {} {} could not open output file '%s'", devSn, iid, urlOut);
+                // TODO: message report to cloud
                 exit(1);
             }
         }
 
         ret = avformat_write_header(pAVFormatRemux, &pOptsRemux);
         if (ret < 0) {
-            spdlog::error("evpusher {} {} error occurred when opening output file", devSn, iid);
+            // TODO: report message to cloud
+            string msg = fmt::format("evpusher {} failed to write stream \"{}\": {}", selfId, urlOut, av_err2str(ret));
+            json meta;
+            json data;
+            data["msg"] = msg;
+            data["modId"] = selfId;
+            data["type"] = EV_MSG_META_TYPE_REPORT;
+            data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_FATAL;
+            meta["type"] = EV_MSG_META_TYPE_REPORT;
+            meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_FATAL;
+            z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
+            spdlog::error(msg);
             exit(1);
         }
 
@@ -462,6 +476,18 @@ protected:
             ret = av_interleaved_write_frame(pAVFormatRemux, &packet);
             av_packet_unref(&packet);
             if (ret < 0) {
+                // TODO: report message to cloud
+                string msg = fmt::format("evpusher {} error write stream, trying restreaming:{}", selfId, av_err2str(ret));
+                json meta;
+                json data;
+                data["msg"] = msg;
+                data["modId"] = selfId;
+                data["type"] = EV_MSG_META_TYPE_REPORT;
+                data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+                meta["type"] = EV_MSG_META_TYPE_REPORT;
+                meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+                z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
+
                 spdlog::error("evpusher {} error muxing packet: {}, {}, {}, {}, restreaming...", selfId, av_err2str(ret), packet.dts, packet.pts, packet.dts==AV_NOPTS_VALUE);
                 if(packet.pts == AV_NOPTS_VALUE) {
                     // reset

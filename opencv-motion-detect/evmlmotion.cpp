@@ -392,6 +392,7 @@ private:
         ret = z_send_multiple(pDealer, body);
         if(ret < 0) {
             spdlog::error("evpusher {} {}, failed to send hello to puller: {}. exiting...", devSn, iid, zmq_strerror(zmq_errno()));
+            // TODO: message report to cloud
             exit(1);
         }
         unique_lock<mutex> lk(this->mutMsg);
@@ -734,7 +735,7 @@ protected:
 
                     // send to evdaemon
                     v1[2] = str2body(evt);
-                    ret = z_send_multiple(this->pDealer, v1);
+                    ret = z_send_multiple(this->pDaemon, v1);
                     if(ret < 0) {
                         spdlog::error("evmlmotion {} failed to send event {} to {}: {}", this->selfId, evt, daemonId, zmq_strerror(zmq_errno()));
                     }
@@ -754,6 +755,7 @@ protected:
         AVFrame *pFrame = av_frame_alloc();
         if (!pFrame) {
             spdlog::error("evmlmotion {} failed to allocated memory for AVFrame", selfId);
+            // TODO: message report to cloud
             exit(1);
         }
 
@@ -798,7 +800,18 @@ protected:
 
             av_packet_unref(&packet);
             if (ret < 0) {
-                spdlog::error("evmlmotion error muxing packet");
+                // TODO: report message to cloud
+                string msg = fmt::format("evmlmotion {} failed to decode packet", selfId);
+                json meta;
+                json data;
+                data["msg"] = msg;
+                data["modId"] = selfId;
+                data["type"] = EV_MSG_META_TYPE_REPORT;
+                data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+                meta["type"] = EV_MSG_META_TYPE_REPORT;
+                meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+                z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
+                spdlog::error(msg);
             }
 
             if((pktCnt  - pktCntLast ) == 18) {

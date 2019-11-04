@@ -431,7 +431,7 @@ private:
             return 0;
         }
         else if(body.size() != 4) {
-            spdlog::warn("evcloudsvc {} dropped an invalid message, size: {}", devSn, body.size());
+            spdlog::warn("evcloudsvc dropped an invalid message, size: {}", devSn, body.size());
             return 0;
         }
 
@@ -447,15 +447,15 @@ private:
             // check peer status
             vector<vector<uint8_t> >v = {body[1], body[0], body[2], body[3]};
             if(peerData["status"].count(peerId)!= 0 && peerData["status"][peerId] != 0) {
-                spdlog::info("evcloudsvc {} route msg from {} to {}", devSn, selfId, peerId);
+                spdlog::info("{} route msg from {} to {}", devSn, selfId, peerId);
                 ret = z_send_multiple(pRouter, v);
                 if(ret < 0) {
-                    spdlog::error("evcloudsvc {} failed to send multiple: {}", devSn, zmq_strerror(zmq_errno()));
+                    spdlog::error("{} failed to send multiple: {}", devSn, zmq_strerror(zmq_errno()));
                 }
             }
             else {
                 // cache
-                spdlog::warn("evcloudsvc {} cached msg from {} to {}", devSn, selfId, peerId);
+                spdlog::warn("{} cached msg from {} to {}", devSn, selfId, peerId);
                 lock_guard<mutex> lock(cacheLock);
                 cachedMsg[peerId].push(v);
                 if(cachedMsg[peerId].size() > EV_NUM_CACHE_PERPEER) {
@@ -474,7 +474,7 @@ private:
                 }
             }
             catch(exception &e) {
-                spdlog::error("evcloudsvc {} exception parse event msg from {} to {}: ", devSn, selfId, peerId, e.what());
+                spdlog::error("{} exception parse event msg from {} to {}: ", devSn, selfId, peerId, e.what());
             }
         }
         else {
@@ -484,7 +484,7 @@ private:
                 // handleConnection(selfId);
                 if(meta=="ping") {
                     auto ips = body2str(body[3]);
-                    spdlog::info("evcloudsvc {}, ping msg from {}: {}", devSn, selfId, ips);
+                    spdlog::info("{}, ping msg from {}: {}", devSn, selfId, ips);
 
                     this->peerData["info"]["ips"][selfId] = ips;
 
@@ -495,7 +495,7 @@ private:
                             cachedMsg[selfId].pop();
                             ret = z_send_multiple(pRouter, v);
                             if(ret < 0) {
-                                spdlog::error("evcloudsvc {} failed to send multiple: {}", devSn, zmq_strerror(zmq_errno()));
+                                spdlog::error("{} failed to send multiple: {}", devSn, zmq_strerror(zmq_errno()));
                             }
                         }
                     }
@@ -506,9 +506,12 @@ private:
                         sendEdgeMsg(resp);
                     }
                 }
+            }else if(meta == EV_MSG_META_TYPE_REPORT) {
+                // TODO: handle report msg
+                spdlog::warn("{} received report msg from {}: {}", devSn, selfId, body2str(body[3]));
             }
             else {
-                spdlog::warn("evcloudsvc {} received unknown meta {} from {}", devSn, meta, selfId);
+                spdlog::warn("{} received unknown meta {} from {}", devSn, meta, selfId);
             }
         }
 

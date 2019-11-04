@@ -91,6 +91,24 @@ int z_send(void *s, string peerId, string selfId, const json &meta, string body)
     return z_send_multiple(s, v);
 }
 
+int z_send(void *s, string peerId, string selfId,vector<uint8_t> meta, vector<uint8_t> body)
+{
+    vector<vector<uint8_t> > v{str2body(peerId), str2body(selfId), meta, body};
+    return z_send_multiple(s, v);
+}
+
+int z_send(void *s, string peerId, string meta, string body)
+{
+    vector<vector<uint8_t> > v{str2body(peerId), str2body(meta), str2body(body)};
+    return z_send_multiple(s, v);
+}
+
+int z_send(void *s, string peerId, vector<uint8_t> meta, vector<uint8_t> body)
+{
+    vector<vector<uint8_t> > v{str2body(peerId), meta, body};
+    return z_send_multiple(s, v);
+}
+
 /// setup router
 int setupRouter(void **ctx, void **s, string addr){
     int ret = 0;

@@ -312,12 +312,14 @@ protected:
         spdlog::info("evpuller {} openning stream: {}", selfId, urlIn);
         if ((ret = avformat_open_input(&pAVFormatInput, urlIn.c_str(), NULL, &optsIn)) < 0) {
             spdlog::error("evpuller {} Could not open input stream {}", selfId, urlIn);
+            // TODO: message report to cloud
             exit(1);
         }
 
         spdlog::info("evpuller {} finding stream info: {}", selfId, urlIn);
         if ((ret = avformat_find_stream_info(pAVFormatInput, NULL)) < 0) {
             spdlog::error("evpuller {} Failed to retrieve input stream information", selfId);
+            // TODO: message report to cloud
             exit(1);
         }
 
@@ -338,6 +340,7 @@ protected:
             lenAVFmtCtxBytes = AVFormatCtxSerializer::encode(pAVFormatInput, &pAVFmtCtxBytes);
             if(lenAVFmtCtxBytes <= 0 || pAVFmtCtxBytes == nullptr) {
                 spdlog::error("evpuller {} failed to pull packet from {}. exiting...", selfId, urlIn);
+                // TODO: message report to cloud
                 exit(1);
             }
             // broadcast
@@ -381,6 +384,7 @@ protected:
             ret = av_read_frame(pAVFormatInput, &packet);
             if (ret < 0) {
                 spdlog::error("evpuller {} failed read packet: {}", selfId, av_err2str(ret));
+                // TODO: message report to cloud
                 exit(1);
             }
             in_stream  = pAVFormatInput->streams[packet.stream_index];
@@ -431,6 +435,7 @@ public:
             auto v = strutils::split(selfId, ':');
             if(v.size() != 3||v[1] != "evpuller") {
                 spdlog::error("evpuller {} received invalid gid: {}", selfId);
+                // TODO: message report to cloud
                 exit(1);
             }
             devSn = v[0];

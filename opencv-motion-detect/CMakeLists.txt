@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.0) 
+cmake_minimum_required (VERSION 3.0)
 project (evsuits)
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")

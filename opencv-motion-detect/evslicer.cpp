@@ -424,6 +424,7 @@ private:
         ret = z_send_multiple(pDealer, body);
         if(ret < 0) {
             spdlog::error("evslicer {}, failed to send hello to puller: {}. exiting ...", selfId, zmq_strerror(zmq_errno()));
+            // TODO: message report to cloud
             exit(1);
         }
         unique_lock<mutex> lk(this->mutMsg);
@@ -501,6 +502,7 @@ protected:
             ret = avformat_alloc_output_context2(&pAVFormatRemux, NULL, "segment", name.c_str());
             if (ret < 0) {
                 spdlog::error("evslicer {} failed create avformatcontext for output: %s", selfId, av_err2str(ret));
+                // TODO: message report to cloud
                 exit(1);
             }
 
@@ -584,6 +586,18 @@ protected:
                 ret = av_interleaved_write_frame(pAVFormatRemux, &packet);
                 av_packet_unref(&packet);
                 if (ret < 0) {
+                    // TODO: report message to cloud
+                    string msg = fmt::format("evslicer {} error write stream, resetting:{}", selfId, av_err2str(ret));
+                    json meta;
+                    json data;
+                    data["msg"] = msg;
+                    data["modId"] = selfId;
+                    data["type"] = EV_MSG_META_TYPE_REPORT;
+                    data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+                    meta["type"] = EV_MSG_META_TYPE_REPORT;
+                    meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+                    z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
+
                     spdlog::error("evslicer {} error muxing packet: {}, {}, {}, {}, reloading...", selfId, av_err2str(ret), packet.dts, packet.pts, packet.dts==AV_NOPTS_VALUE);
                     if(pktCnt != 0 && packet.pts == AV_NOPTS_VALUE) {
                         // reset

@@ -35,6 +35,14 @@ namespace zmqhelper {
 #define EV_MSG_META_VALUE_CMD_UPDATE "update"
 #define EV_MSG_META_VALUE_CMD_STOP "stop"
 
+
+#define EV_MSG_META_TYPE_REPORT "report"
+#define EV_MSG_META_VALUE_REPORT_LEVEL_INFO "info"
+#define EV_MSG_META_VALUE_REPORT_LEVEL_DEBUG "debug"
+#define EV_MSG_META_VALUE_REPORT_LEVEL_WARN "warn"
+#define EV_MSG_META_VALUE_REPORT_LEVEL_ERROR "error"
+#define EV_MSG_META_VALUE_REPORT_LEVEL_FATAL "fatal"
+
 #define EV_MSG_META_TYPE_BROADCAST "broadcast"
 
 #define EV_MSG_META_CONFIG "config"
@@ -70,7 +78,10 @@ int setupDealer(void **ctx, void **s, string addr, string ident, int timeout = 0
 /// @return 0 success, otherwise failed.
 int recvConfigMsg(void *s, json &config, string addr, string ident);
 int forkSubsystem(string devSn, string peerId, int drPort, pid_t &pid);
+int z_send(void *s, string peerId, string selfId, vector<uint8_t> meta, vector<uint8_t> body);
 int z_send(void *s, string peerId, string selfId, const json &meta, string body);
+int z_send(void *s, string peerId, vector<uint8_t> meta, vector<uint8_t> body);
+int z_send(void *s, string peerId, string meta, string body);
 }
 
 #endif
