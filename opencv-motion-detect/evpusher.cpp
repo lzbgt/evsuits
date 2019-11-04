@@ -30,6 +30,7 @@ private:
     string urlOut, urlPub, urlDealer, devSn, pullerGid, mgrSn, selfId;
     int iid;
     int *streamList = nullptr;
+    AVDictionary *pOptsRemux = nullptr;
     AVFormatContext *pAVFormatRemux = nullptr;
     AVFormatContext *pAVFormatInput = nullptr;
     json config;
@@ -303,7 +304,6 @@ private:
     int setupStream()
     {
         int ret = 0;
-        AVDictionary *pOptsRemux = nullptr;
         string proto = urlOut.substr(0, 4);
         if(proto == "rtsp") {
             // rtsp tcp
@@ -376,23 +376,6 @@ private:
             }
         }
 
-        ret = avformat_write_header(pAVFormatRemux, &pOptsRemux);
-        if (ret < 0) {
-            // TODO: report message to cloud
-            string msg = fmt::format("evpusher {} failed to write stream \"{}\": {}", selfId, urlOut, av_err2str(ret));
-            json meta;
-            json data;
-            data["msg"] = msg;
-            data["modId"] = selfId;
-            data["type"] = EV_MSG_META_TYPE_REPORT;
-            data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_FATAL;
-            meta["type"] = EV_MSG_META_TYPE_REPORT;
-            meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_FATAL;
-            z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
-            spdlog::error(msg);
-            exit(1);
-        }
-
         return ret;
     }
 
@@ -422,6 +405,12 @@ protected:
         zmq_msg_t msg;
         AVPacket packet;
         uint64_t pktCnt = 0;
+        uint64_t failedCnt = 0, lastFailedCnt = 0;
+        // const uint64_t PKT_SKIP = 38;
+        bool bInited = false;
+
+        setupStream();
+
         while (true) {
             ret =zmq_msg_init(&msg);
             if(ret != 0) {
@@ -451,6 +440,30 @@ protected:
             zmq_msg_close(&msg);
 
             spdlog::debug("packet stream indx: {:d}", packet.stream_index);
+
+            if(!bInited) {
+                ret = avformat_write_header(pAVFormatRemux, &pOptsRemux);
+                //  -1482175736, Server returned 4XX Client Error, but not one of 40{0,1,3,4}
+                // ignore 406 error
+                if (ret < 0 && ret != -1482175736) { 
+                    // TODO: report message to cloud
+                    string msg = fmt::format("evpusher {} failed to write stream \"{}\": {}, {}", selfId, urlOut, ret, av_err2str(ret));
+                    json meta;
+                    json data;
+                    data["msg"] = msg;
+                    data["modId"] = selfId;
+                    data["type"] = EV_MSG_META_TYPE_REPORT;
+                    data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_FATAL;
+                    meta["type"] = EV_MSG_META_TYPE_REPORT;
+                    meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_FATAL;
+                    z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
+                    spdlog::error(msg);
+                    exit(1);
+                }
+
+                bInited = true;   
+            }
+
             // relay
             AVStream *in_stream =NULL, *out_stream = nullptr;
             in_stream  = pAVFormatInput->streams[packet.stream_index];
@@ -472,32 +485,39 @@ protected:
             //     lastPts = packet.dts;
             // }
             // spdlog::info("evpusher {} packet new pts: {} dts: {}", selfId, packet.pts, packet.dts);
-
+            
             ret = av_interleaved_write_frame(pAVFormatRemux, &packet);
             av_packet_unref(&packet);
+            // error write stream, restreaming: -22 ,Invalid argument
             if (ret < 0) {
                 // TODO: report message to cloud
-                string msg = fmt::format("evpusher {} error write stream, trying restreaming:{}", selfId, av_err2str(ret));
-                json meta;
-                json data;
-                data["msg"] = msg;
-                data["modId"] = selfId;
-                data["type"] = EV_MSG_META_TYPE_REPORT;
-                data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
-                meta["type"] = EV_MSG_META_TYPE_REPORT;
-                meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
-                z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
-
-                spdlog::error("evpusher {} error muxing packet: {}, {}, {}, {}, restreaming...", selfId, av_err2str(ret), packet.dts, packet.pts, packet.dts==AV_NOPTS_VALUE);
-                if(packet.pts == AV_NOPTS_VALUE) {
-                    // reset
-                    // av_write_trailer(pAVFormatRemux);
-                    freeStream();
-                    getInputFormat();
-                    setupStream();
-                    pktCnt = 0;
-                    continue;
-                }
+                failedCnt++;
+                if(ret != -22){
+                    string msg = fmt::format("evpusher {} error write stream, restreaming: {} ,{}", selfId, ret, av_err2str(ret));
+                    //if(failedCnt % 2 == 0) {
+                        json meta;
+                        json data;
+                        data["msg"] = msg;
+                        data["modId"] = selfId;
+                        data["type"] = EV_MSG_META_TYPE_REPORT;
+                        data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+                        meta["type"] = EV_MSG_META_TYPE_REPORT;
+                        meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+                        z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
+                    // }
+                    
+                    spdlog::error(msg);
+                    if(packet.pts == AV_NOPTS_VALUE) {
+                        // reset
+                        // av_write_trailer(pAVFormatRemux);
+                        freeStream();
+                        getInputFormat();
+                        setupStream();
+                        pktCnt = 0;
+                        bInited = false;
+                        continue;
+                    }
+                } 
             }
         }
         av_write_trailer(pAVFormatRemux);
@@ -573,7 +593,7 @@ public:
         thEdgeMsgHandler.detach();
 
         getInputFormat();
-        setupStream();
+        //setupStream();
     }
 
     ~EvPusher()
