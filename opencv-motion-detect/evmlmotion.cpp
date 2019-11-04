@@ -808,6 +808,8 @@ protected:
                 data["modId"] = selfId;
                 data["type"] = EV_MSG_META_TYPE_REPORT;
                 data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+                data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                data["status"] = "active";
                 meta["type"] = EV_MSG_META_TYPE_REPORT;
                 meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
                 z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());

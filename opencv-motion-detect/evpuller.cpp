@@ -311,9 +311,37 @@ protected:
 
         spdlog::info("evpuller {} openning stream: {}", selfId, urlIn);
         if ((ret = avformat_open_input(&pAVFormatInput, urlIn.c_str(), NULL, &optsIn)) < 0) {
-            spdlog::error("evpuller {} Could not open input stream {}", selfId, urlIn);
+            string msg = fmt::format("evpuller {} Could not open input stream {}: {}", selfId, urlIn, av_err2str(ret));
+            json meta;
+            json data;
+            data["msg"] = msg;
+            data["modId"] = selfId;
+            data["type"] = EV_MSG_META_TYPE_REPORT;
+            data["catId"] = EV_MSG_REPORT_CATID_AVOPENINPUT;
+            data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_FATAL;
+            data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+            data["status"] = "active";
+            meta["type"] = EV_MSG_META_TYPE_REPORT;
+            meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_FATAL;
+            z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
+            spdlog::error(msg);
             // TODO: message report to cloud
             exit(1);
+        }else{
+            string msg = fmt::format("evpuller {} successfully openned input stream {}", selfId, urlIn);
+            json meta;
+            json data;
+            data["msg"] = msg;
+            data["modId"] = selfId;
+            data["type"] = EV_MSG_META_TYPE_REPORT;
+            data["catId"] = EV_MSG_REPORT_CATID_AVOPENINPUT;
+            data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_INFO;
+            data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+            data["status"] = "recover";
+            meta["type"] = EV_MSG_META_TYPE_REPORT;
+            meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_FATAL;
+            z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
+            spdlog::info(msg);
         }
 
         spdlog::info("evpuller {} finding stream info: {}", selfId, urlIn);

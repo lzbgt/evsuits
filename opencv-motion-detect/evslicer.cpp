@@ -494,6 +494,7 @@ protected:
         zmq_msg_t msg;
         AVPacket packet;
         while (true) {
+            bool bStatsSent = false;
             auto start = chrono::system_clock::now();
             auto end = start;
             int ts = chrono::duration_cast<chrono::seconds>(start.time_since_epoch()).count();
@@ -587,13 +588,16 @@ protected:
                 av_packet_unref(&packet);
                 if (ret < 0) {
                     // TODO: report message to cloud
-                    string msg = fmt::format("evslicer {} error write stream, resetting:{}", selfId, av_err2str(ret));
+                    string msg = fmt::format("evslicer {} error write file, resetting:{}", selfId, av_err2str(ret));
                     json meta;
                     json data;
                     data["msg"] = msg;
                     data["modId"] = selfId;
                     data["type"] = EV_MSG_META_TYPE_REPORT;
+                    data["catId"] = EV_MSG_REPORT_CATID_AVWRITEPIPE;
                     data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+                    data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                    data["status"] = "active";
                     meta["type"] = EV_MSG_META_TYPE_REPORT;
                     meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
                     z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
@@ -608,6 +612,23 @@ protected:
                         setupStream();
                         pktCnt = 0;
                         break;
+                    }
+                }else{
+                    if(!bStatsSent) {
+                        bStatsSent = true;
+                        string msg = fmt::format("evslicer {} starting write file", selfId);
+                        json meta;
+                        json data;
+                        data["msg"] = msg;
+                        data["modId"] = selfId;
+                        data["type"] = EV_MSG_META_TYPE_REPORT;
+                        data["catId"] = EV_MSG_REPORT_CATID_AVWRITEPIPE;
+                        data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_INFO;
+                        data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                        data["status"] = "recover";
+                        meta["type"] = EV_MSG_META_TYPE_REPORT;
+                        meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_INFO;
+                        z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
                     }
                 }
 

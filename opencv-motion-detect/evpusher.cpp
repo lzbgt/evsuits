@@ -316,6 +316,8 @@ private:
                 data["modId"] = selfId;
                 data["type"] = EV_MSG_META_TYPE_REPORT;
                 data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_FATAL;
+                data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                data["status"] = "active";
                 meta["type"] = EV_MSG_META_TYPE_REPORT;
                 meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_FATAL;
                 z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
@@ -386,7 +388,6 @@ private:
                 spdlog::error("evpusher {} {} failed allocating output stream", devSn,iid);
                 ret = avio_open2(&pAVFormatRemux->pb, urlOut.c_str(), AVIO_FLAG_WRITE, NULL, &pOptsRemux);
                 if (ret < 0) {
-                    spdlog::error("evpusher {} {} could not open output file '%s'", devSn, iid, urlOut);
                     // TODO: message report to cloud
                     string msg = fmt::format("evpusher {} failed to open output stream \"{}\": {}, {}", selfId, urlOut, ret, av_err2str(ret));
                     json meta;
@@ -395,6 +396,8 @@ private:
                     data["modId"] = selfId;
                     data["type"] = EV_MSG_META_TYPE_REPORT;
                     data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_FATAL;
+                    data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                    data["status"] = "active";
                     meta["type"] = EV_MSG_META_TYPE_REPORT;
                     meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_FATAL;
                     z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
@@ -443,6 +446,7 @@ protected:
         zmq_msg_t msg;
         AVPacket packet;
         uint64_t pktCnt = 0;
+        bool bStatsSent = false;
         while (true) {
             ret =zmq_msg_init(&msg);
             if(ret != 0) {
@@ -504,7 +508,10 @@ protected:
                 data["msg"] = msg;
                 data["modId"] = selfId;
                 data["type"] = EV_MSG_META_TYPE_REPORT;
+                data["catId"] = EV_MSG_REPORT_CATID_AVWRITEPIPE;
                 data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+                data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                data["status"] = "active";
                 meta["type"] = EV_MSG_META_TYPE_REPORT;
                 meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
                 z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
@@ -518,6 +525,23 @@ protected:
                     setupStream();
                     pktCnt = 0;
                     continue;
+                }
+            }else{
+                if(!bStatsSent){
+                    bStatsSent = true;
+                    string msg = fmt::format("evpusher {} start pushing {}", selfId, urlOut);
+                    json meta;
+                    json data;
+                    data["msg"] = msg;
+                    data["modId"] = selfId;
+                    data["type"] = EV_MSG_META_TYPE_REPORT;
+                    data["catId"] = EV_MSG_REPORT_CATID_AVWRITEPIPE;
+                    data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_INFO;
+                    data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                    data["status"] = "recover";
+                    meta["type"] = EV_MSG_META_TYPE_REPORT;
+                    meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_FATAL;
+                    z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
                 }
             }
         }
