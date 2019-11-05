@@ -63,7 +63,7 @@ private:
     int iid;
     AVFormatContext *pAVFormatInput = nullptr;
     AVCodecContext *pCodecCtx = nullptr;
-    DetectParam detPara = {25, 500, -1, 10, 3, 30, 0.3};
+    DetectParam detPara = {25, 500, -1, 3, 3, 30, 0.3};
     EventState evtState = EventState::NONE;
     chrono::system_clock::time_point evtStartTm, evtStartTmLast;
     queue<string> *evtQueue;
