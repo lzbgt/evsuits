@@ -306,8 +306,7 @@ private:
         AVDictionary *pOptsRemux = nullptr;
         string proto = urlOut.substr(0, 4);
         int cnt = 0;
-        while(ret < 0)
-        {
+        while(ret < 0) {
             if(cnt > 3) {
                 string msg = fmt::format("evpusher {} failed to write output header \"{}\": {}, {}", selfId, urlOut, ret, av_err2str(ret));
                 json meta;
@@ -405,7 +404,8 @@ private:
                     z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
                     spdlog::error(msg);
                     exit(1);
-                }else{
+                }
+                else {
                     string msg = fmt::format("evpusher {} successfully open output \"{}\"", selfId, urlOut);
                     json meta;
                     json data;
@@ -424,7 +424,7 @@ private:
             }
 
             ret = avformat_write_header(pAVFormatRemux, &pOptsRemux);
-            if (ret < 0) { 
+            if (ret < 0) {
                 // TODO: report message to cloud
                 string msg = fmt::format("evpusher {} failed to write stream \"{}\": {}, {}", selfId, urlOut, ret, av_err2str(ret));
                 spdlog::error(msg);
@@ -447,7 +447,7 @@ private:
         meta["type"] = EV_MSG_META_TYPE_REPORT;
         meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_INFO;
         z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
-    
+
         return ret;
     }
 
@@ -557,8 +557,9 @@ protected:
                     pktCnt = 0;
                     continue;
                 }
-            }else{
-                if(!bStatsSent){
+            }
+            else {
+                if(!bStatsSent) {
                     bStatsSent = true;
                     string msg = fmt::format("evpusher {} start pushing {}", selfId, urlOut);
                     json meta;
@@ -626,10 +627,11 @@ public:
                 auto body = z_recv_multiple(pDaemon,false);
                 if(body.size() == 0) {
                     spdlog::error("evslicer {} failed to receive multiple cloud msg: {}", selfId, zmq_strerror(zmq_errno()));
-                }else{
+                }
+                else {
                     // full proto msg received.
                     this->handleCloudMsg(body);
-                }    
+                }
             }
         });
         thCloudMsgHandler.detach();
@@ -640,10 +642,11 @@ public:
                 auto body = z_recv_multiple(pDealer,false);
                 if(body.size() == 0) {
                     spdlog::error("evslicer {} failed to receive multiple edge msg: {}", selfId, zmq_strerror(zmq_errno()));
-                }else{
+                }
+                else {
                     // full proto msg received.
                     this->handleEdgeMsg(body);
-                }     
+                }
             }
         });
         thEdgeMsgHandler.detach();
@@ -688,7 +691,7 @@ public:
             zmq_ctx_destroy(pDaemonCtx);
             pDaemonCtx = nullptr;
         }
-        
+
 
         freeStream();
     }

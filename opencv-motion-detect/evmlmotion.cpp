@@ -484,7 +484,7 @@ private:
                     pFrame->key_frame,
                     pFrame->coded_picture_number
                 );
-                
+
                 static long long called = 0;
                 static int factor = 0;
                 called++;
@@ -493,12 +493,13 @@ private:
                     // lock the value
                     factor = int(int(this->pps) / this->detPara.fpsProc); // regulator to 0 if it was set inresonably high
                 }
-                
-                if(factor != 0 ){
+
+                if(factor != 0 ) {
                     if(called % factor == 0) {
                         proc = true;
                         //factor = 0; // reset it open to change
-                    }else{
+                    }
+                    else {
                         proc = false;
                     }
                 }
@@ -508,14 +509,15 @@ private:
                         spdlog::info("evmlmotion {} pps {}, fpsFactor {}, called {}, lag {}, skip processing", this->selfId, this->pps, factor, called, this->pktLag);
                     }
                     // detectMotion(pCodecContext->pix_fmt, pFrame, false);
-                }else{
-                    if((called % (180*4)) == 0){
+                }
+                else {
+                    if((called % (180*4)) == 0) {
                         spdlog::info("evmlmotion {} pps {}, fpsFactor {}, called {}, lag {}", this->selfId, this->pps, factor, called, this->pktLag);
                     }
                     detectMotion(pCodecContext->pix_fmt, pFrame, detect);
                     factor = 0; // refresh to latest value
                 }
-                
+
                 break;
             }
         }
@@ -816,7 +818,8 @@ protected:
                 meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
                 z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
                 spdlog::error(msg);
-            }else{
+            }
+            else {
                 if(!bStatsSent) {
                     bStatsSent = true;
                     string msg = fmt::format("evmlmotion {} successfully decode packet", selfId);
@@ -844,7 +847,7 @@ protected:
                 // if(pktCnt % (180 * 5) == 0) {
                 //     spdlog::info("evmlmotion {} metering: 18 packet in {}ms, pps: {}, lag:{}", selfId, delta, pps, pktLag);
                 // }
-                
+
                 pktCntLast = pktCnt;
                 start = now;
             }
@@ -901,7 +904,8 @@ public:
                 auto body = z_recv_multiple(pDaemon,false);
                 if(body.size() == 0) {
                     spdlog::error("evslicer {} failed to receive multiple cloud msg: {}", selfId, zmq_strerror(zmq_errno()));
-                }else{
+                }
+                else {
                     // full proto msg received.
                     this->handleCloudMsg(body);
                 }
@@ -915,7 +919,8 @@ public:
                 auto body = z_recv_multiple(pDealer,false);
                 if(body.size() == 0) {
                     spdlog::error("evslicer {} failed to receive multiple edge msg: {}", selfId, zmq_strerror(zmq_errno()));
-                }else{
+                }
+                else {
                     // full proto msg received.
                     this->handleEdgeMsg(body);
                 }
@@ -955,7 +960,7 @@ public:
             zmq_close(pDaemon);
             pDaemon = nullptr;
         }
-        
+
         if(pDaemonCtx != nullptr) {
             zmq_ctx_destroy(pDaemonCtx);
             pDaemonCtx = nullptr;

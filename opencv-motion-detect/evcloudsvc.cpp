@@ -87,7 +87,8 @@ private:
         if(ret <0 || relBund.size() == 0) {
             this->releaseBundle["bundles"] = json();
             this->releaseBundle["activeIdx"] = -1;
-        }else{
+        }
+        else {
             this->releaseBundle = relBund;
         }
     }
@@ -101,7 +102,7 @@ private:
         string meta = j.dump();
         vector<vector<uint8_t> > v = {str2body(sn), str2body(devSn), str2body(meta), str2body(cfg)};
 
-        // if(peerData["status"].count(sn) == 0||peerData["status"][sn] == 0) {
+        // if(peerData["online"].count(sn) == 0||peerData["online"][sn] == 0) {
         //     spdlog::warn("evcloudsvc {} cached config to {}", devSn, sn);
         //     lock_guard<mutex> lock(cacheLock);
         //     cachedMsg[sn].push(v);
@@ -377,11 +378,11 @@ private:
         bool ret = false;
         int state = zmq_socket_get_peer_state(pRouter, selfId.data(), selfId.size());
         spdlog::info("evcloudsvc peer {} state: {}", selfId, state);
-        if(peerData["status"].count(selfId) == 0 || peerData["status"][selfId] == 0) {
-            peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+        if(peerData["online"].count(selfId) == 0 || peerData["online"][selfId] == 0) {
+            peerData["online"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
             spdlog::info("evcloudsvc peer connected: {}", selfId);
             ret = true;
-            spdlog::debug("evcloudsvc update status of {} to 1 and send config", selfId);
+            spdlog::debug("evcloudsvc update online status of {} to 1 and send config", selfId);
             json data = getConfigForDevice(selfId);
             if(data["code"] != 0) {
                 json resp;
@@ -395,7 +396,7 @@ private:
             }
         }
         else {
-            peerData["status"][selfId] = 0;
+            peerData["online"][selfId] = 0;
             spdlog::warn("{} peer disconnected: {}", devSn, selfId);
         }
         return ret;
@@ -439,14 +440,14 @@ private:
         meta = body2str(body[2]);
         selfId = body2str(body[0]);
         peerId = body2str(body[1]);
-        // update status;
-        this->peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+        // update online status;
+        this->peerData["online"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
         int minLen = std::min(body[1].size(), devSn.size());
         if(memcmp((void*)(body[1].data()), devSn.data(), minLen) != 0) {
             // message to other peer
-            // check peer status
+            // check peer online status
             vector<vector<uint8_t> >v = {body[1], body[0], body[2], body[3]};
-            if(peerData["status"].count(peerId)!= 0 && peerData["status"][peerId] != 0) {
+            if(peerData["online"].count(peerId)!= 0 && peerData["online"][peerId] != 0) {
                 spdlog::info("{} route msg from {} to {}", devSn, selfId, peerId);
                 ret = z_send_multiple(pRouter, v);
                 if(ret < 0) {
@@ -508,17 +509,19 @@ private:
                 }
             }
             else {
-                try{
+                try {
                     json jmeta = json::parse(meta);
                     if(jmeta["type"] == EV_MSG_META_TYPE_REPORT) {
                         // TODO: handle report msg
                         spdlog::warn("{} received report msg from {}: {}", devSn, selfId, body2str(body[3]));
-                    }else{
+                    }
+                    else {
                         spdlog::warn("{} received unknown msg {} from {}", devSn, meta, selfId);
                     }
-                } catch(exception &e) {
+                }
+                catch(exception &e) {
                     spdlog::warn("{} received unknown msg {} from {}", devSn, meta, selfId);
-                }  
+                }
             }
         }
 
@@ -572,9 +575,10 @@ private:
             }
 
             auto now = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
-            if(peerData["status"].count(sn) != 0 && ((now - peerData["status"][sn].get<decltype(now)>()) < 60) ){
+            if(peerData["online"].count(sn) != 0 && ((now - peerData["online"][sn].get<decltype(now)>()) < 60) ) {
                 ret["online"] = true;
-            }else{
+            }
+            else {
                 ret["online"] = false;
             }
         }
@@ -615,7 +619,7 @@ private:
                 }
 
                 body["sender"] = devSn;
-                if(peerData["status"].count(v[0]) == 0 || peerData["status"][v[0]] == 0) {
+                if(peerData["online"].count(v[0]) == 0 || peerData["online"][v[0]] == 0) {
                     spdlog::warn("evcloudsvc sent msg {} to {}, but it was offline", body.dump(), v[0]);
                 }
                 else {
@@ -663,10 +667,12 @@ private:
         int stackId = -1;
         if(bid.empty()) {
             ret = this->releaseBundle;
-        }else{
-            try{
+        }
+        else {
+            try {
                 stackId = stoi(bid);
-            }catch(exception &e) {
+            }
+            catch(exception &e) {
                 stackId = -1;
             }
 
@@ -676,7 +682,8 @@ private:
                 if(stackId >=0 && idx >= 0) {
                     // idx style
                     ret = bunds[idx];
-                }else{
+                }
+                else {
                     // releaseId style
                     for(auto &r: bunds) {
                         if(r["releaseId"] == bid) {
@@ -684,14 +691,15 @@ private:
                             break;
                         }
                     }
-                }       
+                }
             }
         }
 
         return ret;
     }
 
-    string enableRelease(string bid, bool enable){
+    string enableRelease(string bid, bool enable)
+    {
         string ret;
         int stackId = -1;
         bool handled = false;
@@ -703,15 +711,18 @@ private:
                     handled = true;
                     // TODO: send release to edge
                 }
-            }else{
+            }
+            else {
                 if(this->releaseBundle["bundles"].size() <= 1) {
                     ret = "no release to disable. (maybe only one or none release bundle configured)";
                 }
             }
-        }else{
-            try{
+        }
+        else {
+            try {
                 stackId = stoi(bid);
-            }catch(exception &e) {
+            }
+            catch(exception &e) {
                 isNumber = false;
             }
             if(this->releaseBundle.size() != 0 && this->releaseBundle.count("bundles") != 0) {
@@ -726,20 +737,24 @@ private:
                     if(this->releaseBundle["activeIdx"] == idx) {
                         if(enable) {
                             spdlog::info("evcloudsvc release {} is already in active. nop.", idx);
-                        }else{
+                        }
+                        else {
                             return enableRelease(to_string(idx - 1), true);
                             // TODO: send release to edge
-                        }                        
-                    }else{
+                        }
+                    }
+                    else {
                         if(enable) {
                             this->releaseBundle["activeIdx"] = idx;
                             handled = true;
                             // TODO: send release to edge
-                        }else{
+                        }
+                        else {
                             ret = "this release is not in active. nop.";
                         }
                     }
-                }else{
+                }
+                else {
                     // releaseId style
                     int idx = 0;
                     for(auto &r: bunds) {
@@ -748,24 +763,27 @@ private:
                         }
                         idx++;
                     }
-                }       
+                }
             }
         }
 
         return ret;
     }
 
-    string delReleaseBundle(string bid) {
+    string delReleaseBundle(string bid)
+    {
         string ret;
         int stackId = -1;
         bool handled = false;
         bool isNumber = true;
         if(bid.empty()) {
             ret = "empty release bundle id";
-        }else{
-            try{
+        }
+        else {
+            try {
                 stackId = stoi(bid);
-            }catch(exception &e) {
+            }
+            catch(exception &e) {
                 isNumber = false;
             }
 
@@ -779,9 +797,10 @@ private:
                     }
 
                     spdlog::info("idx: {}", idx);
-                    if(idx == this->releaseBundle["activeIdx"].get<int>()){
+                    if(idx == this->releaseBundle["activeIdx"].get<int>()) {
                         ret = "can't delete active release bundle";
-                    }else{
+                    }
+                    else {
                         bunds.erase(idx);
                         if(idx < this->releaseBundle["activeIdx"].get<int>()) {
                             this->releaseBundle["activeIdx"] = this->releaseBundle["activeIdx"].get<int>() -1;
@@ -789,7 +808,7 @@ private:
                         handled = true;
                     }
                 }
-                else{
+                else {
                     // releaseId style
                     int idx = 0;
                     for(auto r: bunds) {
@@ -807,7 +826,7 @@ private:
                         spdlog::error(msg);
                         ret = msg;
                     }
-                }     
+                }
             }
         }
 
@@ -819,7 +838,8 @@ private:
         string ret;
         if(bundle.count("releaseId") == 0) {
             ret = "no releaseId field";
-        }else {
+        }
+        else {
             for(auto &b: this->releaseBundle["bundles"]) {
                 if(b["releaseId"] == bundle["releaseId"]) {
                     ret = "releaseId already exist: " + b.dump();
@@ -849,7 +869,8 @@ private:
         return ret;
     }
 
-    json getClusterInfo(set<string> sns) {
+    json getClusterInfo(set<string> sns)
+    {
         json ret;
         ret["code"] = 0;
         ret["msg"] = "ok";
@@ -865,9 +886,10 @@ private:
             auto conf = getConfigForDevice(k);
             auto now = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
 
-            if(peerData["status"].count(k) != 0 && ((now - peerData["status"][k].get<decltype(now)>()) < 60) ){
+            if(peerData["online"].count(k) != 0 && ((now - peerData["online"][k].get<decltype(now)>()) < 60) ) {
                 conf["online"] = true;
-            }else{
+            }
+            else {
                 conf["online"] = false;
             }
             ret["data"][k] = conf;
@@ -1033,8 +1055,8 @@ public:
                     this->configMap.erase(sn);
                 if(this->peerData["config"].contains(sn))
                     this->peerData["config"].erase(sn);
-                if(this->peerData["status"].contains(sn))
-                    this->peerData["status"].erase(sn);
+                if(this->peerData["online"].contains(sn))
+                    this->peerData["online"].erase(sn);
 
                 spdlog::info("evcloudsvc removed sn: {}", sn);
                 LVDB::setValue(this->configMap, KEY_CONFIG_MAP);
@@ -1054,7 +1076,8 @@ public:
                 if(bundle.size() == 0) {
                     ret["code"] = 1;
                     ret["msg"] = "not found";
-                }else{
+                }
+                else {
                     ret["data"] = bundle;
                 }
             }
@@ -1076,7 +1099,7 @@ public:
             try {
                 auto body = json::parse(req.body);
                 auto s = this->addReleaseBundle(body);
-                if(!s.empty()){
+                if(!s.empty()) {
                     ret["code"] = 1;
                     ret["msg"] = s;
                 }
@@ -1123,6 +1146,7 @@ public:
         this->peerData["info"] = json();
         this->peerData["info"]["ips"] = json();
         this->peerData["config"] = json();
+        this->peerData["online"] = json();
         this->peerData["status"] = json();
 
         spdlog::info("evcloudsvc boot");

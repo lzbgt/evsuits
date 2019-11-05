@@ -337,7 +337,7 @@ private:
                             }
                         }
                         else {
-                            sendCmd2Peer(k, EV_MSG_META_VALUE_CMD_STOP, to_string(v));   
+                            sendCmd2Peer(k, EV_MSG_META_VALUE_CMD_STOP, to_string(v));
                         }
                     }
                     else {
@@ -472,12 +472,12 @@ private:
         int minLen = std::min(body[1].size(), this->daemonId.size());
         if(memcmp((void*)(body[1].data()), this->daemonId.data(), minLen) != 0) {
             // message to other peer
-            
+
             // check if target is evcloudsvc
             if(peerId == "evcloudsvc") {
                 zmqhelper::z_send(pDealer, peerId, body[2], body[3]);
             }
-            else{
+            else {
                 vector<vector<uint8_t> >v = {body[1], body[0], body[2], body[3]};
                 if(peerData["status"].count(peerId) != 0 && peerData["status"][peerId] != 0 && this->peerData["status"][peerId][peerId] != -1) {
                     spdlog::info("evdaemon {} route msg from {} to {}", devSn, selfId, peerId);
@@ -545,7 +545,8 @@ private:
     }
 
 
-    int manageReverseTun(bool bStart, json &tunCfg) {
+    int manageReverseTun(bool bStart, json &tunCfg)
+    {
         int ret = 0;
         if(tunCfg.count("port") == 0 || tunCfg.count("host") == 0 || tunCfg.count("user") == 0 || tunCfg.count("password") == 0) {
             spdlog::error("evcdaemon {} invalid reverse tunnel settings, shall have host, port, user, password fields");
@@ -554,10 +555,10 @@ private:
         thread th;
         string host = tunCfg["host"], user = tunCfg["user"], password = tunCfg["password"];
         int port = tunCfg["port"];
-        th = thread([host, port, user, password](){
+        th = thread([host, port, user, password]() {
             createReverseTun(host, port, user, password);
         });
-        
+
         spdlog::info("evdaemon {} created reverse tun to {}:{}", devSn, tunCfg["host"].get<string>(), tunCfg["port"].get<int>());
         th.detach();
 
@@ -631,7 +632,8 @@ private:
                             if(v.size() == 1) {
                                 if(data["metaValue"] == EV_MSG_META_VALUE_CMD_REVESETUN) {
                                     manageReverseTun(true, data["data"]);
-                                }else{
+                                }
+                                else {
                                     spdlog::info("evdaemon {} received msg {} from cloud to itself. but has no implementation for", devSn, data.dump());
                                 }
                             }
@@ -690,7 +692,8 @@ private:
         return 0;
     }
 
-    void setUpDealer(){
+    void setUpDealer()
+    {
         lock_guard<mutex> lg(mutHeartBeat);
         if(pDealer != nullptr) {
             int i = 0;
@@ -906,8 +909,8 @@ public:
         thCloud.detach();
         spdlog::info("evdaemon {} cloud message processor had setup {}", devSn, cloudAddr);
 
-        thHeartBeat = thread([this](){
-            while(true){
+        thHeartBeat = thread([this]() {
+            while(true) {
                 {
                     lock_guard<mutex> lg(this->mutHeartBeat);
                     if(this->pDealer != nullptr)

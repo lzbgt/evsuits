@@ -119,6 +119,9 @@ int createReverseTun(string host, int port, string user, string _password)
         closeFun(); return -1;
     }
 
+    // bugfix: timeout
+    libssh2_session_set_timeout( session, 15 * 1000);
+
     /* At this point we havn't yet authenticated.  The first thing to do
      * is check the hostkey's fingerprint against our known hosts Your app
      * may have it hard coded, may go to a file, may present it to the

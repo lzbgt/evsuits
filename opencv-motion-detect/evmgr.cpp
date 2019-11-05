@@ -141,10 +141,11 @@ error_exit:
                 auto body = z_recv_multiple(pDealer,false);
                 if(body.size() == 0) {
                     spdlog::error("evslicer {} failed to receive multiple cloud msg: {}", this->devSn, zmq_strerror(zmq_errno()));
-                }else{
+                }
+                else {
                     // full proto msg received.
                     this->handleCloudMsg(body);
-                } 
+                }
             }
         });
         thCloudMsgHandler.detach();
@@ -187,7 +188,7 @@ error_exit:
                 peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                 spdlog::info("evmgr {} peer connected: {}", devSn, selfId);
                 eventConn = true;
-                
+
                 if(cachedMsg.count(selfId) != 0) {
                     spdlog::info("evmgr {}, send cached msg to {}", devSn, selfId);
                     while(!cachedMsg[selfId].empty()) {
@@ -198,7 +199,7 @@ error_exit:
                         if(ret < 0) {
                             spdlog::error("evmgr {} failed to send multiple: {}", devSn, zmq_strerror(zmq_errno()));
                         }
-                    }      
+                    }
                 }
             }
             else {

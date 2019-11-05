@@ -613,7 +613,8 @@ protected:
                         pktCnt = 0;
                         break;
                     }
-                }else{
+                }
+                else {
                     if(!bStatsSent) {
                         bStatsSent = true;
                         string msg = fmt::format("evslicer {} starting write file", selfId);
@@ -911,11 +912,12 @@ public:
                 auto body = z_recv_multiple(pDealer,false);
                 if(body.size() == 0) {
                     spdlog::error("evslicer {} failed to receive multiple edge msg: {}", selfId, zmq_strerror(zmq_errno()));
-                }else{
+                }
+                else {
                     // full proto msg received.
                     handleEdgeMsg(body);
                 }
-                
+
             }
         });
         thEdgeMsgHandler.detach();
@@ -926,7 +928,8 @@ public:
                 auto body = z_recv_multiple(pDaemon,false);
                 if(body.size() == 0) {
                     spdlog::error("evslicer {} failed to receive multiple cloud msg: {}", selfId, zmq_strerror(zmq_errno()));
-                }else{
+                }
+                else {
                     // full proto msg received.
                     this->handleCloudMsg(body);
                 }

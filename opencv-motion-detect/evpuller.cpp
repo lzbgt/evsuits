@@ -327,7 +327,8 @@ protected:
             spdlog::error(msg);
             // TODO: message report to cloud
             exit(1);
-        }else{
+        }
+        else {
             string msg = fmt::format("evpuller {} successfully openned input stream {}", selfId, urlIn);
             json meta;
             json data;
@@ -411,7 +412,7 @@ protected:
             pktCnt++;
             packet.stream_index = streamList[packet.stream_index];
             // skip first 5 packets avoid pusher and slicer exception
-            if(pktCnt <= 5){
+            if(pktCnt <= 5) {
                 if(pktCnt == 5) {
                     // serialize formatctx to bytes
                     // be attention to the scope of lock guard!
@@ -501,7 +502,8 @@ public:
                 auto body = z_recv_multiple(pDealer,false);
                 if(body.size() == 0) {
                     spdlog::error("evslicer {} failed to receive multiple cloud msg: {}", selfId, zmq_strerror(zmq_errno()));
-                }else{
+                }
+                else {
                     // full proto msg received.
                     string msg;
                     for(auto &v: body) {
@@ -512,7 +514,7 @@ public:
                     spdlog::info("evpuller {} received edge msg: {}", selfId, msg);
                     this->handleEdgeMsg(body);
                 }
-                
+
             }
         });
         thEdgeMsgHandler.detach();
@@ -524,7 +526,8 @@ public:
                 auto body = z_recv_multiple(pDaemon,false);
                 if(body.size() == 0) {
                     spdlog::error("evslicer {} failed to receive multiple edge msg: {}", selfId, zmq_strerror(zmq_errno()));
-                }else{
+                }
+                else {
                     // full proto msg received.
                     this->handleCloudMsg(body);
                 }
@@ -562,7 +565,7 @@ public:
             zmq_close(pDaemon);
             pDaemon = nullptr;
         }
-        
+
         if(pDaemonCtx != nullptr) {
             zmq_ctx_destroy(pDaemonCtx);
             pDaemonCtx = nullptr;
