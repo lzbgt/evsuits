@@ -30,7 +30,6 @@
         }
     },
     "summary":{
-        
         "terminal":{
             "numOnline": 10,
             "numOffline": 3,
