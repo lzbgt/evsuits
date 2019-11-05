@@ -3,9 +3,9 @@
         "pageSize": 10,
         "pageTotal": 2,
         "pageId": 1,
-        "data":{
+        "data": {
             "IPCSN": {
-                "terminal":{
+                "terminal": {
                     "sn": "TERMSN",
                     "online": 0
                 },
@@ -27,7 +27,7 @@
                     }
                 },
                 "lastNReports": []
-            } 
+            }
         }
     },
     "summary": {
