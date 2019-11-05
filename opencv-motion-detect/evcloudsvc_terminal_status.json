@@ -5,7 +5,7 @@
         "pageId": 1,
         "data": {
             "IPCSN": {
-                "terminal": {
+                "mgrTerminal": {
                     "sn": "TERMSN",
                     "online": 0
                 },
@@ -21,6 +21,10 @@
                 },
                 "issues": {
                     "MODID": {
+                        "hostTerminal":{
+                            "sn": "TERMSN",
+                            "online": 0
+                        },
                         "REPORT_CATID": {
                             "status": "active"
                         }
