@@ -33,14 +33,16 @@
     },
     "summary":{
         "terminal":{
-            "numOnline": 10,
-            "numOffline": 3,
+            "online":[],
             "offline":[]
         },
-        "camera":{
-            "numOnline": 10,
-            "numOffline": 3,
-            "offline": []
+        "ipcs": {
+            "online":[],
+            "termOffline": [],
+            "pullFailed": [],
+            "pushFailed": [],
+            "sliceFailed": [],
+            "motionFailed": []
         }
     }
 }
