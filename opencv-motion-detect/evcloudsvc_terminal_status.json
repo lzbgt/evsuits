@@ -7,24 +7,21 @@
             "IPCSN": {
                 "mgrTerminal": {
                     "sn": "TERMSN",
-                    "online": 0
+                    "online": false
                 },
                 "expected": {
-                    "online": 1,
-                    "push": 0,
-                    "eventDetect": 1
+                    "online": true,
+                    "push": false,
+                    "eventDetect": true
                 },
                 "current": {
-                    "online": -1,
-                    "push": -1,
-                    "eventDetect": -1
+                    "online": false,
+                    "push": false,
+                    "eventDetect": false
                 },
                 "issues": {
                     "MODID": {
-                        "hostTerminal":{
-                            "sn": "TERMSN",
-                            "online": 0
-                        },
+                        "hostOnline": true,
                         "REPORT_CATID": {
                             "status": "active"
                         }
