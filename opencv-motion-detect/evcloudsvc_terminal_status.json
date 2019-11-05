@@ -10,12 +10,12 @@
                     "online": false
                 },
                 "expected": {
-                    "online": true,
+                    "pull": true,
                     "push": false,
                     "eventDetect": true
                 },
                 "current": {
-                    "online": false,
+                    "pull": false,
                     "push": false,
                     "eventDetect": false
                 },
