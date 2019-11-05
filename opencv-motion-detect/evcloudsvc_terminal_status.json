@@ -4,30 +4,33 @@
         "pageTotal": 2,
         "pageId": 1,
         "TERMSN":{
-            "expected": {
-                "online":1,
-                "liveStream": 0,
-                "cameraConnected": 1,
-                "eventDetect": 1
-            },
-            "current":{
-                "online":0,
-                "liveStream": -1,
-                "cameraConnected": -1,
-                "eventDetect": -1
-            },
-            "issues":{
-                "MODID":{
-                    "REPORT_CATID":{
-                        "status": "active"
+            "status": 1,
+            "ipcs": {
+                "sn": "SN001",
+                "expected": {
+                    "online":1,
+                    "liveStream": 0,
+                    "eventDetect": 1
+                },
+                "current":{
+                    "online":0,
+                    "liveStream": -1,
+                    "eventDetect": -1
+                },
+                "issues":{
+                    "MODID":{
+                        "REPORT_CATID":{
+                            "status": "active"
+                        }
                     }
-                }
-            },
-            "lastNReports":[
-            ]
+                },
+                "lastNReports":[
+                ]
+            }
         }
     },
     "summary":{
+        
         "terminal":{
             "numOnline": 10,
             "numOffline": 3,
