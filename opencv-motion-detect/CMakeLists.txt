@@ -26,7 +26,7 @@ if(MACOSX)
 else()
     set(CV_INCLUDE_DIRS "${VENDOR}/include/opencv4")
     set(CV_LIBRARY_DIRS "${VENDOR}/lib")
-    list(APPEND EXTRA_LIBS pthread x264 m z dl atomic)
+    list(APPEND EXTRA_LIBS pthread x264 m z dl atomic lzma)
     list(APPEND SSH2LIB ssh2 gcrypt)
 endif()
 
