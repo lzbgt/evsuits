@@ -21,7 +21,7 @@
                 },
                 "issues": {
                     "MODID": {
-                        "hostOnline": true,
+                        "runTerminalOnline": true,
                         "REPORT_CATID": {
                             "status": "active"
                         }
@@ -37,12 +37,12 @@
             "offline": []
         },
         "cameras": {
-            "online": [],
-            "termOffline": [],
-            "pullFailed": [],
+            "ok": [],
+            "terminalOffline": [],
+            "connectFailed": [],
             "pushFailed": [],
-            "sliceFailed": [],
-            "motionFailed": []
+            "localRecFailed": [],
+            "motionDetFailed": []
         }
     }
 }
