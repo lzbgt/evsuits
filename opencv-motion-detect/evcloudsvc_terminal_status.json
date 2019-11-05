@@ -5,7 +5,7 @@
         "pageId": 1,
         "data": {
             "IPCSN": {
-                "mgrHost": {
+                "mgrTerminal": {
                     "sn": "TERMSN",
                     "online": false
                 },
@@ -32,11 +32,11 @@
         }
     },
     "summary": {
-        "host": {
+        "terminals": {
             "online": [],
             "offline": []
         },
-        "ipcs": {
+        "cameras": {
             "online": [],
             "termOffline": [],
             "pullFailed": [],
