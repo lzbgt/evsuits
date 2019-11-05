@@ -5,7 +5,7 @@
         "pageId": 1,
         "data": {
             "IPCSN": {
-                "mgrTerminal": {
+                "mgrHost": {
                     "sn": "TERMSN",
                     "online": false
                 },
@@ -32,7 +32,7 @@
         }
     },
     "summary": {
-        "terminal": {
+        "host": {
             "online": [],
             "offline": []
         },
