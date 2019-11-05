@@ -544,7 +544,6 @@ private:
         return ret;
     }
 
-
     int manageReverseTun(bool bStart, json &tunCfg)
     {
         int ret = 0;

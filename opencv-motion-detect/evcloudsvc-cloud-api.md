@@ -33,6 +33,7 @@ query configuration for edge device with specified sn
                         "pre":4,
                         "sn":"V2I0C7KC",
                         "thresh":30,
+                        "fpsProc": 3,
                         "entropy": 0.3,
                         "type":"motion"
                      }
