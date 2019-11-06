@@ -87,6 +87,7 @@ private:
         bool inited = false;
         int opt_notify = ZMQ_NOTIFY_DISCONNECT|ZMQ_NOTIFY_CONNECT;
         string addr;
+        string portRouter;
 
         try {
             //
@@ -102,7 +103,13 @@ private:
                 goto error_exit;
             }
 
-            addr = "tcp://*:" + to_string(config["portRouter"]);
+            if(config.count("portRouter") != 0) {
+                portRouter = to_string(config["portRouter"]);
+            }else if(config.count("port-router") != 0) {
+                portRouter = to_string(config["port-router"]);
+            }
+
+            addr = "tcp://*:" + portRouter;
             // setup zmq
             // router service
             pRouterCtx = zmq_ctx_new();

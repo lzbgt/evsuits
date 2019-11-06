@@ -624,11 +624,11 @@ protected:
                         data["modId"] = selfId;
                         data["type"] = EV_MSG_META_TYPE_REPORT;
                         data["catId"] = EV_MSG_REPORT_CATID_AVWRITEPIPE;
-                        data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_INFO;
+                        data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
                         data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                         data["status"] = "recover";
                         meta["type"] = EV_MSG_META_TYPE_REPORT;
-                        meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_INFO;
+                        meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
                         z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
                     }
                 }

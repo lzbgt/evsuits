@@ -21,7 +21,6 @@
                 },
                 "issues": {
                     "MODID": {
-                        "runTerminalOnline": true,
                         "REPORT_CATID": {
                             "status": "active"
                         }
