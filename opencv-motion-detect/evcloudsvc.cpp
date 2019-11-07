@@ -105,6 +105,12 @@ private:
                             // mod2ipc
                             peerData["mod2ipc"][modGid] = ipcSn;
 
+                            // mgrsn2ipc
+                            if(peerData["mgr2ipc"].count(k) == 0) {
+                                peerData["mgr2ipc"][k] = json();
+                            }
+                            peerData["mgr2ipc"][k][ipcSn] = 1;
+
                             if(shad["expected"].count(modGid) != 0) {
                                 //multiple mod with same class
                                 spdlog::error("{} configuration for ipc {} in dev {} having multiple modules {}. ignored that extra module", devSn, ipcSn, k, modGid);
@@ -549,17 +555,59 @@ private:
             if(data["code"] != 0) {
                 json resp;
                 resp["target"] = selfId,
-                                 resp["metaType"] = EV_MSG_META_PONG;
+                resp["metaType"] = EV_MSG_META_PONG;
                 resp["data"] = data["msg"];
                 sendEdgeMsg(resp);
             }
             else {
                 sendConfig(data["data"], selfId);
             }
+
+            if(peerData["mgr2ipc"].count(selfId) != 0) {
+                for(auto &[k,v]: peerData["mgr2ipc"][selfId].items()){
+                    if(peerData["ipcStatus"].count(k) == 0){
+                        spdlog::error("{} no ipcStatus config for camera {}", devSn, k);
+                    }else{
+                        auto &ipcStatus = peerData["ipcStatus"][k];
+                        if(ipcStatus["issues"].count(selfId) != 0) {
+                            ipcStatus["issues"].erase(selfId);
+                        }
+                    }
+                }
+            }
         }
         else {
             peerData["online"][selfId] = 0;
-            spdlog::warn("{} peer disconnected: {}", devSn, selfId);
+            spdlog::warn("{} peer disconnected: {}", devSn, selfId); 
+            if(peerData["mgr2ipc"].count(selfId) != 0) {
+                for(auto &[k,v]: peerData["mgr2ipc"][selfId].items()){
+                    if(peerData["ipcStatus"].count(k) == 0){
+                        spdlog::error("{} no ipcStatus config for camera {}", devSn, k);
+                    }else{
+                        auto &ipcStatus = peerData["ipcStatus"][k];
+                        for(auto &[m,n]:ipcStatus["current"].items()) {
+                            n = false;
+                        }
+
+                        json data;
+                        json meta;
+                        string msg = fmt::format("evcloudsvc detects cluster mgr {} offline of ipc {}", selfId, k);
+                        data["msg"] = msg;
+                        data["modId"] = "ALL";
+                        data["type"] = EV_MSG_META_TYPE_REPORT;
+                        data["catId"] = EV_MSG_REPORT_CATID_AVMODOFFLINE;
+                        data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+                        data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                        data["status"] = "active";
+                        meta["type"] = EV_MSG_META_TYPE_REPORT;
+                        meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+                        ipcStatus["issues"][selfId] = data;
+                    }
+                }  
+            }else{
+                spdlog::error("{} no such dev {} for disconnect", devSn, selfId);
+            }
+                    
         }
         return ret;
     }
@@ -1224,18 +1272,34 @@ public:
                         ret["code"] = 1;
                     }
                 }
-                else {
-                    ret["data"] = this->peerData["ipcStatus"];
-                }
 
-                for(auto &[k,v]: ret["data"].items()) {
+                for(auto &[k,v]: this->peerData["ipcStatus"].items()) {
                     string tsn = v["mgrTerminal"]["sn"];
                     if(this->peerData["online"].count(tsn) != 0 && this->peerData["online"][tsn] != 0) {
                         v["mgrTerminal"]["online"] = true;
                     }else{
                         v["mgrTerminal"]["online"] = false;
+                        auto &ipcStatus = v;
+                        for(auto &[m,n]:ipcStatus["current"].items()) {
+                            n = false;
+                        }
+                        json data;
+                        json meta;
+                        string msg = fmt::format("evcloudsvc detects cluster mgr {} offline of ipc {}", tsn, k);
+                        data["msg"] = msg;
+                        data["modId"] = "ALL";
+                        data["type"] = EV_MSG_META_TYPE_REPORT;
+                        data["catId"] = EV_MSG_REPORT_CATID_AVMODOFFLINE;
+                        data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+                        data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                        data["status"] = "active";
+                        meta["type"] = EV_MSG_META_TYPE_REPORT;
+                        meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+                        ipcStatus["issues"][tsn] = data;
                     }
                 }
+
+                ret["data"] = this->peerData["ipcStatus"];
             }
             catch(exception &e) {
                 ret["code"] = -1;
@@ -1416,6 +1480,7 @@ public:
         this->peerData["online"] = json();
         this->peerData["ipcStatus"] = json();
         this->peerData["mod2ipc"] = json();
+        this->peerData["mgr2ipc"] = json();
 
         spdlog::info("evcloudsvc boot");
         loadConfigMap();
