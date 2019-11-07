@@ -90,6 +90,10 @@ private:
         json modIdsOnline;
         json modIdsOffline;
         for(auto &[k,v]: this->peerData["status"].items()){
+            // ignore evmgr
+            if(k.find("evmgr") != string::npos) {
+                continue;
+            }
             if(v != 0 && v != -1 && v != 1 && v != 2) {
                 modIdsOnline.push_back(k);
             }else{
@@ -97,9 +101,71 @@ private:
             }
         }
 
-        // TODO: construct reports body. 
-        // since we use event-style reports, this interval based report is not needed anymore
+        // // since offline with be default status, don't need to send explicitly
+        // for(const string &k: modIdsOffline) {
+        //     json report;
+        //     string msg = fmt::format("evdaemon [ping] {} detects module {} offline", this->devSn, k);
+        //     report["msg"] = msg;
+        //     report["modId"] = k;
+        //     report["type"] = EV_MSG_META_TYPE_REPORT;
+        //     report["catId"] = EV_MSG_REPORT_CATID_AVMODOFFLINE;
+        //     report["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+        //     report["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+        //     report["status"] = "active";
+        //     report["type"] = EV_MSG_META_TYPE_REPORT;
+        //     report["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+        //     data["reports"].push_back(report);
+        // }
 
+        for(const string &k: modIdsOnline) {
+            json report;
+            string msg = fmt::format("evdaemon [ping] {} detects module {} online", this->devSn, k);
+            report["msg"] = msg;
+            report["modId"] = k;
+            report["type"] = EV_MSG_META_TYPE_REPORT;
+            report["catId"] = EV_MSG_REPORT_CATID_AVMODOFFLINE;
+            report["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+            report["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+            report["status"] = "recover";
+            report["type"] = EV_MSG_META_TYPE_REPORT;
+            report["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+            data["reports"].push_back(report);
+        }
+
+        vector<string> modIdsLoopRecover;
+        for(auto &[k,v] :peerData["contConn"].items()){
+            if(v > 4) {
+                // not offline
+                if(peerData["status"].count(k) != 0 && peerData["status"][k] != -1 && peerData["status"][k] != 2 && peerData["status"][k] != 1) {
+                    auto now = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                    auto delta = now - peerData["status"][k].get<decltype(now)>();
+                    if(delta > 20) {
+                        modIdsLoopRecover.push_back(k);
+                        v = 0;
+                    }
+                }
+            }
+        }
+
+        {
+            json report;
+            report["type"] = EV_MSG_META_TYPE_REPORT;
+            report["catId"] = EV_MSG_REPORT_CATID_AVLOOPRESTART;
+            report["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+            report["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+            report["status"] = "recover";
+            report["type"] = EV_MSG_META_TYPE_REPORT;
+            report["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+            for(auto &k: modIdsLoopRecover) {
+                string msg = fmt::format("evdaemon [ping] {} detects module {} recovered from loop restarting", this->devSn, k);
+                report["modId"] = k;
+                report["msg"] = msg;
+                data["reports"].push_back(report);
+            }
+        }
+
+
+        
         vector<vector<uint8_t> >body = {str2body("evcloudsvc:0:0"), str2body(EV_MSG_META_PING), str2body(data.dump())};
 
         ret = z_send_multiple(s, body);
@@ -210,7 +276,7 @@ private:
         std::lock_guard<std::mutex> lock(mutSubsystem);
         if(subs.size() != 0) {
             for(auto &k: subs) {
-                if((this->peerData["status"].count(k) == 0 || this->peerData["status"][k] == 0 || this->peerData["status"][k] != -2) && this->peerData["config"].count(k) != 0 &&  this->peerData["enabled"].count(k) != 0 && this->peerData["enabled"][k] != 0) {
+                if((this->peerData["status"].count(k) == 0 || this->peerData["status"][k] == 0 ||  (this->peerData["status"][k] != 1 &&  this->peerData["status"][k] != 2)) && this->peerData["config"].count(k) != 0 &&  this->peerData["enabled"].count(k) != 0 && this->peerData["enabled"][k] != 0) {
                     pid_t pid;
 
                     if(this->peerData["contConn"].count(k) != 0 && this->peerData["contConn"][k] > 4) { // 4 times
@@ -224,7 +290,7 @@ private:
                         data["catId"] = EV_MSG_REPORT_CATID_AVLOOPRESTART;
                         data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
                         data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
-                        data["status"] = "active";
+                        data["status"] = "recover";
                         meta["type"] = EV_MSG_META_TYPE_REPORT;
                         meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
                         z_send(pDealer, "evcloudsvc", meta.dump(), data.dump());
@@ -342,8 +408,8 @@ private:
                         this->peerData["status"][k] = 1; // disabled
                         sendCmd2Peer(k, EV_MSG_META_VALUE_CMD_STOP, "0");
                     }
-                    else if(v == 1) {  // perm stop
-                        this->peerData["status"][k] = 2;
+                    else if(v == 1) {
+                        this->peerData["status"][k] = 2; // perm stop
                         this->peerData["config"].erase(k);
                         sendCmd2Peer(k, EV_MSG_META_VALUE_CMD_STOP, "0");
                     }
@@ -401,12 +467,12 @@ private:
         data["msg"] = msg;
         data["modId"] = modIds;
         data["type"] = EV_MSG_META_TYPE_REPORT;
-        data["catId"] = EV_MSG_REPORT_CATID_AVMODCONNECTED;
-        data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_INFO;
+        data["catId"] = EV_MSG_REPORT_CATID_AVMODOFFLINE;
+        data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
         data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
         data["status"] = "recover";
         meta["type"] = EV_MSG_META_TYPE_REPORT;
-        meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_INFO;
+        meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
         z_send(pDealer, "evcloudsvc", meta.dump(), data.dump());
     }
 
@@ -451,7 +517,10 @@ private:
             if((peerData["status"].count(selfId) == 0 || peerData["status"][selfId] == 0||this->peerData["status"][selfId] == -1) ) {
                 peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                 spdlog::info("evdaemon {} peer connected: {}", devSn, selfId);
-                sendModConnectedMsg(modIds);
+                if(selfId.find("evmgr") == string::npos) {
+                    sendModConnectedMsg(modIds);
+                }
+                
                 if(this->peerData["tsLastConn"].count(selfId) == 0) {
                     this->peerData["tsLastConn"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                 }
@@ -483,8 +552,10 @@ private:
                 spdlog::info("evdaemon {} peer {} config sent: {}", devSn,selfId, cfg);
             }
             else {
-
-                sendModOfflineMsg(modIds);
+                if(selfId.find("evmgr") == string::npos) {
+                    sendModOfflineMsg(modIds);
+                }
+                
                 if(peerData["status"][selfId] == 1 || peerData["status"][selfId] == 2) {
                     spdlog::warn("evdaemon {} refuse to start {}: it was asked to be stopped, and is removed from cluster config", this->devSn, selfId);
                 }

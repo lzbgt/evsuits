@@ -590,18 +590,22 @@ private:
                         }
 
                         json data;
-                        json meta;
                         string msg = fmt::format("evcloudsvc detects cluster mgr {} offline of ipc {}", selfId, k);
                         data["msg"] = msg;
                         data["modId"] = "ALL";
                         data["type"] = EV_MSG_META_TYPE_REPORT;
-                        data["catId"] = EV_MSG_REPORT_CATID_AVMODOFFLINE;
+                        data["catId"] = EV_MSG_REPORT_CATID_AVMGROFFLINE;
                         data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
                         data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                         data["status"] = "active";
-                        meta["type"] = EV_MSG_META_TYPE_REPORT;
-                        meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
-                        ipcStatus["issues"][selfId] = data;
+                        if(ipcStatus["issues"].count(selfId) == 0){
+                            ipcStatus["issues"][selfId] = json();
+                        }
+                        ipcStatus["issues"][selfId][EV_MSG_REPORT_CATID_AVMGROFFLINE] = data;
+                        ipcStatus["lastNReports"].push_back(data);
+                        if(ipcStatus["lastNReports"].size() > NUM_MAX_REPORT_HISTORY) {
+                            ipcStatus["lastNReports"].erase(0);
+                        }
                     }
                 }  
             }else{
@@ -630,46 +634,58 @@ private:
 
         for(const string &modId: modIds){
             if(peerData["mod2ipc"].count(modId) == 0) {
-                spdlog::error("{} received report fron {} modId {} having no related ipc: {}", devSn, peerId, modId, data.dump());
+                spdlog::error("{} received report from {} modId {} having no related ipc: {}", devSn, peerId, modId, data.dump());
             }else{
                 spdlog::warn("{} received report msg from {}: {}", devSn, peerId, data.dump());
                 string ipcSn = peerData["mod2ipc"][modId];
                 string status = data["status"];
                 string catId = data["catId"];
                 string severity = data["level"]; 
+                data["modId"] = modId;
                 
                 if(peerData["ipcStatus"].count(ipcSn) != 0) {
                     auto &ipcStatus = peerData["ipcStatus"][ipcSn];
-
-                    // log report
-                    if(ipcStatus.count("lastNReports") == 0){
-                        ipcStatus["lastNReports"] = json();
-                    }
-                    ipcStatus["lastNReports"].push_back(data);
-                    if(ipcStatus["lastNReports"].size() > NUM_MAX_REPORT_HISTORY) {
-                        ipcStatus["lastNReports"].erase(0);
+                    // log report, filter out ping
+                    if(catId == EV_MSG_REPORT_CATID_AVMODOFFLINE && status == "recover"){
+                        // nop
+                    }else{
+                        if(ipcStatus.count("lastNReports") == 0){
+                            ipcStatus["lastNReports"] = json();
+                        }
+                        ipcStatus["lastNReports"].push_back(data);
+                        if(ipcStatus["lastNReports"].size() > NUM_MAX_REPORT_HISTORY) {
+                            ipcStatus["lastNReports"].erase(0);
+                        }
                     }
 
                     // update status
                     if(status == "active") {
-                        if(ipcStatus["issues"].count(modId) == 0){
-                            ipcStatus["issues"][modId] = json();
-                        }
-                        ipcStatus["issues"][modId][catId] = data;
                         if(severity == "error") {
                             ipcStatus["current"][modId] = false;
+                        }
+
+                        if(ipcStatus["current"][modId] != ipcStatus["expected"][modId]) {
+                            if(ipcStatus["issues"].count(modId) == 0){
+                                ipcStatus["issues"][modId] = json();
+                            }
+                            ipcStatus["issues"][modId][catId] = data;
                         }
                     }else{
                         // recover
                         if(ipcStatus["issues"].count(modId) != 0 && 
                             ipcStatus["issues"][modId].count(catId) != 0) {
-                            ipcStatus["issues"][modId].erase(catId);    
+                            ipcStatus["issues"][modId].erase(catId); 
+                            if(ipcStatus["issues"][modId].size() == 0) {
+                                ipcStatus["issues"].erase(modId);
+                            }   
                         }
 
-                        if(catId == EV_MSG_REPORT_CATID_AVMODCONNECTED || catId == EV_MSG_REPORT_CATID_AVWRITEPIPE || (modId.find("evpuller") != string::npos && catId == EV_MSG_REPORT_CATID_AVOPENINPUT)) {
+                        if(catId == EV_MSG_REPORT_CATID_AVMODOFFLINE || catId == EV_MSG_REPORT_CATID_AVWRITEPIPE || (modId.find("evpuller") != string::npos && catId == EV_MSG_REPORT_CATID_AVOPENINPUT)) {
                             ipcStatus["current"][modId] = true;
                         }
                     }
+                }else{
+                    spdlog::error("{} can't find ipc for report mod {}", devSn, modId);
                 }
             }
         }
@@ -1273,31 +1289,53 @@ public:
                     }
                 }
 
-                for(auto &[k,v]: this->peerData["ipcStatus"].items()) {
-                    string tsn = v["mgrTerminal"]["sn"];
-                    if(this->peerData["online"].count(tsn) != 0 && this->peerData["online"][tsn] != 0) {
-                        v["mgrTerminal"]["online"] = true;
-                    }else{
-                        v["mgrTerminal"]["online"] = false;
-                        auto &ipcStatus = v;
-                        for(auto &[m,n]:ipcStatus["current"].items()) {
-                            n = false;
-                        }
-                        json data;
-                        json meta;
-                        string msg = fmt::format("evcloudsvc detects cluster mgr {} offline of ipc {}", tsn, k);
-                        data["msg"] = msg;
-                        data["modId"] = "ALL";
-                        data["type"] = EV_MSG_META_TYPE_REPORT;
-                        data["catId"] = EV_MSG_REPORT_CATID_AVMODOFFLINE;
-                        data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
-                        data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
-                        data["status"] = "active";
-                        meta["type"] = EV_MSG_META_TYPE_REPORT;
-                        meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
-                        ipcStatus["issues"][tsn] = data;
-                    }
-                }
+                // for(auto &[k,v]: this->peerData["ipcStatus"].items()) {
+                //     string tsn = v["mgrTerminal"]["sn"];
+                //     // mgr online
+                //     if(this->peerData["online"].count(tsn) != 0 && this->peerData["online"][tsn] != 0) {
+                //         v["mgrTerminal"]["online"] = true;
+                //     }else{
+                //         v["mgrTerminal"]["online"] = false;
+                //         auto &ipcStatus = v;
+                //         for(auto &[m,n]:ipcStatus["current"].items()) {
+                //             n = false;
+                //         }
+                //         // json data;
+                //         // string msg = fmt::format("evcloudsvc detects cluster mgr {} offline of ipc {}", tsn, k);
+                //         // data["msg"] = msg;
+                //         // data["modId"] = "ALL";
+                //         // data["type"] = EV_MSG_META_TYPE_REPORT;
+                //         // data["catId"] = EV_MSG_REPORT_CATID_AVMGROFFLINE;
+                //         // data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+                //         // data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                //         // data["status"] = "active";
+                //         // if(ipcStatus["issues"].count(tsn) == 0){
+                //         //     ipcStatus["issues"][tsn] = json();
+                //         // }
+
+                //         // ipcStatus["issues"][tsn][EV_MSG_REPORT_CATID_AVMGROFFLINE] = data;
+                //         // ipcStatus["lastNReports"].push_back(data);
+                //     }
+
+                //     // // clean issues with AV_LOOPRESTART
+                //     // if(v["issues"].size()!=0) {
+                //     //     vector<string> issureModIds;
+                //     //     for(auto &[a,b]: v["issues"].items()){
+                //     //         for(auto &[c,d]: b.items()){
+                //     //             if(c == EV_MSG_REPORT_CATID_AVLOOPRESTART) {
+                //     //                 auto now = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                //     //                 auto delta = now - d["time"].get<decltype(now)>();
+                //     //                 if(delta > 30) {
+                //     //                     b.erase(c);
+                //     //                 }
+                //     //             }
+                //     //         }
+                //     //         if(b.size() == 0) {
+                //     //             v["issues"].erase(a);
+                //     //         }
+                //     //     }
+                //     // }
+                // }
 
                 ret["data"] = this->peerData["ipcStatus"];
             }

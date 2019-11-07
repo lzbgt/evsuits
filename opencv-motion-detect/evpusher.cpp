@@ -434,7 +434,7 @@ private:
         }
 
 
-        string msg = fmt::format("evpusher {} successfullywrite output header \"{}\": {}, {}", selfId, urlOut, ret, av_err2str(ret));
+        string msg = fmt::format("evpusher {} successfully write output header \"{}\"", selfId, urlOut);
         json meta;
         json data;
         data["msg"] = msg;
@@ -533,6 +533,7 @@ protected:
             av_packet_unref(&packet);
             if (ret < 0) {
                 // TODO: report message to cloud
+                bStatsSent = false;
                 string msg = fmt::format("evpusher {} error write stream, restreaming: {} ,{}", selfId, ret, av_err2str(ret));
                 json meta;
                 json data;
