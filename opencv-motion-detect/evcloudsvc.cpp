@@ -564,6 +564,69 @@ private:
         return ret;
     }
 
+    // report example
+    // data["msg"] = msg;
+    // data["modId"] = selfId;
+    // data["type"] = EV_MSG_META_TYPE_REPORT;
+    // data["catId"] = EV_MSG_REPORT_CATID_AVWRITEPIPE;
+    // data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+    // data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+    // data["status"] = "active";
+    void processReportMsg(string peerId, json &data) {
+        json modIds;
+        if(data["modId"].is_array()) {
+            modIds = data["modId"];
+        }else if(data["modId"].is_string()) {
+            modIds.push_back(data["modId"].get<string>());
+        }
+
+        for(const string &modId: modIds){
+            if(peerData["mod2ipc"].count(modId) == 0) {
+                spdlog::error("{} received report fron {} modId {} having no related ipc: {}", devSn, peerId, modId, data.dump());
+            }else{
+                spdlog::warn("{} received report msg from {}: {}", devSn, peerId, data.dump());
+                string ipcSn = peerData["mod2ipc"][modId];
+                string status = data["status"];
+                string catId = data["catId"];
+                string severity = data["level"]; 
+                
+                if(peerData["ipcStatus"].count(ipcSn) != 0) {
+                    auto &ipcStatus = peerData["ipcStatus"][ipcSn];
+
+                    // log report
+                    if(ipcStatus.count("lastNReports") == 0){
+                        ipcStatus["lastNReports"] = json();
+                    }
+                    ipcStatus["lastNReports"].push_back(data);
+                    if(ipcStatus["lastNReports"].size() > NUM_MAX_REPORT_HISTORY) {
+                        ipcStatus["lastNReports"].erase(0);
+                    }
+
+                    // update status
+                    if(status == "active") {
+                        if(ipcStatus["issues"].count(modId) == 0){
+                            ipcStatus["issues"][modId] = json();
+                        }
+                        ipcStatus["issues"][modId][catId] = data;
+                        if(severity == "error") {
+                            ipcStatus["current"][modId] = false;
+                        }
+                    }else{
+                        // recover
+                        if(ipcStatus["issues"].count(modId) != 0 && 
+                            ipcStatus["issues"][modId].count(catId) != 0) {
+                            ipcStatus["issues"][modId].erase(catId);    
+                        }
+
+                        if(catId == EV_MSG_REPORT_CATID_AVMODCONNECTED || catId == EV_MSG_REPORT_CATID_AVWRITEPIPE || (modId.find("evpuller") != string::npos && catId == EV_MSG_REPORT_CATID_AVOPENINPUT)) {
+                            ipcStatus["current"][modId] = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     int handleMsg(vector<vector<uint8_t> > &body)
     {
         int ret = 0;
@@ -643,100 +706,48 @@ private:
         else {
             // message to evcloudsvc
             // spdlog::info("evcloudsvc {} subsystem report msg received: {}; {}; {}", devSn, zmqhelper::body2str(body[0]), zmqhelper::body2str(body[1]), zmqhelper::body2str(body[2]));
-            if(meta == "pong"||meta == "ping") {
-                // handleConnection(selfId);
-                if(meta=="ping") {
-                    auto ips = body2str(body[3]);
-                    spdlog::info("{}, ping msg from {}: {}", devSn, selfId, ips);
+            try{
+                if(meta == "pong"||meta == "ping") {
+                    if(meta=="ping") {
+                        auto data = json::parse(body2str(body[3]));
+                        spdlog::info("{}, ping msg from {}: {}", devSn, selfId, data.dump());
+                        this->peerData["info"]["ips"][selfId] = data["ips"];
+                        for(auto &r: data["reports"]) {
+                            processReportMsg(selfId, r);
+                        }
 
-                    this->peerData["info"]["ips"][selfId] = ips;
-
-                    if(cachedMsg.find(selfId) != cachedMsg.end()) {
-                        while(!cachedMsg[selfId].empty()) {
-                            lock_guard<mutex> lock(cacheLock);
-                            auto v = cachedMsg[selfId].front();
-                            cachedMsg[selfId].pop();
-                            ret = z_send_multiple(pRouter, v);
-                            if(ret < 0) {
-                                spdlog::error("{} failed to send multiple: {}", devSn, zmq_strerror(zmq_errno()));
+                        if(cachedMsg.find(selfId) != cachedMsg.end()) {
+                            while(!cachedMsg[selfId].empty()) {
+                                lock_guard<mutex> lock(cacheLock);
+                                auto v = cachedMsg[selfId].front();
+                                cachedMsg[selfId].pop();
+                                ret = z_send_multiple(pRouter, v);
+                                if(ret < 0) {
+                                    spdlog::error("{} failed to send multiple: {}", devSn, zmq_strerror(zmq_errno()));
+                                }
                             }
                         }
-                    }
-                    else {
-                        json resp;
-                        resp["metaType"] = EV_MSG_META_PONG;
-                        resp["target"] = selfId;
-                        sendEdgeMsg(resp);
+                        else {
+                            json resp;
+                            resp["metaType"] = EV_MSG_META_PONG;
+                            resp["target"] = selfId;
+                            sendEdgeMsg(resp);
+                        }
                     }
                 }
-            }
-            else {
-                try {
+                else {
                     json jmeta = json::parse(meta);
-
-                    if(jmeta["type"] == EV_MSG_META_TYPE_REPORT) {
-                        // TODO: handle report msg
-                        // report example
-                        // data["msg"] = msg;
-                        // data["modId"] = selfId;
-                        // data["type"] = EV_MSG_META_TYPE_REPORT;
-                        // data["catId"] = EV_MSG_REPORT_CATID_AVWRITEPIPE;
-                        // data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
-                        // data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
-                        // data["status"] = "active";
+                    if(jmeta["type"] == EV_MSG_META_TYPE_REPORT) {     
                         json data = json::parse(body2str(body[3]));
-                        string modId = data["modId"];
-                        if(peerData["mod2ipc"].count(modId) == 0) {
-                            spdlog::error("{} received report with modId {} having no related ipc: {}", devSn, modId, data.dump());
-                        }else{
-                            spdlog::warn("{} received report msg from {}: {}", devSn, selfId, body2str(body[3]));
-                            string ipcSn = peerData["mod2ipc"][modId];
-                            string status = data["status"];
-                            string catId = data["catId"];
-                            string severity = data["level"]; 
-                            
-                            if(peerData["ipcStatus"].count(ipcSn) != 0) {
-                                auto &ipcStatus = peerData["ipcStatus"][ipcSn];
-
-                                // log report
-                                if(ipcStatus.count("lastNReports") == 0){
-                                    ipcStatus["lastNReports"] = json();
-                                }
-                                ipcStatus["lastNReports"].push_back(data);
-                                if(ipcStatus["lastNReports"].size() > NUM_MAX_REPORT_HISTORY) {
-                                    ipcStatus["lastNReports"].erase(0);
-                                }
-
-                                // update status
-                                if(status == "active") {
-                                    if(ipcStatus["issues"].count(modId) == 0){
-                                        ipcStatus["issues"][modId] = json();
-                                    }
-                                    ipcStatus["issues"][modId][catId] = data;
-                                    if(severity == "error") {
-                                        ipcStatus["current"][modId] = false;
-                                    }
-                                }else{
-                                    // recover
-                                    if(ipcStatus["issues"].count(modId) != 0 && 
-                                        ipcStatus["issues"][modId].count(catId) != 0) {
-                                        ipcStatus["issues"][modId].erase(catId);    
-                                    }
-
-                                    if(catId == EV_MSG_REPORT_CATID_AVWRITEPIPE ||(modId.find("evpuller") != string::npos && catId == EV_MSG_REPORT_CATID_AVOPENINPUT)) {
-                                        ipcStatus["current"][modId] = true;
-                                    }
-                                }
-                            }
-                        }   
+                        processReportMsg(selfId, data); 
                     }
                     else {
                         spdlog::warn("{} received unknown msg {} from {}", devSn, meta, selfId);
                     }
                 }
-                catch(exception &e) {
-                    spdlog::warn("{} received unknown msg {} from {}", devSn, meta, selfId);
-                }
+            }
+            catch(exception &e) {
+                spdlog::warn("{} received unknown msg {} from {}", devSn, meta, selfId);
             }
         }
 

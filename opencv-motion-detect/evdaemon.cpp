@@ -84,7 +84,23 @@ private:
     int ping(void *s)
     {
         int ret = 0;
-        vector<vector<uint8_t> >body = {str2body("evcloudsvc:0:0"), str2body(EV_MSG_META_PING), str2body(this->jsonIPs.dump())};
+        json data;
+        data["ips"] = this->jsonIPs;
+        data["reports"] = json();
+        json modIdsOnline;
+        json modIdsOffline;
+        for(auto &[k,v]: this->peerData["status"].items()){
+            if(v != 0 && v != -1 && v != 1 && v != 2) {
+                modIdsOnline.push_back(k);
+            }else{
+                modIdsOffline.push_back(k);
+            }
+        }
+
+        // TODO: construct reports body. 
+        // since we use event-style reports, this interval based report is not needed anymore
+
+        vector<vector<uint8_t> >body = {str2body("evcloudsvc:0:0"), str2body(EV_MSG_META_PING), str2body(data.dump())};
 
         ret = z_send_multiple(s, body);
         if(ret < 0) {
@@ -198,7 +214,20 @@ private:
                     pid_t pid;
 
                     if(this->peerData["contConn"].count(k) != 0 && this->peerData["contConn"][k] > 4) { // 4 times
-                        spdlog::error("evdaemon {} detected module restarting frequently {}, will slow down the calling thread for 10s", this->devSn, k);
+                        json meta;
+                        json data;
+                        string msg = fmt::format("evdaemon {} detects module {} is restarting frequently, slow down for 10s", this->devSn, k);
+                        spdlog::error(msg);
+                        data["msg"] = msg;
+                        data["modId"] = k;
+                        data["type"] = EV_MSG_META_TYPE_REPORT;
+                        data["catId"] = EV_MSG_REPORT_CATID_AVLOOPRESTART;
+                        data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+                        data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                        data["status"] = "active";
+                        meta["type"] = EV_MSG_META_TYPE_REPORT;
+                        meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+                        z_send(pDealer, "evcloudsvc", meta.dump(), data.dump());
                         this_thread::sleep_for(chrono::seconds(10));
                     }
                     ret = zmqhelper::forkSubsystem(devSn, k, portRouter, pid);
@@ -365,6 +394,39 @@ private:
         return ret;
     }
 
+    void sendModConnectedMsg(json &modIds){
+        json meta;
+        json data;
+        string msg = fmt::format("evdaemon {} detects modules {} booted up", this->devSn, modIds.dump());
+        data["msg"] = msg;
+        data["modId"] = modIds;
+        data["type"] = EV_MSG_META_TYPE_REPORT;
+        data["catId"] = EV_MSG_REPORT_CATID_AVMODCONNECTED;
+        data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_INFO;
+        data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+        data["status"] = "recover";
+        meta["type"] = EV_MSG_META_TYPE_REPORT;
+        meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_INFO;
+        z_send(pDealer, "evcloudsvc", meta.dump(), data.dump());
+    }
+
+
+    void sendModOfflineMsg(json &modIds){
+        json meta;
+        json data;
+        string msg = fmt::format("evdaemon {} detects modules {} offline", this->devSn, modIds.dump());
+        data["msg"] = msg;
+        data["modId"] = modIds;
+        data["type"] = EV_MSG_META_TYPE_REPORT;
+        data["catId"] = EV_MSG_REPORT_CATID_AVMODOFFLINE;
+        data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+        data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+        data["status"] = "active";
+        meta["type"] = EV_MSG_META_TYPE_REPORT;
+        meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
+        z_send(pDealer, "evcloudsvc", meta.dump(), data.dump());
+    }
+
     int handleEdgeMsg(vector<vector<uint8_t> > &body)
     {
         int ret = 0;
@@ -384,9 +446,12 @@ private:
             //auto state = zmq_socket_get_peer_state(pRouter, selfId.data(), selfId.size());
             //spdlog::info("evdaemon {} peerState: {}", devSn, state);
 
+            json modIds;
+            modIds.push_back(selfId);
             if((peerData["status"].count(selfId) == 0 || peerData["status"][selfId] == 0||this->peerData["status"][selfId] == -1) ) {
                 peerData["status"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                 spdlog::info("evdaemon {} peer connected: {}", devSn, selfId);
+                sendModConnectedMsg(modIds);
                 if(this->peerData["tsLastConn"].count(selfId) == 0) {
                     this->peerData["tsLastConn"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                 }
@@ -395,7 +460,6 @@ private:
                         this->peerData["contConn"][selfId] = 0;
                     }
                     else {
-
                         auto delta = this->peerData["contConn"][selfId].get<long>() - chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                         if(delta < 3) { // within 3s
                             this->peerData["contConn"][selfId] =  this->peerData["contConn"][selfId].get<int>() + 1;
@@ -419,6 +483,8 @@ private:
                 spdlog::info("evdaemon {} peer {} config sent: {}", devSn,selfId, cfg);
             }
             else {
+
+                sendModOfflineMsg(modIds);
                 if(peerData["status"][selfId] == 1 || peerData["status"][selfId] == 2) {
                     spdlog::warn("evdaemon {} refuse to start {}: it was asked to be stopped, and is removed from cluster config", this->devSn, selfId);
                 }
