@@ -139,7 +139,7 @@ private:
                 if(peerData["status"].count(k) != 0 && peerData["status"][k] != -1 && peerData["status"][k] != 2 && peerData["status"][k] != 1) {
                     auto now = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                     auto delta = now - peerData["status"][k].get<decltype(now)>();
-                    if(delta > 20) {
+                    if(delta > 22) {
                         modIdsLoopRecover.push_back(k);
                         v = 0;
                     }

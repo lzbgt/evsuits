@@ -65,13 +65,17 @@ private:
                         for(auto &m:ma) {
                             string modGid;
                             string sn = m["sn"];
+                            string mcls;
                             // ml
                             if(mn == "evml") {
                                 modGid = sn +":evml" + m["type"].get<string>();
+                                mcls = string("evml") + m["type"].get<string>();
                             }
                             else {
                                 modGid = sn + ":" + mn;
+                                mcls = mn;
                             }
+                            this->peerData["modulecls"][mcls] = 1;
 
                             modGid = modGid + ":" + to_string(m["iid"].get<int>());
 
@@ -318,12 +322,17 @@ private:
                                 }
 
                                 // ml
+                                string mcls;
                                 if(mn == "evml") {
                                     modKey = sn +":evml" + m["type"].get<string>();
+                                    mcls = string("evml") + m["type"].get<string>();
                                 }
                                 else {
                                     modKey = sn + ":" + mn;
+                                    mcls = mn;
                                 }
+
+                                this->peerData["modulecls"][mcls] = 1;
 
                                 // modules
                                 if(this->configMap["sn2mods"].count(sn) == 0) {
@@ -1287,57 +1296,19 @@ public:
                         ret["msg"] = "ipc not found";
                         ret["code"] = 1;
                     }
+                }else{
+                     ret["data"] = this->peerData["ipcStatus"];
                 }
+                // get a copy to build summary
+                json ipcsData = this->peerData["ipcStatus"];
+                int numIpcTotal = ipcsData.size();
+                int numIpcOnline = 0;
+                for(auto &[k,v]: ipcsData.items()){
 
-                // for(auto &[k,v]: this->peerData["ipcStatus"].items()) {
-                //     string tsn = v["mgrTerminal"]["sn"];
-                //     // mgr online
-                //     if(this->peerData["online"].count(tsn) != 0 && this->peerData["online"][tsn] != 0) {
-                //         v["mgrTerminal"]["online"] = true;
-                //     }else{
-                //         v["mgrTerminal"]["online"] = false;
-                //         auto &ipcStatus = v;
-                //         for(auto &[m,n]:ipcStatus["current"].items()) {
-                //             n = false;
-                //         }
-                //         // json data;
-                //         // string msg = fmt::format("evcloudsvc detects cluster mgr {} offline of ipc {}", tsn, k);
-                //         // data["msg"] = msg;
-                //         // data["modId"] = "ALL";
-                //         // data["type"] = EV_MSG_META_TYPE_REPORT;
-                //         // data["catId"] = EV_MSG_REPORT_CATID_AVMGROFFLINE;
-                //         // data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
-                //         // data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
-                //         // data["status"] = "active";
-                //         // if(ipcStatus["issues"].count(tsn) == 0){
-                //         //     ipcStatus["issues"][tsn] = json();
-                //         // }
-
-                //         // ipcStatus["issues"][tsn][EV_MSG_REPORT_CATID_AVMGROFFLINE] = data;
-                //         // ipcStatus["lastNReports"].push_back(data);
-                //     }
-
-                //     // // clean issues with AV_LOOPRESTART
-                //     // if(v["issues"].size()!=0) {
-                //     //     vector<string> issureModIds;
-                //     //     for(auto &[a,b]: v["issues"].items()){
-                //     //         for(auto &[c,d]: b.items()){
-                //     //             if(c == EV_MSG_REPORT_CATID_AVLOOPRESTART) {
-                //     //                 auto now = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
-                //     //                 auto delta = now - d["time"].get<decltype(now)>();
-                //     //                 if(delta > 30) {
-                //     //                     b.erase(c);
-                //     //                 }
-                //     //             }
-                //     //         }
-                //     //         if(b.size() == 0) {
-                //     //             v["issues"].erase(a);
-                //     //         }
-                //     //     }
-                //     // }
-                // }
-
-                ret["data"] = this->peerData["ipcStatus"];
+                    for(auto &[k,v]: this->peerData["modulecls"].items()){
+                    
+                    }
+                }
             }
             catch(exception &e) {
                 ret["code"] = -1;
@@ -1519,6 +1490,7 @@ public:
         this->peerData["ipcStatus"] = json();
         this->peerData["mod2ipc"] = json();
         this->peerData["mgr2ipc"] = json();
+        this->peerData["modulecls"] = json();
 
         spdlog::info("evcloudsvc boot");
         loadConfigMap();
