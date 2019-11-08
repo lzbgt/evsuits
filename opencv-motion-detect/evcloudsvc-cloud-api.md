@@ -242,6 +242,7 @@ get value for specified key in cloud db. keys list is queried by /keys api
 e.g.: http://evcloud.ilabservice.cloud:8089/ipcstatus?sn=all
 ##### description
 get status of ipc camera(s)
+```
 if sn presents:
    if sn == "all":
       ret with summary and detials for all ip cameras
@@ -249,13 +250,14 @@ if sn presents:
       ret with summary and detail of the ipc camera labeled with sn
 else:
    ret with summary info only.
+```
 ##### params
 sn: string, optinal. serial number of ip camera; "all" for all ipcs
 
 ##### return
 - type: json
 - field data.summary.ok: array of ipc sn that has not any issue (current status is the same as expected).
-- field data.summary.problematic: array of ipc sn that has at least one issue (current status is different to expected).
+- field data.summary.problematic: array of ipc sn that has at least one issue (current status is different from expected).
 - field data.detail: only presents when sn provided. the detail status of ipc specified with sn.
 - ex1: no sn
 ```
