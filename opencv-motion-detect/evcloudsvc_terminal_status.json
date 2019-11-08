@@ -10,19 +10,16 @@
                     "online": false
                 },
                 "expected": {
-                    "pull": true,
-                    "push": false,
-                    "eventDetect": true
+                    "MODID1": true,
+                    "MODID2": false
                 },
                 "current": {
-                    "pull": false,
-                    "push": false,
-                    "eventDetect": false
+                    "MODID1": false,
+                    "MODID2": false
                 },
                 "issues": {
-                    "MODID": {
-                        "REPORT_CATID": {
-                            "status": "active"
+                    "MODID1": {
+                        "REPORT_CATID1": {
                         }
                     }
                 },
@@ -31,17 +28,7 @@
         }
     },
     "summary": {
-        "terminals": {
-            "online": [],
-            "offline": []
-        },
-        "cameras": {
-            "ok": [],
-            "terminalOffline": [],
-            "connectFailed": [],
-            "pushFailed": [],
-            "localRecFailed": [],
-            "motionDetFailed": []
-        }
+        "problematic": [],
+        "ok":[]
     }
 }
