@@ -690,7 +690,7 @@ private:
                             }   
                         }
 
-                        if(catId == EV_MSG_REPORT_CATID_AVMODOFFLINE || catId == EV_MSG_REPORT_CATID_AVWRITEPIPE || (modId.find("evpuller") != string::npos && catId == EV_MSG_REPORT_CATID_AVOPENINPUT)) {
+                        if(catId == EV_MSG_REPORT_CATID_AVFAILEDUPLOAD ||catId == EV_MSG_REPORT_CATID_AVMODOFFLINE || catId == EV_MSG_REPORT_CATID_AVWRITEPIPE || (modId.find("evpuller") != string::npos && catId == EV_MSG_REPORT_CATID_AVOPENINPUT)) {
                             ipcStatus["current"][modId] = true;
                         }
                     }
