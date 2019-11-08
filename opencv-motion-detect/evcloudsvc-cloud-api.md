@@ -397,6 +397,63 @@ sn: string, optinal. serial number of ip camera; "all" for all ipcs
 }
 ```
 
+#### GET /stats
+get running statistics numbers concerning edge modules and ipcs
+##### params
+none
+##### return
+- type: json
+- fields
+  - data.ipcs.ok: ipcs that have no issue.
+  - data.ipcs.problematic: ipcs that have at least one issue.
+  - data.stats.<moduleName>.EaCb: 
+    - moduleName: all modules
+    - Ea: expected status is a
+    - Cb: current status is b
+- example: http://evcloud.ilabservice.cloud:8089/stats
+```
+{
+    "code": 0,
+    "data": {
+        "ipcs": {
+            "ok": [
+                "CHSVJE1Z"
+            ],
+            "problematic": [
+                "IKEA65GQ"
+            ]
+        },
+        "stats": {
+            "evmlmotion": {
+                "E0C0": 0,
+                "E0C1": 0,
+                "E1C0": 1,
+                "E1C1": 1
+            },
+            "evpuller": {
+                "E0C0": 0,
+                "E0C1": 0,
+                "E1C0": 1,
+                "E1C1": 1
+            },
+            "evpusher": {
+                "E0C0": 0,
+                "E0C1": 0,
+                "E1C0": 1,
+                "E1C1": 1
+            },
+            "evslicer": {
+                "E0C0": 0,
+                "E0C1": 0,
+                "E1C0": 1,
+                "E1C1": 1
+            }
+        }
+    },
+    "msg": "ok"
+}
+```
+
 #### GET /sysinfo
 ##### description
 *[NOT IMPLEMENTED]* get edge terminal hw & os infomation including resource usage of CPU, RAM, IO, DISK etc...
