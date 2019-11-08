@@ -1105,48 +1105,46 @@ public:
                             try {
                                 auto resp = json::parse(strResp);
                                 //TODO: open this swith when video server has implemented this functionality
-                                if(true) {
-                                    if(resp.count("code") == 0 || resp["code"] != 0) {
-                                        bUploadFailed = true;
-                                        reportUploadFailure(selfId, true, strResp);
-                                    }
+                                if(resp.count("code") == 0 || resp["code"] != 0) {
+                                    bUploadFailed = true;
+                                    reportUploadFailure(selfId, true, strResp);
+                                }
 
-                                    if(resp.count("code") != 0 && resp["code"] != 0) {
-                                        bUploadFailed = true;
-                                        if(resp["code"] == 4|| resp["code"] == 7) {
-                                            if(jEvt.count("cnt") == 0) {
-                                                jEvt["cnt"] = 2;
-                                            }
-                                            else {
-                                                if(jEvt["cnt"].get<int>() <= 0) {
-                                                    string msg = fmt::format("evslicer {} failed to upload videos over N times. reason: {}", selfId, strResp);
-                                                    spdlog::error(msg);
-                                                }
-                                                else {
-                                                    jEvt["cnt"] = jEvt["cnt"].get<int>() - 1;
-                                                    lock_guard<mutex> lock(this->mutEvent);
-                                                    this->eventQueue.push(jEvt.dump());
-                                                    if(eventQueue.size() > MAX_EVENT_QUEUE_SIZE) {
-                                                        eventQueue.pop();
-                                                    }
-                                                    cvEvent.notify_one();
-                                                }
-                                            }
-                                        }
-                                        else if(resp["code"] == 6) {
-                                            // TODO: cloud storage issue. need stratigy policy
-                                            spdlog::warn("evslicer {} TODO: handle cloud storage", this->selfId);
+                                if(resp.count("code") != 0 && resp["code"] != 0) {
+                                    bUploadFailed = true;
+                                    if(resp["code"] == 4|| resp["code"] == 7) {
+                                        if(jEvt.count("cnt") == 0) {
+                                            jEvt["cnt"] = 2;
                                         }
                                         else {
-                                            spdlog::error("evslicer {} failed to upload videos. abort retry.", this->selfId);
+                                            if(jEvt["cnt"].get<int>() <= 0) {
+                                                string msg = fmt::format("evslicer {} failed to upload videos over N times. reason: {}", selfId, strResp);
+                                                spdlog::error(msg);
+                                            }
+                                            else {
+                                                jEvt["cnt"] = jEvt["cnt"].get<int>() - 1;
+                                                lock_guard<mutex> lock(this->mutEvent);
+                                                this->eventQueue.push(jEvt.dump());
+                                                if(eventQueue.size() > MAX_EVENT_QUEUE_SIZE) {
+                                                    eventQueue.pop();
+                                                }
+                                                cvEvent.notify_one();
+                                            }
                                         }
                                     }
+                                    else if(resp["code"] == 6) {
+                                        // TODO: cloud storage issue. need stratigy policy
+                                        spdlog::warn("evslicer {} TODO: handle cloud storage", this->selfId);
+                                    }
+                                    else {
+                                        spdlog::error("evslicer {} failed to upload videos. abort retry.", this->selfId);
+                                    }
+                                }
 
-                                    if(resp.count("code") != 0 && resp["code"] == 0){
-                                        if(bUploadFailed) {
-                                            bUploadFailed = false;
-                                            reportUploadFailure(selfId, false, strResp);
-                                        }
+                                if(resp.count("code") != 0 && resp["code"] == 0){
+                                    if(bUploadFailed) {
+                                        bUploadFailed = false;
+                                        reportUploadFailure(selfId, false, strResp);
                                     }
                                 }
                             }
