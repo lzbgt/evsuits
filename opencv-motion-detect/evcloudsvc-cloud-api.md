@@ -114,6 +114,8 @@ set or change configuration for edge device
                         "iid":1,
                         "post":30,
                         "pre":3,
+                        "fpsProc":3,
+                        "entropy": 0.3,
                         "sn":"NMXH73Y2",
                         "thresh":80,
                         "type":"motion"
