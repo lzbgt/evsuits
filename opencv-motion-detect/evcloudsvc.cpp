@@ -645,7 +645,6 @@ private:
             if(peerData["mod2ipc"].count(modId) == 0) {
                 spdlog::error("{} received report from {} modId {} having no related ipc: {}", devSn, peerId, modId, data.dump());
             }else{
-                spdlog::warn("{} received report msg from {}: {}", devSn, peerId, data.dump());
                 string ipcSn = peerData["mod2ipc"][modId];
                 string status = data["status"];
                 string catId = data["catId"];
@@ -812,6 +811,7 @@ private:
                     json jmeta = json::parse(meta);
                     if(jmeta["type"] == EV_MSG_META_TYPE_REPORT) {     
                         json data = json::parse(body2str(body[3]));
+                        spdlog::warn("{} received report msg from {}: {}", devSn, selfId, data.dump());
                         processReportMsg(selfId, data); 
                     }
                     else {

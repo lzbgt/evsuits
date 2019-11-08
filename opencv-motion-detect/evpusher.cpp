@@ -308,7 +308,7 @@ private:
         int cnt = 0;
         while(ret < 0) {
             if(cnt > 3) {
-                string msg = fmt::format("evpusher {} failed to write output header \"{}\": {}, {}", selfId, urlOut, ret, av_err2str(ret));
+                string msg = fmt::format("evpusher {} failed to write output header {}: {}, {}", selfId, urlOut, ret, av_err2str(ret));
                 json meta;
                 json data;
                 data["msg"] = msg;
@@ -389,7 +389,7 @@ private:
                 ret = avio_open2(&pAVFormatRemux->pb, urlOut.c_str(), AVIO_FLAG_WRITE, NULL, &pOptsRemux);
                 if (ret < 0) {
                     // TODO: message report to cloud
-                    string msg = fmt::format("evpusher {} failed to open output stream \"{}\": {}, {}", selfId, urlOut, ret, av_err2str(ret));
+                    string msg = fmt::format("evpusher {} failed to open output stream {}: {}, {}", selfId, urlOut, ret, av_err2str(ret));
                     json meta;
                     json data;
                     data["msg"] = msg;
@@ -406,7 +406,7 @@ private:
                     exit(1);
                 }
                 else {
-                    string msg = fmt::format("evpusher {} successfully open output \"{}\"", selfId, urlOut);
+                    string msg = fmt::format("evpusher {} successfully open output {}", selfId, urlOut);
                     json meta;
                     json data;
                     data["msg"] = msg;
@@ -426,7 +426,7 @@ private:
             ret = avformat_write_header(pAVFormatRemux, &pOptsRemux);
             if (ret < 0) {
                 // TODO: report message to cloud
-                string msg = fmt::format("evpusher {} failed to write stream \"{}\": {}, {}", selfId, urlOut, ret, av_err2str(ret));
+                string msg = fmt::format("evpusher {} failed to write stream {}: {}, {}", selfId, urlOut, ret, av_err2str(ret));
                 spdlog::error(msg);
             }
 
@@ -434,7 +434,7 @@ private:
         }
 
 
-        string msg = fmt::format("evpusher {} successfully write output header \"{}\"", selfId, urlOut);
+        string msg = fmt::format("evpusher {} successfully write output header {}", selfId, urlOut);
         json meta;
         json data;
         data["msg"] = msg;
