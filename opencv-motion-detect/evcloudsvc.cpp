@@ -1285,30 +1285,37 @@ public:
             ret["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
             ret["msg"] = "ok";
             ret["data"] = json();
+            json detail, summary;
             string sn = req.get_param_value("sn");
             try {
-                if(!sn.empty()) {
+                if(!sn.empty() && sn != "all") {
                     if(this->peerData["ipcStatus"].count(sn) != 0){
                         json j;
                         j[sn] = this->peerData["ipcStatus"][sn];
-                        ret["data"] = j;
+                        detail = j;
                     }else{
                         ret["msg"] = "ipc not found";
                         ret["code"] = 1;
                     }
+                }else if(sn == "all"){
+                    detail = this->peerData["ipcStatus"];   
                 }else{
-                     ret["data"] = this->peerData["ipcStatus"];
+                    // nop
                 }
+                ret["data"]["detail"] = detail;
+
                 // get a copy to build summary
                 json ipcsData = this->peerData["ipcStatus"];
-                int numIpcTotal = ipcsData.size();
-                int numIpcOnline = 0;
                 for(auto &[k,v]: ipcsData.items()){
-
-                    for(auto &[k,v]: this->peerData["modulecls"].items()){
-                    
+                    json diff = json::diff(v["expected"], v["current"]);
+                    if(diff.size() != 0) {
+                        summary["problematic"].push_back(k);
+                    }else{
+                        summary["ok"].push_back(k);
                     }
                 }
+
+                ret["data"]["summary"] = summary;
             }
             catch(exception &e) {
                 ret["code"] = -1;
