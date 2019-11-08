@@ -236,6 +236,12 @@ get value for specified key in cloud db. keys list is queried by /keys api
 {"code": 0, "msg":"ok", ...}
 ```
 
+#### GET /ipcstatus
+##### description
+get status of ipc camera(s)
+
+
+
 #### GET /sysinfo
 ##### description
 *[NOT IMPLEMENTED]* get edge terminal hw & os infomation including resource usage of CPU, RAM, IO, DISK etc...

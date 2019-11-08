@@ -149,14 +149,14 @@ private:
                             }
                         }
 
-                        for(auto &k:modRemove) {
-                            oldCurr.erase(k);
-                            oldExpected.erase(k);
-                            peerData["mod2ipc"].erase(k);
+                        for(auto &mo:modRemove) {
+                            oldCurr.erase(mo);
+                            oldExpected.erase(mo);
+                            peerData["mod2ipc"].erase(mo);
 
                             // remove issue
-                            if(ipcStatus[k]["issues"].count(k) != 0) {
-                                ipcStatus[k]["issues"].erase(k);
+                            if(ipcStatus[k]["issues"].count(mo) != 0) {
+                                ipcStatus[k]["issues"].erase(mo);
                             }
                         }
 
@@ -572,6 +572,7 @@ private:
                 sendConfig(data["data"], selfId);
             }
 
+            // update ipcStatus
             if(peerData["mgr2ipc"].count(selfId) != 0) {
                 for(auto &[k,v]: peerData["mgr2ipc"][selfId].items()){
                     if(peerData["ipcStatus"].count(k) == 0){
@@ -581,6 +582,7 @@ private:
                         if(ipcStatus["issues"].count(selfId) != 0) {
                             ipcStatus["issues"].erase(selfId);
                         }
+                        ipcStatus["mgrTerminal"]["online"] = true;
                     }
                 }
             }
