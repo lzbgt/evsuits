@@ -406,7 +406,7 @@ none
 - fields
   - data.ipcs.ok: ipcs that have no issue.
   - data.ipcs.problematic: ipcs that have at least one issue.
-  - data.stats.<moduleName>.EaCb: 
+  - data.stats.{moduleName}.EaCb: 
     - moduleName: all modules
     - Ea: expected status is a
     - Cb: current status is b
