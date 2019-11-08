@@ -1280,7 +1280,6 @@ public:
             res.set_content(ret.dump(), "text/json");
         });
 
-
         svr.Get("/ipcstatus", [this](const Request& req, Response& res) {
             json ret;
             ret["code"] = 0;
@@ -1324,6 +1323,52 @@ public:
                 ret["msg"] = string("evcloudsvc exception: ") + e.what();
                 spdlog::error(ret["msg"].get<string>());
             }
+
+            res.set_content(ret.dump(), "text/json");
+        });
+
+        svr.Get("/stats", [this](const Request& req, Response& res) {
+            json ret;
+            json ipcsData = this->peerData["ipcStatus"];
+            json summary;
+            json stats;
+            for(auto &[k,v]: ipcsData.items()){
+                json diff = json::diff(v["expected"], v["current"]);
+                if(diff.size() != 0) {
+                    summary["problematic"].push_back(k);
+                }else{
+                    summary["ok"].push_back(k);
+                }
+
+                vector<string> tags = {"E0C0", "E0C1", "E1C0", "E1C1"};
+                for(auto &[m, n]: v["current"].items()){
+                    auto x = v["expected"][m].get<bool>();
+                    int c = n?1:0;
+                    int e = x?1:0;
+                    int r = (e<<1)|c;
+
+                    auto tag = tags[r];
+
+                    auto mod = strutils::split(m, ':');
+                    if(mod.size() == 3) {
+                        // init
+                        if(stats.count(mod[1]) == 0) {
+                            stats[mod[1]] = json();
+                            for(auto &t: tags) {
+                                stats[mod[1]][t] = 0;
+                            }
+                        }
+
+                        // increment
+                        stats[mod[1]][tag] = stats[mod[1]][tag].get<int>() + 1;
+                    }
+                }
+            }
+            ret["code"] = 0;
+            ret["msg"] = "ok";
+            ret["data"] = json();
+            ret["data"]["ipcs"] = summary;
+            ret["data"]["stats"] = stats;
 
             res.set_content(ret.dump(), "text/json");
         });
