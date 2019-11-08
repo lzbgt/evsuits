@@ -237,10 +237,161 @@ get value for specified key in cloud db. keys list is queried by /keys api
 ```
 
 #### GET /ipcstatus
+e.g.: http://evcloud.ilabservice.cloud:8089/ipcstatus?sn=all
 ##### description
 get status of ipc camera(s)
+if sn presents:
+   if sn == "all":
+      ret with summary and detials for all ip cameras
+   else:
+      ret with summary and detail of the ipc camera labeled with sn
+else:
+   ret with summary info only.
+##### params
+sn: string, optinal. serial number of ip camera; "all" for all ipcs
 
-
+##### return
+- type: json
+- field data.summary.ok: array of ipc sn that has not any issue (current status is the same as expected).
+- field data.summary.problematic: array of ipc sn that has at least one issue (current status is different to expected).
+- field data.detail: only presents when sn provided. the detail status of ipc specified with sn.
+- ex1: no sn
+```
+{
+    "code": 0,
+    "data": {
+        "detail": null,
+        "summary": {
+            "ok": [
+                "CHSVJE1Z"
+            ],
+            "problematic": [
+                "IKEA65GQ"
+            ]
+        }
+    },
+    "msg": "ok",
+    "time": 1573180941
+}
+```
+- ex2: sn = "all"
+```
+{
+    "code": 0,
+    "data": {
+        "detail": {
+            "CHSVJE1Z": {
+                "current": {
+                    "K47UYLZN:evmlmotion:4": true,
+                    "K47UYLZN:evpuller:1": true,
+                    "K47UYLZN:evpusher:2": true,
+                    "K47UYLZN:evslicer:3": true
+                },
+                "expected": {
+                    "K47UYLZN:evmlmotion:4": true,
+                    "K47UYLZN:evpuller:1": true,
+                    "K47UYLZN:evpusher:2": true,
+                    "K47UYLZN:evslicer:3": true
+                },
+                "issues": null,
+                "lastNReports": null,
+                "mgrTerminal": {
+                    "online": true,
+                    "sn": "K47UYLZN"
+                }
+            },
+            "IKEA65GQ": {
+                "current": {
+                    "IKEA65GQ:evmlmotion:1": false,
+                    "IKEA65GQ:evpuller:1": false,
+                    "IKEA65GQ:evpusher:3": false,
+                    "IKEA65GQ:evslicer:1": false
+                },
+                "expected": {
+                    "IKEA65GQ:evmlmotion:1": true,
+                    "IKEA65GQ:evpuller:1": true,
+                    "IKEA65GQ:evpusher:3": true,
+                    "IKEA65GQ:evslicer:1": true
+                },
+                "issues": {
+                    "IKEA65GQ": {
+                        "AV_MGROFFLINE": {
+                            "catId": "AV_MGROFFLINE",
+                            "level": "error",
+                            "modId": "ALL",
+                            "msg": "evcloudsvc detects cluster mgr IKEA65GQ offline of ipc IKEA65GQ",
+                            "status": "active",
+                            "time": 1573180939,
+                            "type": "report"
+                        }
+                    }
+                },
+                "lastNReports": [
+                    {
+                        "catId": "AV_WRITEPIPE",
+                        "level": "error",
+                        "modId": "IKEA65GQ:evslicer:1",
+                        "msg": "evslicer IKEA65GQ:evslicer:1 starting write file",
+                        "status": "recover",
+                        "time": 1573180327,
+                        "type": "report"
+                    },
+                    {
+                        "catId": "AV_MODOFFLINE",
+                        "level": "error",
+                        "modId": "IKEA65GQ:evpusher:2",
+                        "msg": "evdaemon IKEA65GQ detects modules [\"IKEA65GQ:evpusher:2\"] offline",
+                        "status": "active",
+                        "time": 1573180398,
+                        "type": "report"
+                    },
+                    {
+                        "catId": "AV_WRITEHEADER",
+                        "level": "error",
+                        "modId": "IKEA65GQ:evpusher:3",
+                        "msg": "evpusher IKEA65GQ:evpusher:3 successfully write output header rtsp://40.73.41.176/IKEA65GQ",
+                        "status": "recover",
+                        "time": 1573180428,
+                        "type": "report"
+                    },
+                    {
+                        "catId": "AV_WRITEPIPE",
+                        "level": "error",
+                        "modId": "IKEA65GQ:evpusher:3",
+                        "msg": "evpusher IKEA65GQ:evpusher:3 start pushing rtsp://40.73.41.176/IKEA65GQ",
+                        "status": "recover",
+                        "time": 1573180428,
+                        "type": "report"
+                    },
+                    {
+                        "catId": "AV_MGROFFLINE",
+                        "level": "error",
+                        "modId": "ALL",
+                        "msg": "evcloudsvc detects cluster mgr IKEA65GQ offline of ipc IKEA65GQ",
+                        "status": "active",
+                        "time": 1573180939,
+                        "type": "report"
+                    }
+                ],
+                "mgrTerminal": {
+                    "online": true,
+                    "sn": "IKEA65GQ"
+                }
+            }
+        },
+        "summary": {
+            "ok": [
+                "CHSVJE1Z"
+            ],
+            "problematic": [
+                "IKEA65GQ"
+            ]
+        }
+    },
+    "msg": "ok",
+    "time": 1573181218
+}
+```
 
 #### GET /sysinfo
 ##### description
