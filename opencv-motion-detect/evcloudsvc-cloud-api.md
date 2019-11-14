@@ -462,12 +462,11 @@ none
 ##### description
 send cmd to edge.
 currently implemented cmd: reversetun, debug:list_files, debug:record, debug:toggle_log
-##### cmd: reversetun
-###### description
-create reverse ssh tunnel between edge box and an sshd server
-###### params
+##### params
 none
-###### body
+##### cmd type: reversetun
+create reverse ssh tunnel between edge box and an sshd server
+##### body
 ```
 {
    "target":"0017SRTC",
@@ -489,9 +488,37 @@ none
 - data.password: cloud sshd password
 - data.port: port on cloud sshd host, which will be created and reversed tunneling to the port 22 of the edge box.
 
-###### return
+##### return
 - type: json
-- example
+```
+{"code":0, "msg":"ok"}
+```
+##### cmd type: debug:record, debug:list_files
+##### body
+debug:list_files
+```
+{
+   "target":"CHSVJE1Z:evslicer:1",
+   "metaType":"cmd",
+   "metaValue":"debug:list_files",
+}
+```
+
+debug:list_files
+```
+{
+   "target":"CHSVJE1Z:evslicer:1",
+   "metaType":"cmd",
+   "metaValue":"debug:record",
+   "data":{
+      "type":"event",
+      "start":1571723088,
+      "end":1571723098
+   }
+}
+```
+##### return
+- type: json
 ```
 {"code":0, "msg":"ok"}
 ```
