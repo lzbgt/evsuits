@@ -783,9 +783,22 @@ private:
             try{
                 if(meta == "pong"||meta == "ping") {
                     if(meta=="ping") {
+                        auto ts = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                         auto data = json::parse(body2str(body[3]));
                         spdlog::info("{}, ping msg from {}: {}", devSn, selfId, data.dump());
                         this->peerData["info"]["ips"][selfId] = data["ips"];
+                        if(data["reports"].size() == 0) {
+                            if(this->peerData["info"]["nocfg"].count(selfId) == 0) {
+                                this->peerData["info"]["nocfg"][selfId] = json();
+                            }
+                            this->peerData["info"]["nocfg"][selfId]["lastConn"] = ts;
+                            this->peerData["info"]["nocfg"][selfId]["ips"] = data["ips"];
+                        }else{
+                            if(this->peerData["info"]["nocfg"].count(selfId) != 0) {
+                                this->peerData["info"]["nocfg"].erase(selfId);
+                            }
+                        }
+
                         for(auto &r: data["reports"]) {
                             processReportMsg(selfId, r);
                         }
@@ -1317,6 +1330,7 @@ public:
                 }
 
                 ret["data"]["summary"] = summary;
+                ret["data"]["termNoCfg"] = this->peerData["info"]["nocfg"];
             }
             catch(exception &e) {
                 ret["code"] = -1;
@@ -1536,6 +1550,7 @@ public:
     {
         int ret = 0;
         this->peerData["info"] = json();
+        this->peerData["info"]["nocfg"] = json();
         this->peerData["info"]["ips"] = json();
         this->peerData["config"] = json();
         this->peerData["online"] = json();
