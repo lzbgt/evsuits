@@ -12,6 +12,7 @@ update: 2019/09/10
 #include <map>
 #include <fstream>
 #include <iomanip>
+#include <algorithm>
 #include <thread>
 #include <chrono>
 #include "inc/database.h"
@@ -378,11 +379,27 @@ togo_end:
         ret = getValue(info, LVDB_KEY_SN, fileName, _validateSn);
 
         if(ret < 0) {
-            // create default sn.
-            string sn = getStrRand(8);
+            // read from text config
+            // /etc/devsn.cfg
+            string sn;
+            ifstream snFile ("/etc/devsn.cfg");
+            if (snFile.is_open())
+            {
+                getline (snFile,sn);
+                snFile.close();
+            }
+            if(sn.empty()) {
+                // create default sn.
+                spdlog::warn("no valid sn in /etc/devsn.cfg, generating a random one.");
+                sn = getStrRand(8);
+            }else{
+                std::remove(sn.begin(), sn.end(), ' ');
+                spdlog::info("successfully read sn from /etc/devsn.cfg");
+            }
+
             info["sn"] = sn;
             info["apiCloud"] = "http://127.0.0.1:8089";
-            spdlog::warn("no local sn set. create a new one: {}", sn);
+            spdlog::warn("new sn is: {}", sn);
             auto tsNow = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
             info["lastboot"] = tsNow;
             ret = setSn(info, fileName);
