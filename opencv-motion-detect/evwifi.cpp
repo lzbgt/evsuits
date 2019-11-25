@@ -43,6 +43,16 @@ class WifiMgr {
     const string apdCfgPath = "/etc/apd.conf";
     const string wpaCfgPath = "/etc/wpa_supplicant/wpa_supplicant-wlan1.conf";
 
+    void scanWifi(){
+        string res = exec("iwlist wlan1 scan|grep ESSID");
+        wifiData["wifi"]["ssids"].clear();
+        httplib::detail::split(&res[0], &res[res.size()], '\n', [&](const char *b, const char *e) {
+            string ssid;
+            ssid.assign(b,e);
+            wifiData["wifi"]["ssids"].push_back(ssid);
+        });
+    }
+
     json enableMode(int mode){
         json ret;
         ret["code"] = 0;
@@ -52,8 +62,8 @@ class WifiMgr {
             // ap
             // stop all
             spdlog::info("prepare to enter AP mode");
-            exec("systemctl stop wap_supplicant@wlan1");
-            // exec("systemctl dsiable wap_supplicant@wlan1 ")
+            exec("systemctl stop wpa_supplicant@wlan1");
+            // exec("systemctl dsiable wpa_supplicant@wlan1 ")
             string apdContent = fmt::format("interface=wlan1\ndriver=nl80211\nssid=EVB-{}\nhw_mode=g\n"
             "channel=6\nmacaddr_acl=0\nignore_broadcast_ssid=0\nwpa=0\n", this->info["sn"].get<string>());
             ofstream fileApd(apdCfgPath, ios::out|ios::trunc);
@@ -64,14 +74,9 @@ class WifiMgr {
                 exec("hostapd /etc/apd.conf -B");
                 // TODO: check result
 
-                /// scan wifis
-                string res = exec("iwlist wlan1 scan|grep ESSID");
-                 wifiData["wifi"]["ssids"].clear();
-                httplib::detail::split(&res[0], &res[res.size()], '\n', [&](const char *b, const char *e) {
-                    string ssid;
-                    ssid.assign(b,e);
-                     wifiData["wifi"]["ssids"].push_back(ssid);
-                });
+                //scan
+                scanWifi();
+                
             }else{
                 ret["code"] = 1;
                 string msg = fmt::format("failed to write ap config file to {}", apdCfgPath);
@@ -98,8 +103,8 @@ class WifiMgr {
                     wpaFile << wpaContent;
                     wpaFile.close();
                     // TODO: verify
-                    spdlog::info(exec("systemctl enable wap_supplicant@wlan1"));
-                    spdlog::info(exec("systemctl restart wap_supplicant@wlan1"));
+                    spdlog::info(exec("systemctl enable wpa_supplicant@wlan1"));
+                    spdlog::info(exec("systemctl restart wpa_supplicant@wlan1"));
                     spdlog::info(exec("dhclient wlan1"));
                 }else{
                     string msg = fmt::format("failed write wpa config to {}", wpaCfgPath);
@@ -151,8 +156,13 @@ class WifiMgr {
             json ret;
             ret["code"] = 0;
             ret["msg"] = "ok";
-            ret["sn"] = this->info["sn"];
-            if(!mode.empty()){
+            string scan = req.get_param_value("scan");
+            if(!scan.empty() && scan != "false"){
+                this->scanWifi();
+                ret["wifiData"] = this->wifiData;
+            }
+
+            if(scan.empty() && !mode.empty()){
                 try{
                     auto i = stoi(mode);
                     if(i == 2) {
@@ -169,8 +179,8 @@ class WifiMgr {
                         }
                     }
 
-                    if(ret["coce"] == 0) {
-                            ret = this->enableMode(i);
+                    if(ret["code"] == 0) {
+                        ret = this->enableMode(i);
                     }
                     
                 }catch(exception &e){
