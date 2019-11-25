@@ -38,9 +38,7 @@ class WifiMgr {
     Server srv;
     promise<int> p;
     thread monitor;
-    vector<string> ssids;
-    string wifiSSID;
-    string wifiPasswd;
+    json wifiData;
     int mode, lastMode; // 1: ap; 2: ste
     const string apdCfgPath = "/etc/apd.conf";
     const string wpaCfgPath = "/etc/wpa_supplicant/wpa_supplicant-wlan1.conf";
@@ -68,47 +66,51 @@ class WifiMgr {
 
                 /// scan wifis
                 string res = exec("iwlist wlan1 scan|grep ESSID");
-                ssids.clear();
+                 wifiData["wifi"]["ssids"].clear();
                 httplib::detail::split(&res[0], &res[res.size()], '\n', [&](const char *b, const char *e) {
                     string ssid;
                     ssid.assign(b,e);
-                    ssids.push_back(ssid);
+                     wifiData["wifi"]["ssids"].push_back(ssid);
                 });
-                //
             }else{
                 ret["code"] = 1;
                 string msg = fmt::format("failed to write ap config file to {}", apdCfgPath);
                 spdlog::error(msg);
                 ret["msg"] = msg;
-                return ret;
             }
-
         }else if(mode == 2) {
             // station mode
             spdlog::info("prepare to enter Station mode");
-
-            // stop hostapd
-            exec("pkill hostapd");
-            string wpaContent = fmt::format("ctrl_interface=/run/wpa_supplicant\nupdate_config=1\nap_scan=1\n"
-            "network={{\nssid=\"{}\"\npsk=\"{}\"\n}}\n", this->wifiSSID, this->wifiPasswd);
-
-            ofstream wpaFile(wpaCfgPath, ios::out|ios::trunc);
-            if(wpaFile.is_open()){
-                wpaFile << wpaContent;
-                wpaFile.close();
-                // TODO: verify
-                spdlog::info(exec("systemctl enable wap_supplicant@wlan1"));
-                spdlog::info(exec("systemctl restart wap_supplicant@wlan1"));
-                spdlog::info(exec("dhclient wlan1"));
-            }else{
-                string msg = fmt::format("failed write wpa config to {}", wpaCfgPath);
-                ret["code"] = 2;
-                ret["msg"] = msg;
-                spdlog::error(msg);
-                return ret;
-            }
-
+            if( wifiData["wifi"].count("ssid") == 0 ||  wifiData["wifi"]["ssid"].size() == 0 ||
+             wifiData["wifi"].count("password") == 0 ||  wifiData["wifi"]["password"].size() == 0) {
+                 string msg = fmt::format("no valid ssid/password provided");
+                 spdlog::error(msg);
+                 ret["msg"] = msg;
+                 ret["code"] = 3;
+             }
+             else{
+                 // stop hostapd
+                exec("pkill hostapd");
+                string wpaContent = fmt::format("ctrl_interface=/run/wpa_supplicant\nupdate_config=1\nap_scan=1\n"
+                "network={{\nssid=\"{}\"\npsk=\"{}\"\n}}\n", this->wifiData["wifi"]["ssid"].get<string>(), this->wifiData["wifi"]["password"].get<string>());
+                ofstream wpaFile(wpaCfgPath, ios::out|ios::trunc);
+                if(wpaFile.is_open()){
+                    wpaFile << wpaContent;
+                    wpaFile.close();
+                    // TODO: verify
+                    spdlog::info(exec("systemctl enable wap_supplicant@wlan1"));
+                    spdlog::info(exec("systemctl restart wap_supplicant@wlan1"));
+                    spdlog::info(exec("dhclient wlan1"));
+                }else{
+                    string msg = fmt::format("failed write wpa config to {}", wpaCfgPath);
+                    ret["code"] = 2;
+                    ret["msg"] = msg;
+                    spdlog::error(msg);
+                }
+             }
         }
+
+        ret["wifiData"] =  wifiData;
 
         return ret;
     }
@@ -116,6 +118,12 @@ class WifiMgr {
     public:
     WifiMgr(){
         LVDB::getSn(this->info);
+        wifiData["sn"] = this->info;
+        wifiData["wifi"] = json();
+        wifiData["wifi"]["ssids"] = json();
+        //wifiData["wifi"]["ssid"] = string;
+        //wifiData["wifi"]["password"] = string;
+
 
         monitor = thread([this](){
             // check /etc/systemd/wpa_supplicant@wlan1.service
@@ -126,12 +134,12 @@ class WifiMgr {
             // default is AP mode
             this->lastMode = 0;
             while(1){
-                // check modes
-                this->mode = 1;
-                if(this->lastMode != this->mode) {
-                    enableMode(this->mode);
-                }
-                this->lastMode = this->mode;
+                // // check modes
+                // this->mode = 1;
+                // if(this->lastMode != this->mode) {
+                //     enableMode(this->mode);
+                // }
+                // this->lastMode = this->mode;
                 this_thread::sleep_for(chrono::seconds(10));
             }
         });
@@ -147,7 +155,24 @@ class WifiMgr {
             if(!mode.empty()){
                 try{
                     auto i = stoi(mode);
-                    ret = this->enableMode(i);
+                    if(i == 2) {
+                        string ssid = req.get_param_value("ssid");
+                        string password = req.get_param_value("password");
+                        if(ssid.empty()||password.empty()){
+                            string msg = fmt::format("no valid ssid/password provided");
+                            spdlog::error(msg);
+                            ret["msg"] = msg;
+                            ret["code"] = 3;
+                        }else{
+                            this->wifiData["wifi"]["ssid"] = ssid;
+                            this->wifiData["wifi"]["password"] = password;
+                        }
+                    }
+
+                    if(ret["coce"] == 0) {
+                            ret = this->enableMode(i);
+                    }
+                    
                 }catch(exception &e){
                     string msg = fmt::format("exception in convert mode {} to int:{}", mode, e.what());
                     ret["code"] = -1;

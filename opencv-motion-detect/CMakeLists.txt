@@ -76,4 +76,4 @@ add_executable(evmlmotion evmlmotion.cpp)
 target_link_libraries(evmlmotion PUBLIC ${COMM_LIBS} ${AV_LIBS} ${CV_LIBRARIES} ${EXTRA_LIBS})
 
 add_executable(evwifi evwifi.cpp)
-target_link_libraries(evwifi PUBLIC database leveldb)
+target_link_libraries(evwifi PUBLIC database leveldb pthread)
