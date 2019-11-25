@@ -163,6 +163,19 @@ evmgr/fast:
 .PHONY : evmgr/fast
 
 #=============================================================================
+# Target rules for targets named evwifi
+
+# Build rule for target.
+evwifi: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 evwifi
+.PHONY : evwifi
+
+# fast build rule for target.
+evwifi/fast:
+	$(MAKE) -f CMakeFiles/evwifi.dir/build.make CMakeFiles/evwifi.dir/build
+.PHONY : evwifi/fast
+
+#=============================================================================
 # Target rules for targets named evdaemon
 
 # Build rule for target.
@@ -509,6 +522,33 @@ evslicer.cpp.s:
 	$(MAKE) -f CMakeFiles/evslicer.dir/build.make CMakeFiles/evslicer.dir/evslicer.cpp.s
 .PHONY : evslicer.cpp.s
 
+evwifi.o: evwifi.cpp.o
+
+.PHONY : evwifi.o
+
+# target to build an object file
+evwifi.cpp.o:
+	$(MAKE) -f CMakeFiles/evwifi.dir/build.make CMakeFiles/evwifi.dir/evwifi.cpp.o
+.PHONY : evwifi.cpp.o
+
+evwifi.i: evwifi.cpp.i
+
+.PHONY : evwifi.i
+
+# target to preprocess a source file
+evwifi.cpp.i:
+	$(MAKE) -f CMakeFiles/evwifi.dir/build.make CMakeFiles/evwifi.dir/evwifi.cpp.i
+.PHONY : evwifi.cpp.i
+
+evwifi.s: evwifi.cpp.s
+
+.PHONY : evwifi.s
+
+# target to generate assembly for a file
+evwifi.cpp.s:
+	$(MAKE) -f CMakeFiles/evwifi.dir/build.make CMakeFiles/evwifi.dir/evwifi.cpp.s
+.PHONY : evwifi.cpp.s
+
 inc/utils.o: inc/utils.cpp.o
 
 .PHONY : inc/utils.o
@@ -600,6 +640,7 @@ help:
 	@echo "... evslicer"
 	@echo "... evpuller"
 	@echo "... evmgr"
+	@echo "... evwifi"
 	@echo "... evdaemon"
 	@echo "... evcloudsvc"
 	@echo "... rebuild_cache"
@@ -637,6 +678,9 @@ help:
 	@echo "... evslicer.o"
 	@echo "... evslicer.i"
 	@echo "... evslicer.s"
+	@echo "... evwifi.o"
+	@echo "... evwifi.i"
+	@echo "... evwifi.s"
 	@echo "... inc/utils.o"
 	@echo "... inc/utils.i"
 	@echo "... inc/utils.s"

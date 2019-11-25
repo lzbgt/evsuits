@@ -877,8 +877,9 @@ public:
                 info["sn"] = sn;
                 info["lastboot"] =  chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                 LVDB::setSn(info);
+                ret["data"] = info;
             }
-            res.set_content(this->info.dump(), "text/json");
+            res.set_content(ret.dump(), "text/json");
         });
 
         svr.Get("/config", [this](const Request& req, Response& res) {

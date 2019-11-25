@@ -74,3 +74,6 @@ target_link_libraries(evslicer PUBLIC dirmon post ${COMM_LIBS} ${AV_LIBS} curl f
 
 add_executable(evmlmotion evmlmotion.cpp)
 target_link_libraries(evmlmotion PUBLIC ${COMM_LIBS} ${AV_LIBS} ${CV_LIBRARIES} ${EXTRA_LIBS})
+
+add_executable(evwifi evwifi.cpp)
+target_link_libraries(evwifi PUBLIC database leveldb)
