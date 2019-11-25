@@ -63,6 +63,8 @@ class WifiMgr {
             // stop all
             spdlog::info("prepare to enter AP mode");
             exec("systemctl stop wpa_supplicant@wlan1");
+            exec("ifconfig wlan1 down");
+            exec("ifconfig wlan1 up");
             exec("ifconfig wlan1 192.168.0.1");
             // exec("systemctl dsiable wpa_supplicant@wlan1 ")
             string apdContent = fmt::format("interface=wlan1\ndriver=nl80211\nssid=EVB-{}\nhw_mode=g\n"
@@ -104,9 +106,11 @@ class WifiMgr {
                     wpaFile << wpaContent;
                     wpaFile.close();
                     // TODO: verify
-                    spdlog::info(exec("systemctl enable wpa_supplicant@wlan1"));
-                    spdlog::info(exec("systemctl restart wpa_supplicant@wlan1"));
-                    spdlog::info(exec("dhclient -r wlan1"));
+                    exec("ifconfig wlan1 down");
+                    exec("ifconfig wlan1 up");
+                    exec("systemctl enable wpa_supplicant@wlan1");
+                    exec("systemctl restart wpa_supplicant@wlan1");
+                    exec("dhclient -r wlan1");
                 }else{
                     string msg = fmt::format("failed write wpa config to {}", wpaCfgPath);
                     ret["code"] = 2;
