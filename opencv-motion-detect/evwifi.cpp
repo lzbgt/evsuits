@@ -19,7 +19,8 @@ std::string exec(const char* cmd) {
     std::string result;
     std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
     if (!pipe) {
-        throw std::runtime_error("popen() failed!");
+        // throw std::runtime_error("popen() failed!");
+        return result;
     }
     while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
         result += buffer.data();
@@ -62,6 +63,7 @@ class WifiMgr {
 
         if( mode == 1) {
             // ap
+            this->mode = 1;
             spdlog::info("evwifi {} prepare to enter AP mode", devSn);
             // exec("systemctl dsiable wpa_supplicant@wlan1 ")
             string apdContent = fmt::format("interface=wlan1\ndriver=nl80211\nssid=EVB-{}\nhw_mode=g\n"
@@ -71,11 +73,11 @@ class WifiMgr {
                 fileApd << apdContent;
                 fileApd.close();
                 // start hostapd
-                auto t = thread([](){
+                auto t = thread([this](){
                     system("pkill hostapd;systemctl stop wpa_supplicant@wlan1;ifconfig wlan1 down;"
                     "ifconfig wlan1 up;ifconfig wlan1 192.168.0.1;hostapd /etc/apd.conf -B");
                     // TODO: check result
-
+                    this->scanWifi();
                 });
                 t.detach();
             }else{
@@ -86,6 +88,7 @@ class WifiMgr {
             }
         }else if(mode == 2) {
             // station mode
+            this->mode = 2;
             spdlog::info("evwifi {} prepare to enter Station mode", devSn);
             if( wifiData["wifi"].count("ssid") == 0 ||  wifiData["wifi"]["ssid"].size() == 0 ||
              wifiData["wifi"].count("password") == 0 ||  wifiData["wifi"]["password"].size() == 0) {
@@ -106,10 +109,17 @@ class WifiMgr {
                         // delay for rest return (ifdown caused no networking available)
                         this_thread::sleep_for(chrono::seconds(1));
                         system("pkill hostapd; pkill dhclient;systemctl enable wpa_supplicant@wlan1;systemctl restart wpa_supplicant@wlan1;"
-                        "/sbin/ifdown -a --read-environment");
-                        auto s = exec("/sbin/ifup -a --read-environment");
-                        spdlog::info("evwifi {} ifup: \n{}", this->devSn, s);
-                        system("systemctl restart evdaemon");
+                        "/sbin/ifdown -a --read-environment; /sbin/ifup -a --read-environment");
+                        // check status
+                        auto s = exec("ifconfig wlan1|grep -v inet6|grep inet");
+                        if(s.empty()) {
+                            spdlog::error("evwifi {} failed to connect to wifi {} with password {}. initiazing AP mode", this->devSn, 
+                            this->wifiData["wifi"]["ssid"].get<string>(), this->wifiData["wifi"]["password"].get<string>());
+                            this->mode = 0;
+                        }else{
+                            system("systemctl restart evdaemon");
+                            spdlog::info("evwifi {} successfully connected to wifi {}", this->devSn, this->wifiData["wifi"]["ssid"].get<string>());
+                        }
                     });
                     t.detach();
                 }else{
@@ -147,7 +157,7 @@ class WifiMgr {
                 {
                     lock_guard<mutex> lk(mutMode);
                     auto s = exec("ifconfig wlan1|grep -v inet6|grep inet");
-                    if(s.empty() && this->mode != 1) {
+                    if(s.empty() && this->mode == 0) {
                         spdlog::info("evwifi {} detects no wifi connection, enabling AP mode", this->devSn);
                         this->enableMode(1);
                         this->mode = 1;
@@ -183,7 +193,7 @@ class WifiMgr {
                         string password = req.get_param_value("password");
                         if(ssid.empty()||password.empty()){
                             string msg = fmt::format("no valid ssid/password provided");
-                            spdlog::error("evwifi {} {}", devSn, msg);
+                            spdlog::error("evwifi {} {}", this->devSn, msg);
                             ret["msg"] = msg;
                             ret["code"] = 3;
                         }else{
