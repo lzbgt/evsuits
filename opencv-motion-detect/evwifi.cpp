@@ -35,11 +35,13 @@ using namespace httplib;
 class WifiMgr {
     private:
     json info;
+    string devSn;
     Server srv;
     promise<int> p;
     thread monitor;
     json wifiData;
-    int mode, lastMode; // 1: ap; 2: ste
+    int mode, lastMode; // 0:no; network 1: ap; 2: ste
+    mutex mutMode;
     const string apdCfgPath = "/etc/apd.conf";
     const string wpaCfgPath = "/etc/wpa_supplicant/wpa_supplicant-wlan1.conf";
 
@@ -60,8 +62,7 @@ class WifiMgr {
 
         if( mode == 1) {
             // ap
-            // stop all
-            spdlog::info("prepare to enter AP mode");
+            spdlog::info("evwifi {} prepare to enter AP mode", devSn);
             // exec("systemctl dsiable wpa_supplicant@wlan1 ")
             string apdContent = fmt::format("interface=wlan1\ndriver=nl80211\nssid=EVB-{}\nhw_mode=g\n"
             "channel=6\nmacaddr_acl=0\nignore_broadcast_ssid=0\nwpa=0\n", this->info["sn"].get<string>());
@@ -72,23 +73,24 @@ class WifiMgr {
                 // start hostapd
                 auto t = thread([](){
                     system("pkill hostapd;systemctl stop wpa_supplicant@wlan1;ifconfig wlan1 down;"
-                "ifconfig wlan1 up;ifconfig wlan1 192.168.0.1;hostapd /etc/apd.conf -B");
-                // TODO: check result
+                    "ifconfig wlan1 up;ifconfig wlan1 192.168.0.1;hostapd /etc/apd.conf -B");
+                    // TODO: check result
+
                 });
-                t.detach(); 
+                t.detach();
             }else{
                 ret["code"] = 1;
                 string msg = fmt::format("failed to write ap config file to {}", apdCfgPath);
-                spdlog::error(msg);
+                spdlog::error("evwifi {} {}", devSn,msg);
                 ret["msg"] = msg;
             }
         }else if(mode == 2) {
             // station mode
-            spdlog::info("prepare to enter Station mode");
+            spdlog::info("evwifi {} prepare to enter Station mode", devSn);
             if( wifiData["wifi"].count("ssid") == 0 ||  wifiData["wifi"]["ssid"].size() == 0 ||
              wifiData["wifi"].count("password") == 0 ||  wifiData["wifi"]["password"].size() == 0) {
                  string msg = fmt::format("no valid ssid/password provided");
-                 spdlog::error(msg);
+                 spdlog::error("evwifi {} {}", devSn, msg);
                  ret["msg"] = msg;
                  ret["code"] = 3;
              }
@@ -100,18 +102,21 @@ class WifiMgr {
                     wpaFile << wpaContent;
                     wpaFile.close();
                     // TODO: verify
-                    auto t = thread([](){
+                    auto t = thread([this](){
                         // delay for rest return (ifdown caused no networking available)
                         this_thread::sleep_for(chrono::seconds(1));
                         system("pkill hostapd; pkill dhclient;systemctl enable wpa_supplicant@wlan1;systemctl restart wpa_supplicant@wlan1;"
-                        "/sbin/ifdown -a --read-environment;/sbin/ifup -a --read-environment;systemctl restart evdaemon");
+                        "/sbin/ifdown -a --read-environment");
+                        auto s = exec("/sbin/ifup -a --read-environment");
+                        spdlog::info("evwifi {} ifup: \n{}", this->devSn, s);
+                        system("systemctl restart evdaemon");
                     });
                     t.detach();
                 }else{
                     string msg = fmt::format("failed write wpa config to {}", wpaCfgPath);
                     ret["code"] = 2;
                     ret["msg"] = msg;
-                    spdlog::error(msg);
+                    spdlog::error("evwifi {} {}", devSn, msg);
                 }
              }
         }
@@ -122,6 +127,8 @@ class WifiMgr {
     public:
     WifiMgr(){
         LVDB::getSn(this->info);
+        devSn = this->info["sn"];
+        mode = 0;
         wifiData["info"] = this->info;
         wifiData["wifi"] = json();
         wifiData["wifi"]["ssids"] = json();
@@ -134,15 +141,23 @@ class WifiMgr {
             // get wlan1 ip
             // ping outside address
 
-            // default is AP mode
-            this->lastMode = 0;
+            // this->lastMode = 0;
             while(1){
-                // // check modes
-                // this->mode = 1;
-                // if(this->lastMode != this->mode) {
-                //     enableMode(this->mode);
-                // }
-                // this->lastMode = this->mode;
+                // check wifi interface
+                {
+                    lock_guard<mutex> lk(mutMode);
+                    auto s = exec("ifconfig wlan1|grep -v inet6|grep inet");
+                    if(s.empty() && this->mode != 1) {
+                        spdlog::info("evwifi {} detects no wifi connection, enabling AP mode", this->devSn);
+                        this->enableMode(1);
+                        this->mode = 1;
+                        this->scanWifi();
+                    }
+
+                    // TODO: flash light
+                    
+                }
+                
                 this_thread::sleep_for(chrono::seconds(10));
             }
         });
@@ -168,7 +183,7 @@ class WifiMgr {
                         string password = req.get_param_value("password");
                         if(ssid.empty()||password.empty()){
                             string msg = fmt::format("no valid ssid/password provided");
-                            spdlog::error(msg);
+                            spdlog::error("evwifi {} {}", devSn, msg);
                             ret["msg"] = msg;
                             ret["code"] = 3;
                         }else{
@@ -185,7 +200,7 @@ class WifiMgr {
                     string msg = fmt::format("exception in convert mode {} to int:{}", mode, e.what());
                     ret["code"] = -1;
                     ret["msg"] = msg;
-                    spdlog::error(msg);
+                    spdlog::error("evwifi {} {}", devSn, msg);
                 }
             }
             
