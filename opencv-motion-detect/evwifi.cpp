@@ -1,6 +1,7 @@
 #include "inc/httplib.h"
 #include "inc/zmqhelper.hpp"
 #include "inc/json.hpp"
+#include "inc/fs.h"
 #include "spdlog/spdlog.h"
 #include "fmt/format.h"
 #include "database.h"
@@ -43,10 +44,12 @@ class WifiMgr {
     json wifiData;
     int mode, lastMode; // 0:no; network 1: ap; 2: ste
     mutex mutMode;
+    int mode1Cnt = 0;
     const string apdCfgPath = "/etc/apd.conf";
     const string wpaCfgPath = "/etc/wpa_supplicant/wpa_supplicant-wlan1.conf";
 
     void scanWifi(){
+        lock_guard<mutex> lk(mutMode);
         string res = exec("iwlist wlan1 scan|grep ESSID");
         wifiData["wifi"]["ssids"].clear();
         httplib::detail::split(&res[0], &res[res.size()], '\n', [&](const char *b, const char *e) {
@@ -152,29 +155,64 @@ class WifiMgr {
             // ping outside address
 
             // this->lastMode = 0;
+            
             while(1){
                 // check wifi interface
                 {
-                    lock_guard<mutex> lk(mutMode);
                     auto s = exec("ifconfig wlan1|grep -v inet6|grep inet");
-                    if(s.empty() && this->mode == 0) {
-                        spdlog::info("evwifi {} detects no wifi connection, enabling AP mode", this->devSn);
-                        this->enableMode(1);
-                        this->mode = 1;
-                        this->scanWifi();
+                    if(s.empty()) {
+                        // switch to ap automatically
+                        if(this->mode == 0) {
+                            spdlog::info("evwifi {} detects no wifi connection, enabling AP mode", this->devSn);
+                            this->enableMode(1);
+                        }else if(this->mode == 1) {
+                            // maybe give it a try to switch into mode2 is not a bad idea
+                            this->mode1Cnt++;
+                            if(fs::exists(fs::path(wpaCfgPath)) && mode1Cnt % 600){
+                                spdlog::info("evwifi {} give it a try to mode2, since configuration exists.", this->devSn);
+                                this->enableMode(2);
+                            }
+                        }
+                    }else{
+                        // maybe mode1
+                        if(this->mode == 1) {
+                            //
+                        }else if(this->mode == 2){
+                            //
+                        }else if(this->mode == 0) {
+                            // try to mode2
+                            if(fs::exists(fs::path(wpaCfgPath)) && mode1Cnt % 600){
+                                spdlog::info("evwifi {} maybe crashed before, try connect wifi", this->devSn);
+                                this->enableMode(2);
+                            }else{
+                                // mode1
+                                spdlog::info("evwifi {} has wifi ip, but no configuration, this should never happen. switch to AP mode", this->devSn);
+                                this->enableMode(1);
+                            }
+                        }else{
+                            spdlog::error("evwifi {} invalid mode: {}, switch to AP mode", this->devSn, this->mode);
+                            this->enableMode(1);
+                        }
+                    }
+
+                    /// background scanning
+                    this->scanWifi();
+
+                    if(this->mode != 1) {
+                        this->mode1Cnt = 0;
                     }
 
                     // TODO: flash light
-                    
                 }
                 
-                this_thread::sleep_for(chrono::seconds(10));
+                this_thread::sleep_for(chrono::seconds(60));
             }
         });
 
         monitor.detach();
 
         srv.Get("/wifi", [this](const Request& req, Response& res) {
+            this->mode1Cnt = 0;
             string mode = req.get_param_value("mode");
             json ret;
             ret["code"] = 0;
