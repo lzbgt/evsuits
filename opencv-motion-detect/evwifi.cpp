@@ -99,6 +99,7 @@ class WifiMgr {
              else{
                  // stop hostapd
                 exec("pkill hostapd");
+                exec("pkill dhclient");
                 string wpaContent = fmt::format("ctrl_interface=/run/wpa_supplicant\nupdate_config=1\nap_scan=1\n"
                 "network={{\nssid=\"{}\"\npsk=\"{}\"\n}}\n", this->wifiData["wifi"]["ssid"].get<string>(), this->wifiData["wifi"]["password"].get<string>());
                 ofstream wpaFile(wpaCfgPath, ios::out|ios::trunc);
