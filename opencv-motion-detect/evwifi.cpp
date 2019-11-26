@@ -107,8 +107,12 @@ class WifiMgr {
                     wpaFile << wpaContent;
                     wpaFile.close();
                     // TODO: verify
+                    exec("systemctl enable wpa_supplicant@wlan1");
                     auto t = thread([](){
-                        exec("systemctl restart networking");
+                        // delay for rest return (ifdown caused no networking available)
+                        this_thread::sleep_for(chrono::seconds(1));
+                        exec("systemctl enable wpa_supplicant@wlan1;systemctl restart wpa_supplicant@wlan1;"
+                        "/sbin/ifdown -a --read-environment;/sbin/ifup -a --read-environment");
                     });
                     t.detach();
                     
