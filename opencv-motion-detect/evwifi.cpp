@@ -64,6 +64,8 @@ class WifiMgr {
         ret["code"] = 0;
         ret["msg"] = "ok";
 
+        this->mode1Cnt = 0;
+
         if( mode == 1) {
             // ap
             this->mode = 1;
@@ -197,7 +199,7 @@ class WifiMgr {
                                         regex passwdReg(password);
 
                                         std::smatch results;
-                                        while (getline (wpaCfgFile,line))
+                                        while (getline(wpaCfgFile,line))
                                         {
                                             if (regex_match(line, results, ssidReg)) {
                                                 if (results.size() == 2) {
@@ -209,12 +211,11 @@ class WifiMgr {
                                                     this->wifiData["wifi"]["password"] = results[1].str();
                                                     flag++;
                                                 }
-                                            }
-                                            
+                                            }   
                                         }
                                         wpaCfgFile.close();
                                     }
-                                    
+
                                     if(flag == 2) {
                                         spdlog::info("evwifi {} maybe crashed before, try connect wifi", this->devSn);
                                         this->enableMode(2);
