@@ -71,7 +71,7 @@ class WifiMgr {
                 fileApd.close();
                 // start hostapd
                 auto t = thread([](){
-                    system("systemctl stop wpa_supplicant@wlan1;ifconfig wlan1 down;"
+                    system("systemctl stop wpa_supplicant@wlan1;ifconfig wlan1 down;pkill hostapd;"
                 "ifconfig wlan1 up;ifconfig wlan1 192.168.0.1;hostapd /etc/apd.conf -B");
                 // TODO: check result
                 });
@@ -116,8 +116,6 @@ class WifiMgr {
              }
         }
 
-        ret["wifiData"] =  wifiData;
-
         return ret;
     }
 
@@ -129,7 +127,6 @@ class WifiMgr {
         wifiData["wifi"]["ssids"] = json();
         //wifiData["wifi"]["ssid"] = string;
         //wifiData["wifi"]["password"] = string;
-
 
         monitor = thread([this](){
             // check /etc/systemd/wpa_supplicant@wlan1.service
