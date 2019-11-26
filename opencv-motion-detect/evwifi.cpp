@@ -183,8 +183,42 @@ class WifiMgr {
                             // try to mode2
                             if(fs::exists(fs::path(wpaCfgPath))){
                                 if(mode1Cnt % 600 == 0){
-                                    spdlog::info("evwifi {} maybe crashed before, try connect wifi", this->devSn);
-                                    this->enableMode(2);
+                                    // read password
+                                    string line;
+                                    ifstream wpaCfgFile(wpaCfgPath);
+                                    int flag = 0;
+                                    if (wpaCfgFile.is_open())
+                                    {
+                                        // ssid="iLabService"
+                                        // psk="ILABSERVICE666666"
+                                        string  ssidName = "ssid=\"(.+)\"";  //"/(\\w+)/ipcs/(\\d+)(?:/[^/]+)?";
+                                        string  password = "psk=\"(.+)\"";
+                                        regex ssidReg(ssidName);
+                                        regex passwdReg(password);
+
+                                        std::smatch results;
+                                        while (getline (wpaCfgFile,line))
+                                        {
+                                            if (regex_match(line, results, ssidReg)) {
+                                                if (results.size() == 2) {
+                                                    this->wifiData["wifi"]["ssid"] = results[1].str();
+                                                    flag++;
+                                                }
+                                            }else if (regex_match(line, results, passwdReg)) {
+                                                if (results.size() == 2) {
+                                                    this->wifiData["wifi"]["password"] = results[1].str();
+                                                    flag++;
+                                                }
+                                            }
+                                            
+                                        }
+                                        wpaCfgFile.close();
+                                    }
+                                    
+                                    if(flag == 2) {
+                                        spdlog::info("evwifi {} maybe crashed before, try connect wifi", this->devSn);
+                                        this->enableMode(2);
+                                    }         
                                 }
                             }else{
                                 // mode1
