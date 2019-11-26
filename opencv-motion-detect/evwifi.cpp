@@ -181,9 +181,11 @@ class WifiMgr {
                             //
                         }else if(this->mode == 0) {
                             // try to mode2
-                            if(fs::exists(fs::path(wpaCfgPath)) && mode1Cnt % 600){
-                                spdlog::info("evwifi {} maybe crashed before, try connect wifi", this->devSn);
-                                this->enableMode(2);
+                            if(fs::exists(fs::path(wpaCfgPath))){
+                                if(mode1Cnt % 600 == 0){
+                                    spdlog::info("evwifi {} maybe crashed before, try connect wifi", this->devSn);
+                                    this->enableMode(2);
+                                }
                             }else{
                                 // mode1
                                 spdlog::info("evwifi {} has wifi ip, but no configuration, this should never happen. switch to AP mode", this->devSn);
