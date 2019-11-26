@@ -107,11 +107,12 @@ class WifiMgr {
                     wpaFile << wpaContent;
                     wpaFile.close();
                     // TODO: verify
-                    exec("ifconfig wlan1 down");
-                    exec("ifconfig wlan1 up");
-                    exec("systemctl enable wpa_supplicant@wlan1");
-                    exec("systemctl restart wpa_supplicant@wlan1");
-                    exec("dhclient -r wlan1");
+                    exec("systemctl restart networking&");
+                    // exec("ifconfig wlan1 down");
+                    // exec("ifconfig wlan1 up");
+                    // exec("systemctl enable wpa_supplicant@wlan1");
+                    // exec("systemctl restart wpa_supplicant@wlan1");
+                    // exec("dhclient -r wlan1");
                 }else{
                     string msg = fmt::format("failed write wpa config to {}", wpaCfgPath);
                     ret["code"] = 2;
