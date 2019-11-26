@@ -62,10 +62,6 @@ class WifiMgr {
             // ap
             // stop all
             spdlog::info("prepare to enter AP mode");
-            exec("systemctl stop wpa_supplicant@wlan1");
-            exec("ifconfig wlan1 down");
-            exec("ifconfig wlan1 up");
-            exec("ifconfig wlan1 192.168.0.1");
             // exec("systemctl dsiable wpa_supplicant@wlan1 ")
             string apdContent = fmt::format("interface=wlan1\ndriver=nl80211\nssid=EVB-{}\nhw_mode=g\n"
             "channel=6\nmacaddr_acl=0\nignore_broadcast_ssid=0\nwpa=0\n", this->info["sn"].get<string>());
@@ -74,7 +70,8 @@ class WifiMgr {
                 fileApd << apdContent;
                 fileApd.close();
                 // start hostapd
-                exec("hostapd /etc/apd.conf -B");
+                system("systemctl stop wpa_supplicant@wlan1;ifconfig wlan1 down;"
+                "ifconfig wlan1 up;ifconfig wlan1 192.168.0.1;hostapd /etc/apd.conf -B");
                 // TODO: check result
 
                 //scan
@@ -97,9 +94,6 @@ class WifiMgr {
                  ret["code"] = 3;
              }
              else{
-                 // stop hostapd
-                exec("pkill hostapd");
-                exec("pkill dhclient");
                 string wpaContent = fmt::format("ctrl_interface=/run/wpa_supplicant\nupdate_config=1\nap_scan=1\n"
                 "network={{\nssid=\"{}\"\npsk=\"{}\"\n}}\n", this->wifiData["wifi"]["ssid"].get<string>(), this->wifiData["wifi"]["password"].get<string>());
                 ofstream wpaFile(wpaCfgPath, ios::out|ios::trunc);
@@ -107,11 +101,10 @@ class WifiMgr {
                     wpaFile << wpaContent;
                     wpaFile.close();
                     // TODO: verify
-                    exec("systemctl enable wpa_supplicant@wlan1");
                     auto t = thread([](){
                         // delay for rest return (ifdown caused no networking available)
                         this_thread::sleep_for(chrono::seconds(1));
-                        exec("systemctl enable wpa_supplicant@wlan1;systemctl restart wpa_supplicant@wlan1;"
+                        system("pkill hostapd; pkill dhclient;systemctl enable wpa_supplicant@wlan1;systemctl restart wpa_supplicant@wlan1;"
                         "/sbin/ifdown -a --read-environment;/sbin/ifup -a --read-environment");
                     });
                     t.detach();
