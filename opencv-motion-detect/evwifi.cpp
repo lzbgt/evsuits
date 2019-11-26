@@ -71,7 +71,7 @@ class WifiMgr {
                 fileApd.close();
                 // start hostapd
                 auto t = thread([](){
-                    system("systemctl stop wpa_supplicant@wlan1;ifconfig wlan1 down;pkill hostapd;"
+                    system("pkill hostapd;systemctl stop wpa_supplicant@wlan1;ifconfig wlan1 down;"
                 "ifconfig wlan1 up;ifconfig wlan1 192.168.0.1;hostapd /etc/apd.conf -B");
                 // TODO: check result
                 });
