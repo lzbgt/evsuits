@@ -70,13 +70,12 @@ class WifiMgr {
                 fileApd << apdContent;
                 fileApd.close();
                 // start hostapd
-                system("systemctl stop wpa_supplicant@wlan1;ifconfig wlan1 down;"
+                auto t = thread([](){
+                    system("systemctl stop wpa_supplicant@wlan1;ifconfig wlan1 down;"
                 "ifconfig wlan1 up;ifconfig wlan1 192.168.0.1;hostapd /etc/apd.conf -B");
                 // TODO: check result
-
-                //scan
-                scanWifi();
-                
+                });
+                t.detach(); 
             }else{
                 ret["code"] = 1;
                 string msg = fmt::format("failed to write ap config file to {}", apdCfgPath);
@@ -105,15 +104,9 @@ class WifiMgr {
                         // delay for rest return (ifdown caused no networking available)
                         this_thread::sleep_for(chrono::seconds(1));
                         system("pkill hostapd; pkill dhclient;systemctl enable wpa_supplicant@wlan1;systemctl restart wpa_supplicant@wlan1;"
-                        "/sbin/ifdown -a --read-environment;/sbin/ifup -a --read-environment");
+                        "/sbin/ifdown -a --read-environment;/sbin/ifup -a --read-environment;systemctl restart evdaemon");
                     });
                     t.detach();
-                    
-                    // exec("ifconfig wlan1 down");
-                    // exec("ifconfig wlan1 up");
-                    // exec("systemctl enable wpa_supplicant@wlan1");
-                    // exec("systemctl restart wpa_supplicant@wlan1");
-                    // exec("dhclient -r wlan1");
                 }else{
                     string msg = fmt::format("failed write wpa config to {}", wpaCfgPath);
                     ret["code"] = 2;
@@ -131,7 +124,7 @@ class WifiMgr {
     public:
     WifiMgr(){
         LVDB::getSn(this->info);
-        wifiData["sn"] = this->info;
+        wifiData["info"] = this->info;
         wifiData["wifi"] = json();
         wifiData["wifi"]["ssids"] = json();
         //wifiData["wifi"]["ssid"] = string;
