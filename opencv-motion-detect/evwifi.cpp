@@ -107,7 +107,11 @@ class WifiMgr {
                     wpaFile << wpaContent;
                     wpaFile.close();
                     // TODO: verify
-                    exec("systemctl restart networking&");
+                    auto t = thread([](){
+                        exec("systemctl restart networking");
+                    });
+                    t.detach();
+                    
                     // exec("ifconfig wlan1 down");
                     // exec("ifconfig wlan1 up");
                     // exec("systemctl enable wpa_supplicant@wlan1");
