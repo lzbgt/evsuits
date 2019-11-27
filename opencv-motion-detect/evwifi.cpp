@@ -255,9 +255,13 @@ class WifiMgr {
             ret["code"] = 0;
             ret["msg"] = "ok";
             string scan = req.get_param_value("scan");
-            if(!scan.empty() && scan != "false"){
-                this->scanWifi();
-                ret["wifiData"] = this->wifiData;
+            if(!scan.empty()){
+                if(scan == "true"){
+                    this->scanWifi();
+                    ret["wifiData"] = this->wifiData;
+                }else{
+                    ret["wifiData"] = this->wifiData;
+                }
             }
 
             if(scan.empty() && !mode.empty()){
