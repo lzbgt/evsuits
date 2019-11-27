@@ -248,6 +248,8 @@ class WifiMgr {
 
         monitor.detach();
 
+        //Headers headers = {{'Access-Control-Allow-Origin', '*'}, {'Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept'}};
+
         srv.Get("/wifi", [this](const Request& req, Response& res) {
             this->mode1Cnt = 0;
             string mode = req.get_param_value("mode");
@@ -292,6 +294,9 @@ class WifiMgr {
                     spdlog::error("evwifi {} {}", devSn, msg);
                 }
             }
+
+            res.set_header("Access-Control-Allow-Origin", "*");
+            res.set_header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
             
             res.set_content(ret.dump(), "text/json");
         });
