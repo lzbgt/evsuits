@@ -1,6 +1,6 @@
 [Unit]
 Description= evedge wifi settings
-After=evdaemon.target
+After=network.target
 
 [Service]
 Type=simple

@@ -1,6 +1,6 @@
 [Unit]
 Description=evdaemon manages edge evsuits
-After=network.target
+After=evwifi.service
 
 [Service]
 Type=simple
