@@ -5,6 +5,13 @@
       <label class="col-4">WIFI配置</label>
       <label class="col-4">{{devSn}}</label>
     </div>
+    <div class="row">
+      <div class="alert offset-2 col-8" :class="alertType">当前连接WIFI: {{ssidActive}}</div>
+    </div>
+    <div class="row">
+      <div class="alert col-6" :class="alertType">MAC {{mac}}</div>
+      <div class="alert col-6" :class="alertType">IP {{ip}}</div>
+    </div>
 
     <div class="row">
       <label class="col-4 offset-2">附近热点</label>
@@ -33,12 +40,12 @@
     >
       <div class="grid">
         <div class="row">
-          <label class="col-4 offset-2" disabled variant="info">热点名</label>
-          <b-button class="col-4" disabled>{{ssid}}</b-button>
+          <label class="col-3 offset-1" disabled variant="info">热点名</label>
+          <b-button class="col-7" disabled>{{ssid}}</b-button>
         </div>
         <div class="row mt-4">
-          <label class="col-4 offset-2">密码</label>
-          <b-input class="col-4" v-model="password">{{ssid}}</b-input>
+          <label class="col-2 offset-1">密码</label>
+          <b-input class="col-8" v-model="password">{{ssid}}</b-input>
         </div>
         <div class="row mt-4">
           <b-button
@@ -61,7 +68,7 @@
 
 <script>
 import axios from "axios";
-const apiHost = 'http://192.168.1.104';
+const apiHost = ''; //'http://192.168.1.104';
 export default {
   async mounted() {
     try {
@@ -111,12 +118,32 @@ export default {
       ssid: "",
       devSn: "",
       password: "",
-      ssids: ["NO WIFI AVAILABLE"]
+      ssids: ["NO WIFI AVAILABLE"],
+      wifiData: undefined
     };
   },
   computed: {
     connEnabled() {
       return this.password.length >= 4 && !this.connDisabled;
+    },
+    connected(){
+      return ((this.wifiData||{}).wifi||{}).ssid||false;
+    },
+    mac(){
+      return ((this.wifiData||{}).wifi||{}).mac||"";
+    },
+    ip() {
+      return ((this.wifiData||{}).wifi||{}).ip||"";
+    },
+    ssidActive() {
+      return ((this.wifiData||{}).wifi||{}).ssid||"<无>";
+    },
+    alertType(){
+      if(this.connected){
+        return "alert-success";
+      }else{
+        return "alert-danger";
+      }
     }
   },
   methods: {

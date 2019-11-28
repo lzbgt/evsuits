@@ -62,6 +62,9 @@ class WifiMgr {
         if(ip.size() > 0) {
             ip = ip.substr(0, ip.size() -1);
         }
+        if(mac.size() > 0) {
+            mac = mac.substr(0, mac.size() -1);
+        }
         wifiData["wifi"]["ip"] = ip;
         wifiData["wifi"]["mac"] = mac;
         spdlog::info("evwifi {} ip: {}, mac: {}", this->devSn, ip, mac);
