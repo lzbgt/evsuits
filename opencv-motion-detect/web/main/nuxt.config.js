@@ -49,12 +49,12 @@ export default {
   ** See https://axios.nuxtjs.org/options
   */
   axios: {
-    proxy: true
+    //proxy: true
   },
-  proxy:{
-    '/api/': 'http://192.168.1.104',
-    changeOrigin: true,
-  },
+  // proxy:{
+  //   '/api/': 'http://192.168.1.104',
+  //   changeOrigin: true,
+  // },
   /*
   ** Build configuration
   */
