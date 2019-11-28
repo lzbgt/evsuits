@@ -38,6 +38,7 @@ class WifiMgr {
     private:
     json info;
     string devSn;
+    string baseDir = "web/main/dist";
     Server srv;
     promise<int> p;
     thread monitor;
@@ -249,6 +250,7 @@ class WifiMgr {
         monitor.detach();
 
         //Headers headers = {{'Access-Control-Allow-Origin', '*'}, {'Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept'}};
+        srv.set_base_dir(this->baseDir.c_str());
 
         srv.Get("/wifi", [this](const Request& req, Response& res) {
             this->mode1Cnt = 0;
