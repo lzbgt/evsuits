@@ -61,6 +61,7 @@ class WifiMgr {
         auto ip = exec("ifconfig wlan1|grep -v inet6|grep inet|awk '{print $2}'");
         wifiData["wifi"]["ip"] = ip;
         wifiData["wifi"]["mac"] = mac;
+        spdlog::info("evwifi {} ip: {}, mac: {}", this->devSn, ip, mac);
         
         /// get connected wifi ssid
         if(!ip.empty() && ip != "192.168.0.1"){
@@ -68,6 +69,7 @@ class WifiMgr {
             if(ssid.size() >=3) {
                 ssid = ssid.substr(1, ssid.size() - 2);
                 wifiData["wifi"]["ssid"] = ssid;
+                spdlog::info("evwifi {} ssid: {}", this->devSn, ssid);
             }else{
                 if(wifiData["wifi"].count("ssid") != 0) {
                     wifiData["wifi"].erase("ssid");
@@ -78,6 +80,7 @@ class WifiMgr {
             if(password.size() >=3) {
                 password = password.substr(1, password.size() - 2);
                 wifiData["wifi"]["password"] = password;
+                spdlog::info("evwifi {} password: {}", this->devSn, password);
             }else{
                 if(wifiData["wifi"].count("password") != 0) {
                     wifiData["wifi"].erase("password");
