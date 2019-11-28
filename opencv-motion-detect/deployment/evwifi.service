@@ -1,0 +1,16 @@
+[Unit]
+Description= evedge wifi settings
+After=evdaemon.target
+
+[Service]
+Type=simple
+Environment="LD_LIBRARY_PATH=/root/work/opencv-pocs/opencv-motion-detect/vendor/lib"
+ExecStart=/root/work/opencv-pocs/opencv-motion-detect/evwifi
+WorkingDirectory=/root/work/opencv-pocs/opencv-motion-detect
+Restart=always
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=evsuits
+
+[Install]
+WantedBy=multi-user.target
