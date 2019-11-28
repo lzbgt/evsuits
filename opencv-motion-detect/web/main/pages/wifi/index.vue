@@ -61,6 +61,7 @@
 
 <script>
 import axios from "axios";
+const apiHost = 'http://192.168.0.1';
 export default {
   async mounted() {
     try {
@@ -73,14 +74,14 @@ export default {
   data() {
     return {
       connectWifi: async e => {
-          let response = await axios.get(`http://192.168.1.104/wifi?mode=2&ssid=${this.ssid}&password=${this.password}`);
+          let response = await axios.get(`${apiHost}/wifi?mode=2&ssid=${this.ssid}&password=${this.password}`);
           return response;
       },
       getWifiData: async e => {
         this.bInScan = true;
         let param = e ? "true" : "false";
         let response = await axios.get(
-          `http://192.168.1.104/wifi?scan=${param}`
+          `${apiHost}/wifi?scan=${param}`
         );
         this.wifiData = response.data.wifiData;
         this.ssids = Array.from(new Set(this.wifiData.wifi.ssids))
