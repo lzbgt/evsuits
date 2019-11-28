@@ -92,6 +92,10 @@ class WifiMgr {
                     wifiData["wifi"].erase("password");
                 }
             }
+        }else{
+            if(wifiData["wifi"].count("ssid") != 0) {
+                    wifiData["wifi"].erase("ssid");
+            }
         }
 
         // scan wifi
