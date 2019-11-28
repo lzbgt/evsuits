@@ -61,7 +61,7 @@
 
 <script>
 import axios from "axios";
-const apiHost = 'http://192.168.0.1';
+const apiHost = 'http://localhost';
 export default {
   async mounted() {
     try {
