@@ -59,6 +59,9 @@ class WifiMgr {
         /// get wifi mac & IP
         auto mac = exec("ifconfig wlan1|grep ether|awk '{print $2}'");
         auto ip = exec("ifconfig wlan1|grep -v inet6|grep inet|awk '{print $2}'");
+        if(ip.size() > 0) {
+            ip = ip.substr(0, ip.size() -1);
+        }
         wifiData["wifi"]["ip"] = ip;
         wifiData["wifi"]["mac"] = mac;
         spdlog::info("evwifi {} ip: {}, mac: {}", this->devSn, ip, mac);
@@ -66,8 +69,8 @@ class WifiMgr {
         /// get connected wifi ssid
         if(!ip.empty() && ip != "192.168.0.1"){
             auto ssid = exec("grep ssid /etc/wpa_supplicant/wpa_supplicant-wlan1.conf 2> /dev/null|awk '{print substr($1, 6)}'");
-            if(ssid.size() >=3) {
-                ssid = ssid.substr(1, ssid.size() - 2);
+            if(ssid.size() >=4) {
+                ssid = ssid.substr(1, ssid.size() - 3);
                 wifiData["wifi"]["ssid"] = ssid;
                 spdlog::info("evwifi {} ssid: {}", this->devSn, ssid);
             }else{
@@ -77,8 +80,8 @@ class WifiMgr {
             }
 
             auto password = exec("grep psk /etc/wpa_supplicant/wpa_supplicant-wlan1.conf 2> /dev/null|awk '{print substr($1, 5)}'");
-            if(password.size() >=3) {
-                password = password.substr(1, password.size() - 2);
+            if(password.size() >=4) {
+                password = password.substr(1, password.size() - 3);
                 wifiData["wifi"]["password"] = password;
                 spdlog::info("evwifi {} password: {}", this->devSn, password);
             }else{
