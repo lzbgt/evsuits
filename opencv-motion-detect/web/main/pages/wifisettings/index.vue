@@ -15,7 +15,7 @@
 
     <div class="row">
       <label class="col-4 offset-2">附近热点</label>
-      <b-button :disabled="bInScan" class="col-4" variant="primary" v-on:click="scanWifi">重新扫描</b-button>
+      <b-button :disabled="bInScan" class="col-4" variant="primary" v-on:click="scanWifi">刷新</b-button>
     </div>
 
     <div class="row">
@@ -94,16 +94,21 @@ export default {
         this.ssids = Array.from(new Set(this.wifiData.wifi.ssids))
           .filter(e => e != "" && e != undefined)
           .map(e => {
-            let data = e.match(/ESSID:\"(.+)\"/)[1];
-            if (data[0] != "\\") {
-              return data;
-            } else {
-              var count = data.length;
-              var str = "";
+            try{
+              let data = e.match(/ESSID:\"(.+)\"/)[1];
+              if (data[0] != "\\") {
+                return data;
+              } else {
+                var count = data.length;
+                var str = "";
 
-              for (var index = 0; index < count; index += 1)
-                str += String.fromCharCode(data[index]);
-              return data;
+                for (var index = 0; index < count; index += 1)
+                  str += String.fromCharCode(data[index]);
+                return data;
+              }
+            }catch(error){
+              console.log(error);
+              return '';
             }
           })
           .filter(e => e[0] != "\\");
