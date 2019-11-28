@@ -51,7 +51,18 @@ class WifiMgr {
 
     void scanWifi(){
         lock_guard<mutex> lk(mutMode);
-        string res = exec("iwlist wlan1 scan|grep ESSID");
+
+        /// get sn
+        LVDB::getSn(this->info);
+        devSn = this->info["sn"];
+
+        /// get wifi mac & IP
+        auto mac = exec("ifconfig wlan1|grep ether|awk '{print $2}'");
+        auto ip = exec("ifconfig wlan1|grep -v inet6|grep inet|awk '{print $2}'");
+        wifiData["wifi"]["ip"] = ip;
+        wifiData["mac"] = mac;
+        // scan wifi
+        string res = exec("iwlist wlan1 scan|grep ESSID|awk {'print $1'}");
         wifiData["wifi"]["ssids"].clear();
         httplib::detail::split(&res[0], &res[res.size()], '\n', [&](const char *b, const char *e) {
             string ssid;
@@ -162,7 +173,7 @@ class WifiMgr {
             while(1){
                 // check wifi interface
                 {
-                    auto s = exec("ifconfig wlan1|grep -v inet6|grep inet");
+                    auto s = exec("ifconfig wlan1|grep -v inet6|grep inet|awk '{print $2}'");
                     if(s.empty()) {
                         // switch to ap automatically
                         if(this->mode == 0) {
@@ -173,73 +184,57 @@ class WifiMgr {
                             this->mode1Cnt++;
                             if(fs::exists(fs::path(wpaCfgPath)) && mode1Cnt % 600){
                                 spdlog::info("evwifi {} give it a try to mode2, since configuration exists.", this->devSn);
-                                this->enableMode(2);
+                                // read password
+                                string line;
+                                ifstream wpaCfgFile(wpaCfgPath);
+                                int flag = 0;
+                                if (wpaCfgFile.is_open())
+                                {
+                                    // ssid="iLabService"
+                                    // psk="ILABSERVICE666666"
+                                    string  ssidName = "ssid=\"(.+)\"";  //"/(\\w+)/ipcs/(\\d+)(?:/[^/]+)?";
+                                    string  password = "psk=\"(.+)\"";
+                                    regex ssidReg(ssidName);
+                                    regex passwdReg(password);
+
+                                    std::smatch results;
+                                    while (getline(wpaCfgFile,line))
+                                    {
+                                        if (regex_match(line, results, ssidReg)) {
+                                            if (results.size() == 2) {
+                                                this->wifiData["wifi"]["ssid"] = results[1].str();
+                                                flag++;
+                                            }
+                                        }else if (regex_match(line, results, passwdReg)) {
+                                            if (results.size() == 2) {
+                                                this->wifiData["wifi"]["password"] = results[1].str();
+                                                flag++;
+                                            }
+                                        }   
+                                    }
+                                    wpaCfgFile.close();
+                                }
+
+                                if(flag == 2) {
+                                    spdlog::info("evwifi {} try reconnect wifi using existing config", this->devSn);
+                                    this->enableMode(2);
+                                } 
                             }
                         }
                     }else{
-                        // maybe mode1
-                        if(this->mode == 1) {
-                            //
-                        }else if(this->mode == 2){
-                            //
-                        }else if(this->mode == 0) {
-                            // try to mode2
-                            if(fs::exists(fs::path(wpaCfgPath))){
-                                if(mode1Cnt % 600 == 0){
-                                    // read password
-                                    string line;
-                                    ifstream wpaCfgFile(wpaCfgPath);
-                                    int flag = 0;
-                                    if (wpaCfgFile.is_open())
-                                    {
-                                        // ssid="iLabService"
-                                        // psk="ILABSERVICE666666"
-                                        string  ssidName = "ssid=\"(.+)\"";  //"/(\\w+)/ipcs/(\\d+)(?:/[^/]+)?";
-                                        string  password = "psk=\"(.+)\"";
-                                        regex ssidReg(ssidName);
-                                        regex passwdReg(password);
-
-                                        std::smatch results;
-                                        while (getline(wpaCfgFile,line))
-                                        {
-                                            if (regex_match(line, results, ssidReg)) {
-                                                if (results.size() == 2) {
-                                                    this->wifiData["wifi"]["ssid"] = results[1].str();
-                                                    flag++;
-                                                }
-                                            }else if (regex_match(line, results, passwdReg)) {
-                                                if (results.size() == 2) {
-                                                    this->wifiData["wifi"]["password"] = results[1].str();
-                                                    flag++;
-                                                }
-                                            }   
-                                        }
-                                        wpaCfgFile.close();
-                                    }
-
-                                    if(flag == 2) {
-                                        spdlog::info("evwifi {} maybe crashed before, try connect wifi", this->devSn);
-                                        this->enableMode(2);
-                                    }         
-                                }
-                            }else{
-                                // mode1
-                                spdlog::info("evwifi {} has wifi ip, but no configuration, this should never happen. switch to AP mode", this->devSn);
-                                this->enableMode(1);
-                            }
+                        // having wifi ip
+                        if(s == "192.168.0.1"){
+                            this->mode = 1;
+                        }else if(fs::exists(fs::path(wpaCfgPath))){
+                            this->mode = 2;
                         }else{
-                            spdlog::error("evwifi {} invalid mode: {}, switch to AP mode", this->devSn, this->mode);
+                            spdlog::info("evwifi {} invalid state(having wifi IP but no config), switch to AP mode", this->devSn);
                             this->enableMode(1);
                         }
                     }
 
-                    /// background scanning
+                    /// background wifi scanning
                     this->scanWifi();
-
-                    if(this->mode != 1) {
-                        this->mode1Cnt = 0;
-                    }
-
                     // TODO: flash light
                 }
                 

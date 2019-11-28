@@ -61,7 +61,7 @@
 
 <script>
 import axios from "axios";
-const apiHost = '';
+const apiHost = 'http://192.168.1.104';
 export default {
   async mounted() {
     try {
@@ -103,7 +103,7 @@ export default {
         this.devSn = this.wifiData.info.sn;
         this.bInScan = false;
         console.log(this.devSn);
-        console.log(this.ssids);
+        console.log(this.wifiData);
       },
       cancelDisabled: false,
       connDisabled: false,
