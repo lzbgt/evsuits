@@ -59,11 +59,15 @@ class WifiMgr {
         /// get wifi mac & IP
         auto mac = exec("ifconfig wlan1|grep ether|awk '{print $2}'");
         auto ip = exec("ifconfig wlan1|grep -v inet6|grep inet|awk '{print $2}'");
-        if(ip.size() > 0) {
+        if(ip.size() > 1) {
             ip = ip.substr(0, ip.size() -1);
+        }else{
+            ip = "";
         }
-        if(mac.size() > 0) {
+        if(mac.size() > 1) {
             mac = mac.substr(0, mac.size() -1);
+        }else{
+            mac = "";
         }
         wifiData["wifi"]["ip"] = ip;
         wifiData["wifi"]["mac"] = mac;
