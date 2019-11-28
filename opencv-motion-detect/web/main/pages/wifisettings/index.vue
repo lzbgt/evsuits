@@ -111,7 +111,7 @@ export default {
               return '';
             }
           })
-          .filter(e => e[0] != "\\");
+          .filter(e => e !='' && e[0] != "\\");
         this.devSn = this.wifiData.info.sn;
         this.bInScan = false;
         console.log(this.devSn);
