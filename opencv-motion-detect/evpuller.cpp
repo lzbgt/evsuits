@@ -308,6 +308,7 @@ protected:
         else {
             //
         }
+        av_dict_set(&optsIn, "r", "18", 0);
 
         spdlog::info("evpuller {} openning stream: {}", selfId, urlIn);
         if ((ret = avformat_open_input(&pAVFormatInput, urlIn.c_str(), NULL, &optsIn)) < 0) {
