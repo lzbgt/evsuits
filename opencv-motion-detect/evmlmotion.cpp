@@ -46,6 +46,7 @@ struct DetectParam {
     int pre;
     int post;
     float entropy;
+    int maxDuration; // max event video length in minutes
 };
 
 enum EventState {
@@ -63,9 +64,9 @@ private:
     int iid;
     AVFormatContext *pAVFormatInput = nullptr;
     AVCodecContext *pCodecCtx = nullptr;
-    DetectParam detPara = {25, 500, -1, 3, 3, 30, 0.3};
+    DetectParam detPara = {25, 500, -1, 3, 3, 30, 0.3, 10};
     EventState evtState = EventState::NONE;
-    chrono::system_clock::time_point evtStartTm, evtStartTmLast;
+    chrono::system_clock::time_point evtStartTm, evtStartTmLast, evtStartTmOrig;
     queue<string> *evtQueue;
     int streamIdx = -1;
     json config;
@@ -297,6 +298,13 @@ private:
                 detPara.fpsProc = evmlmotion["fpsProc"];
             }
 
+            if(evmlmotion.count("maxDuration") == 0|| !evmlmotion["maxDuration"].is_number_integer() ||evmlmotion["maxDuration"] <= 1 || evmlmotion["maxDuration"] >= 100) {
+                spdlog::info("evmlmotion {} invalid maxDuration value. should be in (0, 100) as int(minutes), default to {}", selfId, detPara.maxDuration);
+            }
+            else {
+                detPara.maxDuration = evmlmotion["maxDuration"];
+            }
+
             spdlog::info("evmlmotion {} detection params: entropy {}, area {}, thresh {}, fpsProc {}", selfId, detPara.entropy, detPara.area, detPara.thre, detPara.fpsProc);
 
             // setup sub
@@ -524,6 +532,19 @@ private:
         return 0;
     }
 
+    void makeEvent(string evtType, int ts) {
+        json p;
+        p["type"] = EV_MSG_TYPE_AI_MOTION;
+        p["gid"] = selfId;
+        p["event"] = evtType; //EV_MSG_EVENT_MOTION_END;
+        p["ts"] = ts;
+        spdlog::info("evmlmotion {} packet ts delta: {}", selfId, packetTsDelta);
+        evtQueue->push(p.dump());
+        if(evtQueue->size() > MAX_EVENT_QUEUE_SIZE*2) {
+            evtQueue->pop();
+        }
+    }
+
     void detectMotion(AVPixelFormat format,AVFrame *pFrame, bool detect = true)
     {
         static bool first = true;
@@ -596,6 +617,7 @@ private:
                 evtState = PRE;
                 spdlog::debug("state: NONE->PRE ({}, {})", dura, evtCnt);
                 evtStartTmLast = evtStartTm;
+                evtStartTmOrig = evtStartTm;
                 evtCnt = 0;
             }
             break;
@@ -606,6 +628,7 @@ private:
                     spdlog::debug("state: PRE->PRE ({}, {})", dura, evtCnt);
                     evtState = PRE;
                     evtStartTmLast = evtStartTm;
+                    evtStartTmOrig = evtStartTm;
                     evtCnt = 0;
                 }
                 else if (true/*dura > detPara.pre && evtCnt >= detPara.pre*/) {
@@ -613,18 +636,11 @@ private:
                     json p;
                     spdlog::debug("state: PRE->IN ({}, {})", dura, evtCnt);
                     evtCnt = 0;
-                    p["type"] = EV_MSG_TYPE_AI_MOTION;
-                    p["gid"] = selfId;
-                    p["event"] = EV_MSG_EVENT_MOTION_START;
+                    makeEvent(EV_MSG_EVENT_MOTION_START, packetTs);
                     auto tmp =  chrono::duration_cast<chrono::seconds>(evtStartTmLast.time_since_epoch()).count();
-                    p["ts"] = packetTs;
                     packetTsDelta = tmp - packetTs;
                     evtStartTmLast = evtStartTm;
-                    //p["frame"] = origin.clone();
-                    evtQueue->push(p.dump());
-                    if(evtQueue->size() > MAX_EVENT_QUEUE_SIZE * 2) {
-                        evtQueue->pop();
-                    }
+                    evtStartTmOrig = evtStartTm;
                 }
             }
             else {
@@ -645,6 +661,12 @@ private:
                 }
             }
             else {
+                if(chrono::duration_cast<chrono::seconds>(evtStartTmOrig - evtStartTm).count() > detPara.maxDuration) {
+                    evtStartTmOrig = evtStartTm;
+                    makeEvent(EV_MSG_EVENT_MOTION_END, packetTs);
+                    evtCnt = 0;
+                    makeEvent(EV_MSG_EVENT_MOTION_START, packetTs);
+                }
                 evtStartTmLast = evtStartTm;
                 spdlog::debug("state: IN->IN ({}, {})", dura, evtCnt);
                 evtCnt = 0;
@@ -657,17 +679,8 @@ private:
                     spdlog::debug("state: POST->NONE ({}, {})", dura, evtCnt);
                     evtState = NONE;
                     evtCnt = 0;
-                    json p;
-                    p["type"] = EV_MSG_TYPE_AI_MOTION;
-                    p["gid"] = selfId;
-                    p["event"] = EV_MSG_EVENT_MOTION_END;
-                    auto tmp = chrono::duration_cast<chrono::seconds>(evtStartTmLast.time_since_epoch()).count() + (int)(detPara.post/2);
-                    p["ts"] = tmp - packetTsDelta;
+                    makeEvent(EV_MSG_EVENT_MOTION_END, packetTs);
                     spdlog::info("evmlmotion {} packet ts delta: {}", selfId, packetTsDelta);
-                    evtQueue->push(p.dump());
-                    if(evtQueue->size() > MAX_EVENT_QUEUE_SIZE*2) {
-                        evtQueue->pop();
-                    }
                 }
             }
             else {
