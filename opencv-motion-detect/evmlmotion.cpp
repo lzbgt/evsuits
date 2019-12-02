@@ -671,6 +671,7 @@ private:
                     makeEvent(EV_MSG_EVENT_MOTION_END, packetTs);
                     evtCnt = 0;
                     makeEvent(EV_MSG_EVENT_MOTION_START, packetTs);
+                    spdlog::warn("evmlmotion {} event video continued over {} minutes, force segmenting and continue", devSn, detPara.maxDuration);
                 }
                 evtStartTmLast = evtStartTm;
                 spdlog::debug("state: IN->IN ({}, {})", dura, evtCnt);
