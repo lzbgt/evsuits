@@ -66,7 +66,8 @@ private:
     AVCodecContext *pCodecCtx = nullptr;
     DetectParam detPara = {25, 500, -1, 3, 3, 30, 0.3, 10};
     EventState evtState = EventState::NONE;
-    chrono::system_clock::time_point evtStartTm, evtStartTmLast, evtStartTmOrig;
+    // chrono::system_clock::time_point evtStartTm, evtStartTmLast, evtStartTmOrig;
+    long long evtStartTm = 0, evtStartTmLast = 0, evtStartTmOrig = 0;
     queue<string> *evtQueue;
     int streamIdx = -1;
     json config;
@@ -568,8 +569,8 @@ private:
         matShow3 = gray.clone();
         matShow2 = origin;
 #endif
-
-        evtStartTm = chrono::system_clock::now();
+        // evtStartTm = chrono::system_clock::now();
+        evtStartTm = packetTs;
         // TODO: AVG
         // cv::accumulateWeighted(gray, avg, 0.5);
         cv::absdiff(gray, avg, thresh);
@@ -610,25 +611,30 @@ private:
         spdlog::debug("evmlmotion {} contours {} area {}, thresh {} hasEvent {}", selfId, cnts.size(), hasEvent? cv::contourArea(cnts[i]):0, detPara.area, hasEvent);
 
         // business logic for event
-        auto dura = chrono::duration_cast<chrono::seconds>(evtStartTm - evtStartTmLast).count();
+        // auto dura = chrono::duration_cast<chrono::seconds>(evtStartTm - evtStartTmLast).count();
+        long long dura = 0;
+        if(evtStartTmLast != 0) {
+            dura = evtStartTm - evtStartTmLast;
+        }
+
         switch(evtState) {
         case NONE: {
+            evtStartTmLast = evtStartTm;
+            evtStartTmOrig = evtStartTm;
             if(hasEvent) {
                 evtState = PRE;
                 spdlog::debug("state: NONE->PRE ({}, {})", dura, evtCnt);
-                evtStartTmLast = evtStartTm;
-                evtStartTmOrig = evtStartTm;
                 evtCnt = 0;
             }
             break;
         }
         case PRE: {
+            evtStartTmLast = evtStartTm;
+            evtStartTmOrig = evtStartTm;
             if(hasEvent) {
                 if(dura > detPara.pre /*&& evtCnt < detPara.pre*/) {
                     spdlog::debug("state: PRE->PRE ({}, {})", dura, evtCnt);
                     evtState = PRE;
-                    evtStartTmLast = evtStartTm;
-                    evtStartTmOrig = evtStartTm;
                     evtCnt = 0;
                 }
                 else if (true/*dura > detPara.pre && evtCnt >= detPara.pre*/) {
@@ -637,10 +643,9 @@ private:
                     spdlog::debug("state: PRE->IN ({}, {})", dura, evtCnt);
                     evtCnt = 0;
                     makeEvent(EV_MSG_EVENT_MOTION_START, packetTs);
-                    auto tmp =  chrono::duration_cast<chrono::seconds>(evtStartTmLast.time_since_epoch()).count();
-                    packetTsDelta = tmp - packetTs;
-                    evtStartTmLast = evtStartTm;
-                    evtStartTmOrig = evtStartTm;
+                    auto tmp =  chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                    packetTsDelta = tmp - evtStartTm;
+                    spdlog::info("evmlmotion {} packet ts delta: {}", selfId, packetTsDelta);
                 }
             }
             else {
@@ -661,11 +666,12 @@ private:
                 }
             }
             else {
-                if(chrono::duration_cast<chrono::seconds>(evtStartTmOrig - evtStartTm).count() > detPara.maxDuration) {
+                if( (evtStartTm - evtStartTmOrig) > (60 *detPara.maxDuration) ) {
                     evtStartTmOrig = evtStartTm;
                     makeEvent(EV_MSG_EVENT_MOTION_END, packetTs);
                     evtCnt = 0;
                     makeEvent(EV_MSG_EVENT_MOTION_START, packetTs);
+                    
                 }
                 evtStartTmLast = evtStartTm;
                 spdlog::debug("state: IN->IN ({}, {})", dura, evtCnt);
@@ -680,7 +686,6 @@ private:
                     evtState = NONE;
                     evtCnt = 0;
                     makeEvent(EV_MSG_EVENT_MOTION_END, packetTs);
-                    spdlog::info("evmlmotion {} packet ts delta: {}", selfId, packetTsDelta);
                 }
             }
             else {
