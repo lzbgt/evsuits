@@ -64,7 +64,7 @@ private:
     int iid;
     AVFormatContext *pAVFormatInput = nullptr;
     AVCodecContext *pCodecCtx = nullptr;
-    DetectParam detPara = {25, 500, -1, 3, 3, 30, 0.3, 10};
+    DetectParam detPara = {25, 500, -1, 3, 3, 30, 0.3, 25};
     EventState evtState = EventState::NONE;
     // chrono::system_clock::time_point evtStartTm, evtStartTmLast, evtStartTmOrig;
     long long evtStartTm = 0, evtStartTmLast = 0, evtStartTmOrig = 0;
@@ -619,19 +619,19 @@ private:
 
         switch(evtState) {
         case NONE: {
-            evtStartTmLast = evtStartTm;
-            evtStartTmOrig = evtStartTm;
             if(hasEvent) {
                 evtState = PRE;
                 spdlog::debug("state: NONE->PRE ({}, {})", dura, evtCnt);
                 evtCnt = 0;
+                evtStartTmLast = evtStartTm;
+                evtStartTmOrig = evtStartTm;
             }
             break;
         }
         case PRE: {
-            evtStartTmLast = evtStartTm;
-            evtStartTmOrig = evtStartTm;
             if(hasEvent) {
+                evtStartTmLast = evtStartTm;
+                evtStartTmOrig = evtStartTm;
                 if(dura > detPara.pre /*&& evtCnt < detPara.pre*/) {
                     spdlog::debug("state: PRE->PRE ({}, {})", dura, evtCnt);
                     evtState = PRE;
@@ -671,7 +671,6 @@ private:
                     makeEvent(EV_MSG_EVENT_MOTION_END, packetTs);
                     evtCnt = 0;
                     makeEvent(EV_MSG_EVENT_MOTION_START, packetTs);
-                    
                 }
                 evtStartTmLast = evtStartTm;
                 spdlog::debug("state: IN->IN ({}, {})", dura, evtCnt);
