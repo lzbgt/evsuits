@@ -865,7 +865,8 @@ protected:
         return ret;
     }
 
-    void reportUploadFailure(string modId, bool fail, string reason){
+    void reportUploadFailure(string modId, bool fail, string reason)
+    {
         string modifier = fail?"failed": "successfully";
         string status = fail?"active":"recover";
         string msg = fmt::format("evslicer {} {} upload videos: {}", selfId, modifier, reason);
@@ -1141,7 +1142,7 @@ public:
                                     }
                                 }
 
-                                if(resp.count("code") != 0 && resp["code"] == 0){
+                                if(resp.count("code") != 0 && resp["code"] == 0) {
                                     if(bUploadFailed) {
                                         bUploadFailed = false;
                                         reportUploadFailure(selfId, false, strResp);

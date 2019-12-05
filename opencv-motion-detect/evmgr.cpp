@@ -105,7 +105,8 @@ private:
 
             if(config.count("portRouter") != 0) {
                 portRouter = to_string(config["portRouter"]);
-            }else if(config.count("port-router") != 0) {
+            }
+            else if(config.count("port-router") != 0) {
                 portRouter = to_string(config["port-router"]);
             }
 

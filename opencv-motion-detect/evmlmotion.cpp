@@ -533,7 +533,8 @@ private:
         return 0;
     }
 
-    void makeEvent(string evtType, int ts) {
+    void makeEvent(string evtType, int ts)
+    {
         json p;
         p["type"] = EV_MSG_TYPE_AI_MOTION;
         p["gid"] = selfId;

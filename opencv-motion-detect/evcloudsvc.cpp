@@ -50,10 +50,11 @@ private:
     mutex eventQLock;
     thread thMsgProcessor;
 
-    int buildIpcStatus(json &conf) {
+    int buildIpcStatus(json &conf)
+    {
         int ret = 0;
         string msg;
-        for(auto &[k,v]: conf.items()){
+        for(auto &[k,v]: conf.items()) {
             try {
                 json &ipcs = v["ipcs"];
                 int ipcIdx = 0;
@@ -118,7 +119,8 @@ private:
                             if(shad["expected"].count(modGid) != 0) {
                                 //multiple mod with same class
                                 spdlog::error("{} configuration for ipc {} in dev {} having multiple modules {}. ignored that extra module", devSn, ipcSn, k, modGid);
-                            }else{
+                            }
+                            else {
                                 shad["expected"][modGid] = enabled;
                                 shad["current"][modGid] = false;
                             }
@@ -126,16 +128,17 @@ private:
 
                         }// for mod
                     } // for modules
-                    
+
                     ipcIdx++;
                 }// for ipc
 
                 // merge
                 auto &ipcStatus = peerData["ipcStatus"];
-                for(auto &[k,v]: shadowObj.items()){
+                for(auto &[k,v]: shadowObj.items()) {
                     if(ipcStatus.count(k) == 0) {
                         ipcStatus[k] = v;
-                    }else{
+                    }
+                    else {
                         auto &newCurr = v["current"];
                         auto &oldCurr = ipcStatus[k]["current"];
                         auto &newExpected = v["expected"];
@@ -143,7 +146,7 @@ private:
 
 
                         vector<string> modRemove;
-                        for(auto &[m,n]: oldCurr.items()){
+                        for(auto &[m,n]: oldCurr.items()) {
                             if(newCurr.count(m) == 0) {
                                 modRemove.push_back(m);
                             }
@@ -160,7 +163,7 @@ private:
                             }
                         }
 
-                        for(auto &[m,n]: newCurr.items()){
+                        for(auto &[m,n]: newCurr.items()) {
                             oldExpected[m] = newExpected[m];
                             if(oldCurr.count(m) == 0|| (oldCurr[m] == true && newExpected[m] == false)) {
                                 oldCurr[m] = newCurr[m];
@@ -349,7 +352,7 @@ private:
                                     shadowObj[ipcSn] = json();
                                 }
                                 auto &shad = shadowObj[ipcSn];
-    
+
                                 if(shad.count("mgrTerminal") == 0) {
                                     shad["mgrTerminal"] = json();
                                     shad["mgrTerminal"]["sn"] = k;
@@ -371,7 +374,8 @@ private:
                                 if(shad["expected"].count(modGid) != 0) {
                                     //multiple mod with same class
                                     spdlog::error("{} configuration for ipc {} in dev {} having multiple modules {}. ignored that extra module", devSn, ipcSn, k, modGid);
-                                }else{
+                                }
+                                else {
                                     shad["expected"][modGid] = enabled;
                                     shad["current"][modGid] = false;
                                 }
@@ -564,7 +568,7 @@ private:
             if(data["code"] != 0) {
                 json resp;
                 resp["target"] = selfId,
-                resp["metaType"] = EV_MSG_META_PONG;
+                                 resp["metaType"] = EV_MSG_META_PONG;
                 resp["data"] = data["msg"];
                 sendEdgeMsg(resp);
             }
@@ -574,10 +578,11 @@ private:
 
             // update ipcStatus
             if(peerData["mgr2ipc"].count(selfId) != 0) {
-                for(auto &[k,v]: peerData["mgr2ipc"][selfId].items()){
-                    if(peerData["ipcStatus"].count(k) == 0){
+                for(auto &[k,v]: peerData["mgr2ipc"][selfId].items()) {
+                    if(peerData["ipcStatus"].count(k) == 0) {
                         spdlog::error("{} no ipcStatus config for camera {}", devSn, k);
-                    }else{
+                    }
+                    else {
                         auto &ipcStatus = peerData["ipcStatus"][k];
                         if(ipcStatus["issues"].count(selfId) != 0) {
                             ipcStatus["issues"].erase(selfId);
@@ -589,12 +594,13 @@ private:
         }
         else {
             peerData["online"][selfId] = 0;
-            spdlog::warn("{} peer disconnected: {}", devSn, selfId); 
+            spdlog::warn("{} peer disconnected: {}", devSn, selfId);
             if(peerData["mgr2ipc"].count(selfId) != 0) {
-                for(auto &[k,v]: peerData["mgr2ipc"][selfId].items()){
-                    if(peerData["ipcStatus"].count(k) == 0){
+                for(auto &[k,v]: peerData["mgr2ipc"][selfId].items()) {
+                    if(peerData["ipcStatus"].count(k) == 0) {
                         spdlog::error("{} no ipcStatus config for camera {}", devSn, k);
-                    }else{
+                    }
+                    else {
                         auto &ipcStatus = peerData["ipcStatus"][k];
                         for(auto &[m,n]:ipcStatus["current"].items()) {
                             n = false;
@@ -609,7 +615,7 @@ private:
                         data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
                         data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                         data["status"] = "active";
-                        if(ipcStatus["issues"].count(selfId) == 0){
+                        if(ipcStatus["issues"].count(selfId) == 0) {
                             ipcStatus["issues"][selfId] = json();
                         }
                         ipcStatus["issues"][selfId][EV_MSG_REPORT_CATID_AVMGROFFLINE] = data;
@@ -618,11 +624,12 @@ private:
                             ipcStatus["lastNReports"].erase(0);
                         }
                     }
-                }  
-            }else{
+                }
+            }
+            else {
                 spdlog::error("{} no such dev {} for disconnect", devSn, selfId);
             }
-                    
+
         }
         return ret;
     }
@@ -635,31 +642,35 @@ private:
     // data["level"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
     // data["time"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
     // data["status"] = "active";
-    void processReportMsg(string peerId, json &data) {
+    void processReportMsg(string peerId, json &data)
+    {
         json modIds;
         if(data["modId"].is_array()) {
             modIds = data["modId"];
-        }else if(data["modId"].is_string()) {
+        }
+        else if(data["modId"].is_string()) {
             modIds.push_back(data["modId"].get<string>());
         }
 
-        for(const string &modId: modIds){
+        for(const string &modId: modIds) {
             if(peerData["mod2ipc"].count(modId) == 0) {
                 spdlog::error("{} received report from {} modId {} having no related ipc: {}", devSn, peerId, modId, data.dump());
-            }else{
+            }
+            else {
                 string ipcSn = peerData["mod2ipc"][modId];
                 string status = data["status"];
                 string catId = data["catId"];
-                string severity = data["level"]; 
+                string severity = data["level"];
                 data["modId"] = modId;
-                
+
                 if(peerData["ipcStatus"].count(ipcSn) != 0) {
                     auto &ipcStatus = peerData["ipcStatus"][ipcSn];
                     // log report, filter out ping
-                    if(catId == EV_MSG_REPORT_CATID_AVMODOFFLINE && status == "recover"){
+                    if(catId == EV_MSG_REPORT_CATID_AVMODOFFLINE && status == "recover") {
                         // nop
-                    }else{
-                        if(ipcStatus.count("lastNReports") == 0){
+                    }
+                    else {
+                        if(ipcStatus.count("lastNReports") == 0) {
                             ipcStatus["lastNReports"] = json();
                         }
                         ipcStatus["lastNReports"].push_back(data);
@@ -675,26 +686,28 @@ private:
                         }
 
                         if(ipcStatus["current"][modId] != ipcStatus["expected"][modId]) {
-                            if(ipcStatus["issues"].count(modId) == 0){
+                            if(ipcStatus["issues"].count(modId) == 0) {
                                 ipcStatus["issues"][modId] = json();
                             }
                             ipcStatus["issues"][modId][catId] = data;
                         }
-                    }else{
+                    }
+                    else {
                         // recover
-                        if(ipcStatus["issues"].count(modId) != 0 && 
-                            ipcStatus["issues"][modId].count(catId) != 0) {
-                            ipcStatus["issues"][modId].erase(catId); 
+                        if(ipcStatus["issues"].count(modId) != 0 &&
+                                ipcStatus["issues"][modId].count(catId) != 0) {
+                            ipcStatus["issues"][modId].erase(catId);
                             if(ipcStatus["issues"][modId].size() == 0) {
                                 ipcStatus["issues"].erase(modId);
-                            }   
+                            }
                         }
 
                         if(catId == EV_MSG_REPORT_CATID_AVFAILEDUPLOAD ||catId == EV_MSG_REPORT_CATID_AVMODOFFLINE || catId == EV_MSG_REPORT_CATID_AVWRITEPIPE || (modId.find("evpuller") != string::npos && catId == EV_MSG_REPORT_CATID_AVOPENINPUT)) {
                             ipcStatus["current"][modId] = true;
                         }
                     }
-                }else{
+                }
+                else {
                     spdlog::error("{} can't find ipc for report mod {}", devSn, modId);
                 }
             }
@@ -780,7 +793,7 @@ private:
         else {
             // message to evcloudsvc
             // spdlog::info("evcloudsvc {} subsystem report msg received: {}; {}; {}", devSn, zmqhelper::body2str(body[0]), zmqhelper::body2str(body[1]), zmqhelper::body2str(body[2]));
-            try{
+            try {
                 if(meta == "pong"||meta == "ping") {
                     if(meta=="ping") {
                         auto ts = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
@@ -793,7 +806,8 @@ private:
                             }
                             this->peerData["info"]["nocfg"][selfId]["lastConn"] = ts;
                             this->peerData["info"]["nocfg"][selfId]["ips"] = data["ips"];
-                        }else{
+                        }
+                        else {
                             if(this->peerData["info"]["nocfg"].count(selfId) != 0) {
                                 this->peerData["info"]["nocfg"].erase(selfId);
                             }
@@ -824,10 +838,10 @@ private:
                 }
                 else {
                     json jmeta = json::parse(meta);
-                    if(jmeta["type"] == EV_MSG_META_TYPE_REPORT) {     
+                    if(jmeta["type"] == EV_MSG_META_TYPE_REPORT) {
                         json data = json::parse(body2str(body[3]));
                         spdlog::warn("{} received report msg from {}: {}", devSn, selfId, data.dump());
-                        processReportMsg(selfId, data); 
+                        processReportMsg(selfId, data);
                     }
                     else {
                         spdlog::warn("{} received unknown msg {} from {}", devSn, meta, selfId);
@@ -1303,28 +1317,32 @@ public:
             string sn = req.get_param_value("sn");
             try {
                 if(!sn.empty() && sn != "all") {
-                    if(this->peerData["ipcStatus"].count(sn) != 0){
+                    if(this->peerData["ipcStatus"].count(sn) != 0) {
                         json j;
                         j[sn] = this->peerData["ipcStatus"][sn];
                         detail = j;
-                    }else{
+                    }
+                    else {
                         ret["msg"] = "ipc not found";
                         ret["code"] = 1;
                     }
-                }else if(sn == "all"){
-                    detail = this->peerData["ipcStatus"];   
-                }else{
+                }
+                else if(sn == "all") {
+                    detail = this->peerData["ipcStatus"];
+                }
+                else {
                     // nop
                 }
                 ret["data"]["detail"] = detail;
 
                 // get a copy to build summary
                 json ipcsData = this->peerData["ipcStatus"];
-                for(auto &[k,v]: ipcsData.items()){
+                for(auto &[k,v]: ipcsData.items()) {
                     json diff = json::diff(v["expected"], v["current"]);
                     if(diff.size() != 0) {
                         summary["problematic"].push_back(k);
-                    }else{
+                    }
+                    else {
                         summary["ok"].push_back(k);
                     }
                 }
@@ -1347,15 +1365,16 @@ public:
             json summary;
             json stats;
             vector<string> tags = {"E0C0", "E0C1", "E1C0", "E1C1"};
-            for(auto &[k,v]: ipcsData.items()){
+            for(auto &[k,v]: ipcsData.items()) {
                 json diff = json::diff(v["expected"], v["current"]);
                 if(diff.size() != 0) {
                     summary["problematic"].push_back(k);
-                }else{
+                }
+                else {
                     summary["ok"].push_back(k);
                 }
 
-                for(auto &[m, n]: v["current"].items()){
+                for(auto &[m, n]: v["current"].items()) {
                     auto x = v["expected"][m].get<bool>();
                     int c = n?1:0;
                     int e = x?1:0;

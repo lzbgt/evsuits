@@ -89,14 +89,15 @@ private:
         data["reports"] = json();
         json modIdsOnline;
         json modIdsOffline;
-        for(auto &[k,v]: this->peerData["status"].items()){
+        for(auto &[k,v]: this->peerData["status"].items()) {
             // ignore evmgr
             if(k.find("evmgr") != string::npos) {
                 continue;
             }
             if(v != 0 && v != -1 && v != 1 && v != 2) {
                 modIdsOnline.push_back(k);
-            }else{
+            }
+            else {
                 modIdsOffline.push_back(k);
             }
         }
@@ -133,7 +134,7 @@ private:
         }
 
         vector<string> modIdsLoopRecover;
-        for(auto &[k,v] :peerData["contConn"].items()){
+        for(auto &[k,v] :peerData["contConn"].items()) {
             if(v > 4) {
                 // not offline
                 if(peerData["status"].count(k) != 0 && peerData["status"][k] != -1 && peerData["status"][k] != 2 && peerData["status"][k] != 1) {
@@ -165,7 +166,7 @@ private:
         }
 
 
-        
+
         vector<vector<uint8_t> >body = {str2body("evcloudsvc:0:0"), str2body(EV_MSG_META_PING), str2body(data.dump())};
 
         ret = z_send_multiple(s, body);
@@ -460,7 +461,8 @@ private:
         return ret;
     }
 
-    void sendModConnectedMsg(json &modIds){
+    void sendModConnectedMsg(json &modIds)
+    {
         json meta;
         json data;
         string msg = fmt::format("evdaemon {} detects modules {} booted up", this->devSn, modIds.dump());
@@ -477,7 +479,8 @@ private:
     }
 
 
-    void sendModOfflineMsg(json &modIds){
+    void sendModOfflineMsg(json &modIds)
+    {
         json meta;
         json data;
         string msg = fmt::format("evdaemon {} detects modules {} offline", this->devSn, modIds.dump());
@@ -520,7 +523,7 @@ private:
                 if(selfId.find("evmgr") == string::npos) {
                     sendModConnectedMsg(modIds);
                 }
-                
+
                 if(this->peerData["tsLastConn"].count(selfId) == 0) {
                     this->peerData["tsLastConn"][selfId] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                 }
@@ -555,7 +558,7 @@ private:
                 if(selfId.find("evmgr") == string::npos) {
                     sendModOfflineMsg(modIds);
                 }
-                
+
                 if(peerData["status"][selfId] == 1 || peerData["status"][selfId] == 2) {
                     spdlog::warn("evdaemon {} refuse to start {}: it was asked to be stopped, and is removed from cluster config", this->devSn, selfId);
                 }
