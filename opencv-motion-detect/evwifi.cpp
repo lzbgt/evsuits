@@ -49,7 +49,7 @@ static char lightLed(bool on)
     }
 
     char buf[] = "0";
-    if(on) {
+    if(!on) {
         buf[0] = '1';
     }
 
