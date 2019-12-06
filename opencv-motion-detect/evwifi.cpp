@@ -72,6 +72,10 @@ void ledPattAPMode(){
     ledPattList.push_back("10");
 }
 
+void ledTryWifi(){
+    ledPattList.push_back("110");
+}
+
 void ledNoNetwork(){
     ledPattList.push_back("1000");
 }
@@ -232,6 +236,7 @@ private:
         }
         else if(mode == 2) {
             // station mode
+            ledTryWifi();
             this->mode = 2;
             spdlog::info("evwifi {} prepare to enter Station mode", devSn);
             if( wifiData["wifi"].count("ssid") == 0 ||  wifiData["wifi"]["ssid"].size() == 0 ||
