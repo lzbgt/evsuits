@@ -275,6 +275,7 @@ private:
                     ret["code"] = 2;
                     ret["msg"] = msg;
                     spdlog::error("evwifi {} {}", devSn, msg);
+                    ledNoNetwork();
                 }
             }
         }
@@ -342,9 +343,11 @@ public:
                         // having wifi ip
                         if(ip == "192.168.0.1") {
                             this->mode = 1;
+                            ledPattAPMode();
                         }
                         else if(!ssid.empty() && !password.empty()) {
                             this->mode = 2;
+                            ledPattDefault();
                         }
                         else {
                             spdlog::info("evwifi {} invalid state(having wifi IP but no config), switch to AP mode", this->devSn);
