@@ -73,7 +73,7 @@ void ledPattAPMode(){
 }
 
 void ledTryWifi(){
-    ledPattList.push_back("110");
+    ledPattList.push_back("1110");
 }
 
 void ledNoNetwork(){
