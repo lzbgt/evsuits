@@ -439,8 +439,8 @@ void hand_sig(int sig) {
         // clear SN && restart evdaemon
         system("rm -fr /opt/lvldb && systemctl restart evdaemon");
     }else if((key_event_msg.count == 1 && key_event_msg.time * 10 >= 10 * 1000)){
-        // restart evdaemon only
-        system("systemctl restart evdaemon");
+        // restart network and evdaemon
+        system("/sbin/ifdown -a; /sbin/ifup -a; systemctl restart evdaemon");
     }
 }
 #endif
