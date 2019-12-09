@@ -301,7 +301,7 @@ private:
 
         }else{
             // restart
-            spdlog::error("evslicer {} failed wait for avformatctx for {}s, restart", devSn, 30);
+            spdlog::error("evpusher {} failed wait for avformatctx for {}s, restart", devSn, 30);
             exit(1);
         }
 
