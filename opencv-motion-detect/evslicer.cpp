@@ -428,7 +428,14 @@ private:
             exit(1);
         }
         unique_lock<mutex> lk(this->mutMsg);
-        this->cvMsg.wait(lk, [this] {return this->gotFormat;});
+        bool got = this->cvMsg.wait_for(lk, 30s, [this] {return this->gotFormat;});
+        if(got){
+
+        }else{
+            // restart
+            spdlog::error("evpusher {} failed wait for avformatctx for {}s, restart", devSn, 30);
+            exit(1);
+        }
 
         return ret;
     }
