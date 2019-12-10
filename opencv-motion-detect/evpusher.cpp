@@ -257,7 +257,9 @@ private:
                             cvMsg.notify_one();
                         }
                         else {
-                            spdlog::warn("evpusher {} received avformatctx msg from {}, but already proceessed before, ignored. TODO: reinit", selfId, peerId);
+                            spdlog::warn("evpusher {} received avformatctx msg from {}, but already proceessed before, restarting", selfId, peerId);
+                            spdlog::error("evpusher {} restart since reinit", selfId);
+                            exit(0);
                         }
                         bProcessed = true;
                     }

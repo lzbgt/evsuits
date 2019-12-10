@@ -161,7 +161,9 @@ private:
                             cvMsg.notify_one();
                         }
                         else {
-                            spdlog::warn("evmlmotion {} received avformatctx msg from {}, but already proceessed before, ignored. TODO: reinit", selfId, peerId);
+                            spdlog::warn("evmlmotion {} received avformatctx msg from {}, but already proceessed before, restarting", selfId, peerId);
+                            spdlog::error("evmlmotion {} restart since reinit", selfId);
+                            exit(0);
                         }
                         bProcessed = true;
                     }

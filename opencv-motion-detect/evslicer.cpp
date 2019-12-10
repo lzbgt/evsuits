@@ -92,7 +92,9 @@ private:
                         spdlog::info("evslicer {} got avformat from {}", selfId, peerId);
                     }
                     else {
-                        spdlog::warn("evslicer {} received avformatctx msg from {}, but already proceessed before, ignored. TODO: reinit", selfId, peerId);
+                        spdlog::warn("evslicer {} received avformatctx msg from {}, but already proceessed before, restarting", selfId, peerId);
+                        spdlog::error("evpusher {} restart since reinit", selfId);
+                        exit(0);
                     }
                 }
                 else if(meta == EV_MSG_META_EVENT) {
