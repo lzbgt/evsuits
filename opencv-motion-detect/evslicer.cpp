@@ -93,7 +93,7 @@ private:
                     }
                     else {
                         spdlog::warn("evslicer {} received avformatctx msg from {}, but already proceessed before, restarting", selfId, peerId);
-                        spdlog::error("evpusher {} restart since reinit", selfId);
+                        spdlog::error("evslicer {} restart since reinit", selfId);
                         exit(0);
                     }
                 }
