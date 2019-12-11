@@ -464,6 +464,11 @@ public:
             drport = strEnv;
         }
 
+        strEnv = getenv("LOGV");
+        if(strEnv != nullptr) {
+            spdlog::set_level(spdlog::level::debug);
+        }
+
         strEnv = getenv("PEERID");
         if(strEnv != nullptr) {
             selfId = strEnv;
@@ -490,13 +495,17 @@ public:
             spdlog::error("evpuller {} failed to setup dealer {}", selfId, addr);
             exit(1);
         }
+        spdlog::info("evpuller {} setup dealer to daemon OK", selfId);
 
         ret = zmqhelper::recvConfigMsg(pDaemon, config, addr, selfId);
         if(ret != 0) {
             spdlog::error("evpuller {} failed to receive configration message {}", selfId, addr);
         }
-        init();
 
+        spdlog::info("evpuller {} receive config from daemon OK", selfId);
+        init();
+        spdlog::info("evpuller {} init OK", selfId);
+        
         thEdgeMsgHandler = thread([this] {
             while(true)
             {
