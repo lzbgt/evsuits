@@ -297,9 +297,9 @@ private:
                         z_send(pDealer, "evcloudsvc", meta.dump(), data.dump());
                         this_thread::sleep_for(chrono::seconds(10));
                     }
+                    this->peerData["status"][k] = 0;
                     ret = zmqhelper::forkSubsystem(devSn, k, portRouter, pid);
                     if(0 == ret) {
-                        this->peerData["status"][k] = 0;
                         this->peerData["pids"][k] = pid;
                         spdlog::info("evdaemon {} created subsystem {} (current status: {})", this->devSn, k, this->peerData["status"][k].get<int>());
                     }
@@ -339,9 +339,9 @@ private:
                 //
                 for(string &e : tmp) {
                     pid_t pid = 0;
+                    this->peerData["status"][e] = 0;
                     ret = zmqhelper::forkSubsystem(devSn, e, portRouter, pid);
                     if(0 == ret) {
-                        this->peerData["status"][e] = 0;
                         this->peerData["pids"][e] = pid;
                         spdlog::info("evdaemon {} created subsystem {}", devSn, e);
                     }
@@ -369,9 +369,9 @@ private:
 
                 for(auto &[k,v]: unkown.items()) {
                     pid_t pid = 0;
+                    this->peerData["status"][k] = 0;
                     ret = zmqhelper::forkSubsystem(devSn, k, portRouter, pid);
                     if(0 == ret) {
-                        this->peerData["status"][k] = 0;
                         this->peerData["pids"][k] = pid;
                         spdlog::info("evdaemon {} created subsystem {}", devSn, k);
                     }
@@ -422,9 +422,9 @@ private:
                         if(this->peerData["status"].count(k) == 0 || this->peerData["status"][k] == 0||this->peerData["status"][k] == -1||this->peerData["status"][k]== 1||this->peerData["status"][k] == 2) {
                             pid_t pid;
                             spdlog::info("evdaemon {} starting subsystem {}", this->devSn, k);
+                            this->peerData["status"][k] = 0;
                             ret = zmqhelper::forkSubsystem(devSn, k, portRouter, pid);
                             if(0 == ret) {
-                                this->peerData["status"][k] = 0;
                                 this->peerData["pids"][k] = pid;
                                 spdlog::info("evdaemon {} created subsystem {}", this->devSn, k);
                             }
