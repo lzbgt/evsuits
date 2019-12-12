@@ -378,10 +378,10 @@ togo_end:
         int ret = 0;
         int cnt = 0;
 
-        while(ret < 0 && cnt < 3) {
+        do{
             ret = getValue(info, LVDB_KEY_SN, fileName, _validateSn);
             cnt++;
-        }
+        }while(ret < 0 && cnt < 3);
 
         if(ret < 0) {
             // read from text config

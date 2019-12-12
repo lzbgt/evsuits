@@ -938,10 +938,14 @@ public:
         // get sn of device
         json info;
         try {
-            LVDB::getSn(info);
+            ret = LVDB::getSn(info);
         }
         catch(exception &e) {
             spdlog::error("evdaemon failed to get local info: {}", e.what());
+            ret = -1;
+        }
+        if(ret != 0) {
+            spdlog::error("fatal error: evdaemon failed to get/set SN");
             exit(1);
         }
 
