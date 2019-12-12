@@ -132,9 +132,6 @@ private:
     void scanWifi()
     {
         lock_guard<mutex> lk(mutMode);
-
-        /// get sn
-        LVDB::getSn(this->info);
         devSn = this->info["sn"];
 
         /// get wifi mac & IP
