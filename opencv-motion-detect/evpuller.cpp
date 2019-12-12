@@ -300,7 +300,7 @@ protected:
     {
         int ret = 0;
         AVDictionary * optsIn = nullptr;
-        av_dict_set_int(&optsIn, "stimeout", (int64_t)(1000* 1000 * 1), 0);
+        av_dict_set_int(&optsIn, "stimeout", (int64_t)(1000* 1000 * 3), 0);
         string proto = urlIn.substr(0,4);
         if(proto == "rtsp") {
             av_dict_set(&optsIn, "rtsp_transport", "tcp", 0);
@@ -505,7 +505,7 @@ public:
         spdlog::info("evpuller {} receive config from daemon OK", selfId);
         init();
         spdlog::info("evpuller {} init OK", selfId);
-        
+
         thEdgeMsgHandler = thread([this] {
             while(true)
             {
