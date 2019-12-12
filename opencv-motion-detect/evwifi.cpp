@@ -305,13 +305,14 @@ public:
         wifiData["wifi"]["ssids"] = json();
         //wifiData["wifi"]["ssid"] = string;
         //wifiData["wifi"]["password"] = string;
-
         monitor = thread([this]() {
+            int loopCnt = 0;
             while(1) {
                 /// background wifi scanning
-                if(this->mode != 2) {
+                if(this->mode != 2 && (loopCnt % 3600) == 0) {
                     this->scanWifi();
                 }
+                loopCnt++;
                 // TODO: flash light
                 string ip, ssid, password;
 
@@ -338,7 +339,7 @@ public:
                         else if(this->mode == 1) {
                             // maybe give it a try to switch into mode2 is not a bad idea
                             this->mode1Cnt++;
-                            if(!ssid.empty() && !password.empty() && mode1Cnt % 600) {
+                            if(!ssid.empty() && !password.empty() && (this->mode1Cnt % 600) == 0) {
                                 spdlog::info("evwifi {} give it a try to mode2, since configuration exists.", this->devSn);
                                 this->enableMode(2);
                             }
