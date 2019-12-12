@@ -376,7 +376,12 @@ togo_end:
 
     int getSn(json &info, string fileName){
         int ret = 0;
-        ret = getValue(info, LVDB_KEY_SN, fileName, _validateSn);
+        int cnt = 0;
+
+        while(ret < 0 && cnt < 3) {
+            ret = getValue(info, LVDB_KEY_SN, fileName, _validateSn);
+            cnt++;
+        }
 
         if(ret < 0) {
             // read from text config
