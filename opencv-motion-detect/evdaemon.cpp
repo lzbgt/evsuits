@@ -283,7 +283,7 @@ private:
                     if(this->peerData["contConn"].count(k) != 0 && this->peerData["contConn"][k] > 4) { // 4 times
                         json meta;
                         json data;
-                        string msg = fmt::format("evdaemon {} detects module {} is restarting frequently, slow down for 10s", this->devSn, k);
+                        string msg = fmt::format("evdaemon {} detects module {} is restarting frequently, should tabke action", this->devSn, k);
                         spdlog::error(msg);
                         data["msg"] = msg;
                         data["modId"] = k;
@@ -295,7 +295,7 @@ private:
                         meta["type"] = EV_MSG_META_TYPE_REPORT;
                         meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
                         z_send(pDealer, "evcloudsvc", meta.dump(), data.dump());
-                        this_thread::sleep_for(chrono::seconds(10));
+                        // this_thread::sleep_for(chrono::seconds(10));
                     }
                     this->peerData["status"][k] = 0;
                     ret = zmqhelper::forkSubsystem(devSn, k, portRouter, pid);
@@ -771,6 +771,8 @@ private:
                             if(v.size() == 1) {
                                 if(data["metaValue"] == EV_MSG_META_VALUE_CMD_REVESETUN) {
                                     manageReverseTun(true, data["data"]);
+                                }else if(data["metaValue"] == EV_MSG_META_VALUE_CMD_UPDATE){
+                                    //
                                 }
                                 else {
                                     spdlog::info("evdaemon {} received msg {} from cloud to itself. but has no implementation for", devSn, data.dump());

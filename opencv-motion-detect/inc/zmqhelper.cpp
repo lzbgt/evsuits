@@ -171,32 +171,32 @@ int setupDealer(void **ctx, void **s, string addr, string ident, int timeout) {
 /// @return 0 success, otherwise failed.
 int recvConfigMsg(void *s, json &config, string addr, string ident){
     bool bConfigGot = false;
-    auto t = thread([&](){
-        this_thread::sleep_for(chrono::seconds(5));
-        if(bConfigGot == false){
-            spdlog::error("{} failed receive config from evdaemon", ident);
-            exit(1);
-        }
-    });
-    auto v = zmqhelper::z_recv_multiple(s);
-    if(v.size() != 3) {
+    // auto t = thread([&](){
+    //     this_thread::sleep_for(chrono::seconds(5));
+    //     if(bConfigGot == false){
+    //         spdlog::error("{} failed receive config from evdaemon", ident);
+    //         exit(1);
+    //     }
+    // });
+    while(!bConfigGot) {
+        auto v = zmqhelper::z_recv_multiple(s);
+        if(v.size() != 3) {
             spdlog::error("{} received invalid msg from evdaemon", ident);
-            exit(1);
-    }
-
-    spdlog::debug("{} configuration msg received: {} {} {}", ident, body2str(v[0]), body2str(v[1]), body2str(v[2]));
-    try{
-        string sMeta = json::parse(body2str(v[1]))["type"];
-        if(sMeta != EV_MSG_META_CONFIG) {
-            throw StrException("meta type is:" + sMeta + ", but expecting " + EV_MSG_META_CONFIG);
+            continue;
         }
-        config = json::parse(body2str(v[2]));
-        bConfigGot = true;
-    }catch(exception &e) {
-        spdlog::error("{} invalid config msg from daemon {}, {}", ident, addr, e.what());
-    }
 
-    t.join();
+        spdlog::debug("{} configuration msg received: {} {} {}", ident, body2str(v[0]), body2str(v[1]), body2str(v[2]));
+        try{
+            string sMeta = json::parse(body2str(v[1]))["type"];
+            if(sMeta != EV_MSG_META_CONFIG) {
+                throw StrException("meta type is:" + sMeta + ", but expecting " + EV_MSG_META_CONFIG);
+            }
+            config = json::parse(body2str(v[2]));
+            bConfigGot = true;
+        }catch(exception &e) {
+            spdlog::error("{} invalid config msg from daemon {}, {}", ident, addr, e.what());
+        }
+    }
 
     return bConfigGot? 0: -1;
 }

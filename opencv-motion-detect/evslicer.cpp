@@ -72,7 +72,7 @@ private:
         int ret = 0;
         string peerId, meta;
         json data;
-        string msg;
+        string msg, metaType, metaValue;
         for(auto &b:v) {
             msg +=body2str(b) + ";";
         }
@@ -81,23 +81,35 @@ private:
         if(v.size() == 3) {
             try {
                 peerId = body2str(v[0]);
-                meta = json::parse(body2str(v[1]))["type"];
-                if(meta == EV_MSG_META_AVFORMATCTX) {
-                    lock_guard<mutex> lock(this->mutMsg);
-                    if(pAVFormatInput == nullptr) {
-                        pAVFormatInput = (AVFormatContext *)malloc(sizeof(AVFormatContext));
-                        AVFormatCtxSerializer::decode((char *)(v[2].data()), v[2].size(), pAVFormatInput);
-                        gotFormat = true;
-                        cvMsg.notify_one();
-                        spdlog::info("evslicer {} got avformat from {}", selfId, peerId);
-                    }
-                    else {
-                        spdlog::warn("evslicer {} received avformatctx msg from {}, but already proceessed before, restarting", selfId, peerId);
-                        spdlog::error("evslicer {} restart since reinit", selfId);
-                        exit(0);
+                json meta = json::parse(body2str(v[1]));
+                metaType = meta["type"];
+                if(meta.count("value") != 0) {
+                    metaValue = meta["value"];
+                }
+
+                // msg from cluster mgr
+                string clusterMgrId = this->mgrSn + ":evmgr:0";
+                if(peerId == clusterMgrId) {
+                    //
+                }
+                else if(peerId == pullerGid) {
+                    if(metaType == EV_MSG_META_AVFORMATCTX) {
+                        lock_guard<mutex> lock(this->mutMsg);
+                        if(pAVFormatInput == nullptr) {
+                            pAVFormatInput = (AVFormatContext *)malloc(sizeof(AVFormatContext));
+                            AVFormatCtxSerializer::decode((char *)(v[2].data()), v[2].size(), pAVFormatInput);
+                            gotFormat = true;
+                            cvMsg.notify_one();
+                            spdlog::info("evslicer {} got avformat from {}", selfId, peerId);
+                        }
+                        else {
+                            spdlog::warn("evslicer {} received avformatctx msg from {}, but already proceessed before, restarting", selfId, peerId);
+                            spdlog::error("evslicer {} restart since reinit", selfId);
+                            exit(0);
+                        }
                     }
                 }
-                else if(meta == EV_MSG_META_EVENT) {
+                else if(metaType == EV_MSG_META_EVENT) {
                     data = json::parse(body2str(v[2]));
 
                     /// evslicer has two msg interfaces to subsystems on edge side
@@ -107,7 +119,7 @@ private:
                         spdlog::info("evslicer {} received invalid msg from {}: {}", selfId, peerId, msg);
                     }
                     else {
-                        spdlog::info("evslicer {} received msg from {}, type = {}, data = {}", selfId, peerId, meta, data.dump());
+                        spdlog::info("evslicer {} received msg from {}, type = {}, data = {}", selfId, peerId, metaType, data.dump());
                         if(data["type"] == "event") {
                             lock_guard<mutex> lock(this->mutEvent);
                             eventQueue.push(data.dump());
