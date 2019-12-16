@@ -144,7 +144,7 @@ export default {
       return ((this.wifiData||{}).wifi||{}).ssid||"<无>";
     },
     alertType(){
-      if(this.connected){
+      if(this.connected && this.ip != "" && this.ip != "192.168.0.1"){
         return "alert-success";
       }else{
         return "alert-danger";
