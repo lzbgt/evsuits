@@ -1095,6 +1095,12 @@ public:
                                     // TODO: move to failed folder
                                     string dirDest = "/var/data/evsuits/failed_events/";
                                     system((string("mkdir -p ") + dirDest).c_str());
+                                    auto bfPer = sysutils::getDiskAvailPercent(dirDest);
+                                    if(bfPer >= 0.1) {
+                                    }else{
+                                        system((string("rm -fr ") + dirDest).c_str());
+                                    }
+
                                     json postArgs;
                                     postArgs["params"] = params;
                                     postArgs["fileNames"] = fileNames;

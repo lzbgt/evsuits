@@ -700,3 +700,16 @@ json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, st
     return ret;
 }
 } // cfgutils
+
+namespace sysutils {
+    double getDiskAvailPercent(string path) {
+        struct statvfs fiData;
+        if((statvfs(path.c_str(),&fiData)) < 0 ) {
+        } else {
+                double fper = fiData.f_bavail/double(fiData.f_blocks);
+                return fper;
+        }
+
+        return -1;
+    }
+}

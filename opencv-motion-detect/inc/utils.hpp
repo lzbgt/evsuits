@@ -16,6 +16,7 @@
 #include <string>
 #include <fstream>
 #include <fmt/format.h>
+#include <sys/statvfs.h>
 
 #define EVCLOUD_REQ_E_CONN -2
 #define EVCLOUD_REQ_E_DATA -3
@@ -48,6 +49,10 @@ namespace cfgutils {
    json *findModuleConfig(string peerId, json &data);
    json getModulesOperFromConfDiff(json& oldConfig, json &newConfig, json &diff, string sn);
    json getModuleGidsFromCfg(string sn, json &data, string caller = "", int ipcIdx = -1);
+}
+
+namespace sysutils{
+   double getDiskAvailPercent(string path);
 }
 
 struct StrException : public std::exception
