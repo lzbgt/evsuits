@@ -1,10 +1,9 @@
-// This code is written at BigVision LLC. It is based on the OpenCV project. It is subject to the license terms in the LICENSE file found in this distribution and at http://opencv.org/license.html
-
-// Usage example:  ./object_detection_yolo.out --video=run.mp4
-//                 ./object_detection_yolo.out --image=bird.jpg
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <tuple>
+#include "fs.h"
+#include "spdlog/spdlog.h"
 
 #ifdef _MY_HEADERS_
 #include <opencv2/core/types_c.h>
@@ -16,21 +15,9 @@
 #include <opencv2/opencv.hpp>
 #endif
 
-const char* keys =
-"{help h usage ? | | Usage examples: \n\t\t./PROG --image=dog.jpg \n\t\t./object_detection_yolo.out --video=run_sm.mp4}"
-"{image i        |<none>| input image   }"
-"{video v       |<none>| input video   }"
-;
 using namespace cv;
 using namespace dnn;
 using namespace std;
-
-// Initialize the parameters
-float confThreshold = 0.5; // Confidence threshold
-float nmsThreshold = 0.4;  // Non-maximum suppression threshold
-int inpWidth = 416;  // Width of network's input image
-int inpHeight = 416; // Height of network's input image
-vector<string> classes;
 
 // Remove the bounding boxes with low confidence using non-maxima suppression
 int postprocess(Mat& frame, const vector<Mat>& out);
@@ -41,234 +28,251 @@ void drawPred(int classId, float conf, int left, int top, int right, int bottom,
 // Get the names of the output layers
 vector<String> getOutputsNames(const Net& net);
 
-int main(int argc, char** argv)
-{
-    CommandLineParser parser(argc, argv, keys);
-    parser.about("Use this script to run object detection using YOLO3 in OpenCV.");
-    if (parser.has("help"))
-    {
-        parser.printMessage();
-        return 0;
-    }
-    // Load names of classes
-    string classesFile = "coco.names";
-    ifstream ifs(classesFile.c_str());
-    string line;
-    while (getline(ifs, line)) classes.push_back(line);
-    
-    // Give the configuration and weight files for the model
-    String modelConfiguration = "yolov3-tiny.cfg";
-    String modelWeights = "yolov3-tiny.weights";
 
-    // Load the network
-    Net net = readNetFromDarknet(modelConfiguration, modelWeights);
-    net.setPreferableBackend(DNN_BACKEND_OPENCV);
-    net.setPreferableTarget(DNN_TARGET_CPU);
-    
-    // Open a video file or an image file or a camera stream.
-    string str, outputFile;
+class YoloDectect {
+private:
+    // Initialize the parameters
+    const string selfId = "YoloDetector";
+    float confThreshold = 0.5; // Confidence threshold
+    float nmsThreshold = 0.4;  // Non-maximum suppression threshold
+    int inpWidth = 416;  // Width of network's input image
+    int inpHeight = 416; // Height of network's input image
+    vector<string> classes;
+    Net net;
+    Mat blob;
     VideoCapture cap;
     VideoWriter video;
-    Mat frame, blob;
-    
-    try {
-        outputFile = "yolo_out_cpp.avi";
-        if (parser.has("image"))
-        {
-            // Open the image file
-            str = parser.get<String>("image");
-            ifstream ifile(str);
-            if (!ifile) throw("error");
-            cap.open(str);
-            str.replace(str.end()-4, str.end(), "_yolo_out_cpp"); //.jpg
-            outputFile = str;
-        }
-        else if (parser.has("video"))
-        {
-            // Open the video file
-            str = parser.get<String>("video");
-            //ifstream ifile(str);
-            //if (!ifile) throw("error");
-            cout << "open video stream: " << str << endl;
-            if(!cap.open(str)){
-                cout << "failed to open video stream: " << str << endl;
-            }
-            str.replace(str.end()-4, str.end(), "_yolo_out_cpp.avi");
-        }else{
-            // Open the webcaom
-            cap.open(parser.get<int>("device"));
-        }
+    bool bOutputIsImg = false;
+    string outFileBase;
+    bool cmdStop = false;
 
-        cout << "output file: " << outputFile << endl;
-        
-    }
-    catch(...) {
-        cout << "Could not open the input image/video stream" << endl;
-        return 0;
-    }
-    
-    // Get the video writer initialized to save the output video
-    if (!parser.has("image")) {
-        video.open(outputFile, VideoWriter::fourcc('M','J','P','G'), 28, Size(cap.get(CAP_PROP_FRAME_WIDTH), cap.get(CAP_PROP_FRAME_HEIGHT)));
-    }
-    
-    // Create a window
-    //static const string kWinName = "Deep learning object detection in OpenCV";
-    //namedWindow(kWinName, WINDOW_NORMAL);
-
-    // Process frames.
-    long frameCnt = 0;
-    long detCnt = 0;
-    while (waitKey(1) < 0)
+    // Get the names of the output layers
+    vector<String> getOutputsNames(const Net& net)
     {
-        // get frame from the video
-        if(!cap.read(frame)) {
-            cout << "failed to open video stream" << endl;
-            break;
+        static vector<String> names;
+        if (names.empty()) {
+            //Get the indices of the output layers, i.e. the layers with unconnected outputs
+            vector<int> outLayers = net.getUnconnectedOutLayers();
+
+            //get the names of all the layers in the network
+            vector<String> layersNames = net.getLayerNames();
+
+            // Get the names of the output layers in names
+            names.resize(outLayers.size());
+            for (size_t i = 0; i < outLayers.size(); ++i)
+                names[i] = layersNames[outLayers[i] - 1];
+        }
+        return names;
+    }
+
+    // draw the predicted bounding box
+    void drawPred(int classId, float conf, int left, int top, int right, int bottom, Mat& frame)
+    {
+        // draw a rectangle displaying the bounding box
+        rectangle(frame, Point(left, top), Point(right, bottom), Scalar(255, 178, 50), 3);
+
+        //get the label for the class name and its confidence
+        string label = format("%.2f", conf);
+        if (!classes.empty()) {
+            CV_Assert(classId < (int)classes.size());
+            label = classes[classId] + ":" + label;
         }
 
-        cout << "frameCnt: " << frameCnt << endl;
-        frameCnt++;
+        // display the label at the top of the bounding box
+        int baseLine;
+        Size labelSize = getTextSize(label, FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseLine);
+        top = max(top, labelSize.height);
+        rectangle(frame, Point(left, top - round(1.5*labelSize.height)), Point(left + round(1.5*labelSize.width), top + baseLine), Scalar(255, 255, 255), FILLED);
+        putText(frame, label, Point(left, top), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(0,0,0),1);
+    }
 
-        // Stop the program if reached end of video
-        if (frame.empty()) {
-            cout << "Done processing !!!" << endl;
-            cout << "Output file is stored as " << outputFile << endl;
-            waitKey(3000);
-            break;
+    // post process
+    vector<tuple<string, double, Rect>> postprocess(Mat& frame, const vector<Mat>& outs)
+    {
+        vector<int> classIds;
+        vector<float> confidences;
+        vector<Rect> boxes;
+
+        for (size_t i = 0; i < outs.size(); ++i) {
+            // Scan through all the bounding boxes output from the network and keep only the
+            // ones with high confidence scores. Assign the box's class label as the class
+            // with the highest score for the box.
+            float* data = (float*)outs[i].data;
+            for (int j = 0; j < outs[i].rows; ++j, data += outs[i].cols) {
+                Mat scores = outs[i].row(j).colRange(5, outs[i].cols);
+                Point classIdPoint;
+                double confidence;
+                // Get the value and location of the maximum score
+                minMaxLoc(scores, 0, &confidence, 0, &classIdPoint);
+                if (confidence > confThreshold) {
+                    int centerX = (int)(data[0] * frame.cols);
+                    int centerY = (int)(data[1] * frame.rows);
+                    int width = (int)(data[2] * frame.cols);
+                    int height = (int)(data[3] * frame.rows);
+                    int left = centerX - width / 2;
+                    int top = centerY - height / 2;
+
+                    classIds.push_back(classIdPoint.x);
+                    confidences.push_back((float)confidence);
+                    boxes.push_back(Rect(left, top, width, height));
+                }
+            }
         }
+
+        // Perform non maximum suppression to eliminate redundant overlapping boxes with lower confidences
+        vector<int> indices;
+        NMSBoxes(boxes, confidences, confThreshold, nmsThreshold, indices);
+        vector<tuple<string, double, Rect>> ret;
+        for (size_t i = 0; i < indices.size(); ++i) {
+            int idx = indices[i];
+            Rect box = boxes[idx];
+            ret.push_back(tuple<string, double, Rect>(classes[classIds[idx]], confidences[idx], box));
+            drawPred(classIds[idx], confidences[idx], box.x, box.y, box.x + box.width, box.y + box.height, frame);
+        }
+
+        return ret;
+    }
+
+    //
+protected:
+
+    //
+public:
+    typedef int (*callback)(vector<tuple<string, double, Rect>>, Mat);
+    YoloDectect(string path = "")
+    {
+        if(path.empty()) {
+            path = ".";
+        }
+
+        // Load names of classes
+        string classesFile = path + "/coco.names";
+        // Give the configuration and weight files for the model
+        String modCfg = path + "/yolov3-tiny.cfg";
+        String modWeights = path + "/yolov3-tiny.weights";
+
+        if(!fs::exists(classesFile) || !fs::exists(modCfg) || !fs::exists(modWeights)) {
+            spdlog::error("{} failed to load configration files", selfId);
+            exit(1);
+        }
+
+        ifstream ifs(classesFile.c_str());
+        string line;
+        while (getline(ifs, line)) {
+            classes.push_back(line);
+        }
+
+        // Load the network
+        net = readNetFromDarknet(modCfg, modWeights);
+        net.setPreferableBackend(DNN_BACKEND_OPENCV);
+        net.setPreferableTarget(DNN_TARGET_CPU);
+    }
+
+    vector<tuple<string, double, Rect>> process(Mat &inFrame, Mat &outFrame)
+    {
+        if(inFrame.empty()) {
+            return vector<tuple<string, double, Rect>>();
+        }
+
         // Create a 4D blob from a frame.
-        blobFromImage(frame, blob, 1/255.0, cvSize(inpWidth, inpHeight), Scalar(0,0,0), true, false);
-        
+        blobFromImage(inFrame, blob, 1/255.0, cvSize(inpWidth, inpHeight), Scalar(0,0,0), true, false);
+
         //Sets the input to the network
         net.setInput(blob);
-        
+
         // Runs the forward pass to get output of the output layers
         vector<Mat> outs;
         net.forward(outs, getOutputsNames(net));
-        
+
         // Remove the bounding boxes with low confidence
-        int numDet = postprocess(frame, outs);
-        if(numDet == 0 && parser.has("image")) {
-            continue;
-        }
-        
-        // Put efficiency information. The function getPerfProfile returns the overall time for inference(t) and the timings for each of the layers(in layersTimes)
+        auto ret = postprocess(inFrame, outs);
+
+        // The function getPerfProfile returns the overall time for inference(t) and the timings for each of the layers(in layersTimes)
         vector<double> layersTimes;
         double freq = getTickFrequency() / 1000;
         double t = net.getPerfProfile(layersTimes) / freq;
-        string label = format("Inference time for a frame : %.2f ms", t);
-        putText(frame, label, Point(0, 15), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(255, 255, 0));
-        
-        // Write the frame with the detection boxes
-        Mat detectedFrame;
-        frame.convertTo(detectedFrame, CV_8U);
-        if (parser.has("image")) {
-            string ofname = outputFile + to_string(detCnt) + ".jpg";
-            imwrite(ofname, detectedFrame);
-            detCnt++;
+        spdlog::info("{} infer time: {} ms", selfId, t);
+
+        inFrame.convertTo(outFrame, CV_8U);
+        return ret;
+    }
+
+
+    int process(string inVideoUri, callback cb = nullptr, string outFile = "processed.jpg")
+    {
+        if(inVideoUri.empty()) {
+            inVideoUri = "0";
+        }
+
+        ghc::filesystem::path p(outFile);
+        auto dir = p.parent_path();
+
+        if((inVideoUri.substr(inVideoUri.find_last_of(".") + 1) == "jpg")) {
+            bOutputIsImg = true;
+            outFileBase = string(dir / p.stem());
         }
         else {
-            video.write(detectedFrame);
-        }    
-        //imshow(kWinName, frame);
-    }
-    
-    cap.release();
-    if (!parser.has("image")) video.release();
-
-    return 0;
-}
-
-// Remove the bounding boxes with low confidence using non-maxima suppression
-int postprocess(Mat& frame, const vector<Mat>& outs)
-{
-    vector<int> classIds;
-    vector<float> confidences;
-    vector<Rect> boxes;
-    
-    for (size_t i = 0; i < outs.size(); ++i)
-    {
-        // Scan through all the bounding boxes output from the network and keep only the
-        // ones with high confidence scores. Assign the box's class label as the class
-        // with the highest score for the box.
-        float* data = (float*)outs[i].data;
-        for (int j = 0; j < outs[i].rows; ++j, data += outs[i].cols)
-        {
-            Mat scores = outs[i].row(j).colRange(5, outs[i].cols);
-            Point classIdPoint;
-            double confidence;
-            // Get the value and location of the maximum score
-            minMaxLoc(scores, 0, &confidence, 0, &classIdPoint);
-            if (confidence > confThreshold)
-            {
-                int centerX = (int)(data[0] * frame.cols);
-                int centerY = (int)(data[1] * frame.rows);
-                int width = (int)(data[2] * frame.cols);
-                int height = (int)(data[3] * frame.rows);
-                int left = centerX - width / 2;
-                int top = centerY - height / 2;
-                
-                classIds.push_back(classIdPoint.x);
-                confidences.push_back((float)confidence);
-                boxes.push_back(Rect(left, top, width, height));
+            bOutputIsImg = false;
+            if(!cap.open(inVideoUri)) {
+                spdlog::error("{} failed to open input video {}", selfId, inVideoUri);
+                return -1;
+            }
+            if(!video.open(outFile, VideoWriter::fourcc('M','J','P','G'), 28, Size(cap.get(CAP_PROP_FRAME_WIDTH), cap.get(CAP_PROP_FRAME_HEIGHT)))) {
+                spdlog::error("{} failed to open output video {}", selfId, inVideoUri);
+                return -1;
             }
         }
-    }
-    
-    // Perform non maximum suppression to eliminate redundant overlapping boxes with
-    // lower confidences
-    vector<int> indices;
-    NMSBoxes(boxes, confidences, confThreshold, nmsThreshold, indices);
-    for (size_t i = 0; i < indices.size(); ++i)
-    {
-        int idx = indices[i];
-        Rect box = boxes[idx];
-        drawPred(classIds[idx], confidences[idx], box.x, box.y,
-                 box.x + box.width, box.y + box.height, frame);
-    }
 
-    return indices.size();
-}
+        long frameCnt = 0;
+        long detCnt = 0;
+        Mat frame, outFrame;
+        while (waitKey(1) < 0) {
+            // get frame from the video
+            if(cmdStop) {
+                break;
+            }
 
-// Draw the predicted bounding box
-void drawPred(int classId, float conf, int left, int top, int right, int bottom, Mat& frame)
+            if(!cap.read(frame)) {
+                spdlog::error("{} failed to read frame from {}", selfId, inVideoUri);
+                break;
+            }
+
+            frameCnt++;
+
+            // Stop the program if reached end of video
+            if (frame.empty()) {
+                continue;
+            }
+            vector<tuple<string, double, Rect>> ret = process(frame, outFrame);
+            if(ret.size() == 0 && bOutputIsImg) {
+                // no detection
+                continue;
+            }
+
+            if (bOutputIsImg) {
+                string ofname = outFileBase + to_string(detCnt) + ".jpg";
+                imwrite(ofname, outFrame);
+                detCnt++;
+            }
+            else {
+                video.write(outFrame);
+            }
+
+            
+        }
+
+        cap.release();
+        if(!bOutputIsImg) video.release();
+
+        return 0;
+    }
+};
+
+
+int main(int argc, char** argv)
 {
-    //Draw a rectangle displaying the bounding box
-    rectangle(frame, Point(left, top), Point(right, bottom), Scalar(255, 178, 50), 3);
-    
-    //Get the label for the class name and its confidence
-    string label = format("%.2f", conf);
-    if (!classes.empty())
-    {
-        CV_Assert(classId < (int)classes.size());
-        label = classes[classId] + ":" + label;
-    }
-    
-    //Display the label at the top of the bounding box
-    int baseLine;
-    Size labelSize = getTextSize(label, FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseLine);
-    top = max(top, labelSize.height);
-    rectangle(frame, Point(left, top - round(1.5*labelSize.height)), Point(left + round(1.5*labelSize.width), top + baseLine), Scalar(255, 255, 255), FILLED);
-    putText(frame, label, Point(left, top), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(0,0,0),1);
-}
+    YoloDectect det;
+    det.process("rtsp://admin:ZQEAAI@192.168.0.101:554/h264/ch1/main/av_stream");
 
-// Get the names of the output layers
-vector<String> getOutputsNames(const Net& net)
-{
-    static vector<String> names;
-    if (names.empty())
-    {
-        //Get the indices of the output layers, i.e. the layers with unconnected outputs
-        vector<int> outLayers = net.getUnconnectedOutLayers();
-        
-        //get the names of all the layers in the network
-        vector<String> layersNames = net.getLayerNames();
-        
-        // Get the names of the output layers in names
-        names.resize(outLayers.size());
-        for (size_t i = 0; i < outLayers.size(); ++i)
-        names[i] = layersNames[outLayers[i] - 1];
-    }
-    return names;
+    return 0;
 }
