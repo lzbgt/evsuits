@@ -3,7 +3,7 @@ CFLAGS = -g -Wall -std=c++11
 SRCS = main.cpp
 PROG = main
 
-OPENCV = `pkg-config opencv --cflags --libs`
+OPENCV = `pkg-config opencv4 --cflags --libs`
 LIBS = $(OPENCV)
 
 $(PROG):$(SRCS)

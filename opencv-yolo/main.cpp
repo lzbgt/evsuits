@@ -33,7 +33,7 @@ int inpHeight = 416; // Height of network's input image
 vector<string> classes;
 
 // Remove the bounding boxes with low confidence using non-maxima suppression
-void postprocess(Mat& frame, const vector<Mat>& out);
+int postprocess(Mat& frame, const vector<Mat>& out);
 
 // Draw the predicted bounding box
 void drawPred(int classId, float conf, int left, int top, int right, int bottom, Mat& frame);
@@ -80,8 +80,8 @@ int main(int argc, char** argv)
             ifstream ifile(str);
             if (!ifile) throw("error");
             cap.open(str);
-            //str.replace(str.end()-4, str.end(), "_yolo_out_cpp.jpg");
-            //outputFile = str;
+            str.replace(str.end()-4, str.end(), "_yolo_out_cpp"); //.jpg
+            outputFile = str;
         }
         else if (parser.has("video"))
         {
@@ -93,11 +93,12 @@ int main(int argc, char** argv)
             if(!cap.open(str)){
                 cout << "failed to open video stream: " << str << endl;
             }
-            //str.replace(str.end()-4, str.end(), "_yolo_out_cpp.avi");
-            //outputFile = str;
+            str.replace(str.end()-4, str.end(), "_yolo_out_cpp.avi");
+        }else{
+            // Open the webcaom
+            cap.open(parser.get<int>("device"));
         }
-        // Open the webcaom
-        else cap.open(parser.get<int>("device"));
+
         cout << "output file: " << outputFile << endl;
         
     }
@@ -117,7 +118,7 @@ int main(int argc, char** argv)
 
     // Process frames.
     long frameCnt = 0;
-    
+    long detCnt = 0;
     while (waitKey(1) < 0)
     {
         // get frame from the video
@@ -147,7 +148,10 @@ int main(int argc, char** argv)
         net.forward(outs, getOutputsNames(net));
         
         // Remove the bounding boxes with low confidence
-        postprocess(frame, outs);
+        int numDet = postprocess(frame, outs);
+        if(numDet == 0 && parser.has("image")) {
+            continue;
+        }
         
         // Put efficiency information. The function getPerfProfile returns the overall time for inference(t) and the timings for each of the layers(in layersTimes)
         vector<double> layersTimes;
@@ -159,7 +163,11 @@ int main(int argc, char** argv)
         // Write the frame with the detection boxes
         Mat detectedFrame;
         frame.convertTo(detectedFrame, CV_8U);
-        if (parser.has("image")) imwrite(outputFile, detectedFrame);
+        if (parser.has("image")) {
+            string ofname = outputFile + to_string(detCnt) + ".jpg";
+            imwrite(ofname, detectedFrame);
+            detCnt++;
+        }
         else {
             video.write(detectedFrame);
         }    
@@ -173,7 +181,7 @@ int main(int argc, char** argv)
 }
 
 // Remove the bounding boxes with low confidence using non-maxima suppression
-void postprocess(Mat& frame, const vector<Mat>& outs)
+int postprocess(Mat& frame, const vector<Mat>& outs)
 {
     vector<int> classIds;
     vector<float> confidences;
@@ -219,6 +227,8 @@ void postprocess(Mat& frame, const vector<Mat>& outs)
         drawPred(classIds[idx], confidences[idx], box.x, box.y,
                  box.x + box.width, box.y + box.height, frame);
     }
+
+    return indices.size();
 }
 
 // Draw the predicted bounding box
