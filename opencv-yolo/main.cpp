@@ -166,6 +166,7 @@ public:
         net = readNetFromDarknet(modCfg, modWeights);
         net.setPreferableBackend(DNN_BACKEND_OPENCV);
         net.setPreferableTarget(DNN_TARGET_CPU);
+        spdlog::info("{} inited", selfId);
     }
 
     vector<tuple<string, double, Rect>> process(Mat &inFrame, Mat &outFrame)
@@ -200,6 +201,7 @@ public:
 
     int process(string inVideoUri, callback cb = nullptr, string outFile = "processed.jpg")
     {
+
         if(inVideoUri.empty()) {
             inVideoUri = "0";
         }
@@ -207,21 +209,25 @@ public:
         ghc::filesystem::path p(outFile);
         auto dir = p.parent_path();
 
-        if((inVideoUri.substr(inVideoUri.find_last_of(".") + 1) == "jpg")) {
+        if((outFile.substr(outFile.find_last_of(".") + 1) == "jpg")) {
             bOutputIsImg = true;
             outFileBase = string(dir / p.stem());
+            spdlog::info("{} outFileBase {}", selfId, outFileBase);
         }
         else {
             bOutputIsImg = false;
-            if(!cap.open(inVideoUri)) {
-                spdlog::error("{} failed to open input video {}", selfId, inVideoUri);
-                return -1;
-            }
             if(!video.open(outFile, VideoWriter::fourcc('M','J','P','G'), 28, Size(cap.get(CAP_PROP_FRAME_WIDTH), cap.get(CAP_PROP_FRAME_HEIGHT)))) {
                 spdlog::error("{} failed to open output video {}", selfId, inVideoUri);
                 return -1;
             }
         }
+
+        if(!cap.open(inVideoUri)) {
+            spdlog::error("{} failed to open input video {}", selfId, inVideoUri);
+            return -1;
+        }
+
+        spdlog::info("{} try to process video {} to {}", selfId, inVideoUri, outFile);
 
         long frameCnt = 0;
         long detCnt = 0;
@@ -243,9 +249,11 @@ public:
             if (frame.empty()) {
                 continue;
             }
+            
             vector<tuple<string, double, Rect>> ret = process(frame, outFrame);
             if(ret.size() == 0 && bOutputIsImg) {
                 // no detection
+                spdlog::info("{} no valid object detected skip saving image", selfId);
                 continue;
             }
 
@@ -258,7 +266,6 @@ public:
                 video.write(outFrame);
             }
 
-            
         }
 
         cap.release();
@@ -267,7 +274,6 @@ public:
         return 0;
     }
 };
-
 
 int main(int argc, char** argv)
 {
