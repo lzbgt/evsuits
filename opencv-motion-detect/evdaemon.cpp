@@ -952,6 +952,8 @@ public:
         }
 
         spdlog::info("evdaemon boot \n{}",info.dump());
+        string cmd = "hostnamectl set-hostname " + info["sn"].get<string>();
+        system(cmd.c_str());
 
         auto ipAddrs = netutils::getIps();
         if(ipAddrs.size() == 0) {
