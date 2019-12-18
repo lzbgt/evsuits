@@ -19,16 +19,6 @@ using namespace cv;
 using namespace dnn;
 using namespace std;
 
-// Remove the bounding boxes with low confidence using non-maxima suppression
-int postprocess(Mat& frame, const vector<Mat>& out);
-
-// Draw the predicted bounding box
-void drawPred(int classId, float conf, int left, int top, int right, int bottom, Mat& frame);
-
-// Get the names of the output layers
-vector<String> getOutputsNames(const Net& net);
-
-
 class YoloDectect {
 private:
     // Initialize the parameters
@@ -138,7 +128,7 @@ protected:
 
     //
 public:
-    typedef int (*callback)(vector<tuple<string, double, Rect>>, Mat);
+    typedef int (*callback)(vector<tuple<string, double, Rect>>&, Mat);
     YoloDectect(string path = "")
     {
         if(path.empty()) {
@@ -198,11 +188,15 @@ public:
         return ret;
     }
 
-
-    int process(string inVideoUri, callback cb = nullptr, string outFile = "processed.jpg")
+    int process(string inVideoUri, string outFile = "processed.jpg", callback cb = nullptr)
     {
         if(inVideoUri.empty()) {
             inVideoUri = "0";
+        }
+
+        if(!cap.open(inVideoUri)) {
+            spdlog::error("{} failed to open input video {}", selfId, inVideoUri);
+            return -1;
         }
 
         ghc::filesystem::path p(outFile);
@@ -216,14 +210,9 @@ public:
         else {
             bOutputIsImg = false;
             if(!video.open(outFile, VideoWriter::fourcc('M','J','P','G'), 28, Size(cap.get(CAP_PROP_FRAME_WIDTH), cap.get(CAP_PROP_FRAME_HEIGHT)))) {
-                spdlog::error("{} failed to open output video {}", selfId, inVideoUri);
+                spdlog::error("{} failed to open output video {}", selfId, outFile);
                 return -1;
             }
-        }
-
-        if(!cap.open(inVideoUri)) {
-            spdlog::error("{} failed to open input video {}", selfId, inVideoUri);
-            return -1;
         }
 
         spdlog::info("{} try to process video {} to {}", selfId, inVideoUri, outFile);
@@ -250,24 +239,27 @@ public:
             }
 
             vector<tuple<string, double, Rect>> ret = process(frame, outFrame);
-            if(ret.size() == 0 && bOutputIsImg) {
-                // no detection
-                if(skipCnt % 100 == 0) {
-                    spdlog::info("{} no valid object detected skipped frame count {}", selfId, skipCnt);
+            if(cb == nullptr) {
+                if(ret.size() == 0 && bOutputIsImg) {
+                    // no detection
+                    if(skipCnt % 100 == 0) {
+                        spdlog::info("{} no valid object detected skipped frame count {}", selfId, skipCnt);
+                    }
+                    skipCnt++;    
+                    continue;
                 }
-                skipCnt++;    
-                continue;
-            }
 
-            if (bOutputIsImg) {
-                string ofname = outFileBase + to_string(detCnt) + ".jpg";
-                imwrite(ofname, outFrame);
-                detCnt++;
+                if (bOutputIsImg) {
+                    string ofname = outFileBase + to_string(detCnt) + ".jpg";
+                    imwrite(ofname, outFrame);
+                    detCnt++;
+                }
+                else {
+                    video.write(outFrame);
+                }
+            }else{
+                cb(ret, outFrame);
             }
-            else {
-                video.write(outFrame);
-            }
-
         }
 
         cap.release();
@@ -280,7 +272,7 @@ public:
 int main(int argc, char** argv)
 {
     YoloDectect det;
-    det.process("rtsp://admin:ZQEAAI@192.168.0.101:554/h264/ch1/main/av_stream");
+    det.process("rtsp://admin:ZQEAAI@192.168.0.101:554/h264/ch1/main/av_stream", "a.avi");
 
     return 0;
 }
