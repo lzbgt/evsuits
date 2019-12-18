@@ -201,7 +201,6 @@ public:
 
     int process(string inVideoUri, callback cb = nullptr, string outFile = "processed.jpg")
     {
-
         if(inVideoUri.empty()) {
             inVideoUri = "0";
         }
@@ -230,7 +229,7 @@ public:
         spdlog::info("{} try to process video {} to {}", selfId, inVideoUri, outFile);
 
         long frameCnt = 0;
-        long detCnt = 0;
+        long detCnt = 0, skipCnt = 0;
         Mat frame, outFrame;
         while (waitKey(1) < 0) {
             // get frame from the video
@@ -249,11 +248,14 @@ public:
             if (frame.empty()) {
                 continue;
             }
-            
+
             vector<tuple<string, double, Rect>> ret = process(frame, outFrame);
             if(ret.size() == 0 && bOutputIsImg) {
                 // no detection
-                spdlog::info("{} no valid object detected skip saving image", selfId);
+                if(skipCnt % 100 == 0) {
+                    spdlog::info("{} no valid object detected skipped frame count {}", selfId, skipCnt);
+                }
+                skipCnt++;    
                 continue;
             }
 
