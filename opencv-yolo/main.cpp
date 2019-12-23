@@ -35,9 +35,6 @@ private:
     bool bOutputIsImg = false;
     string outFileBase;
     bool cmdStop = false;
-    unsigned int wrapNum = 0;
-    unsigned long numFrameProcessed = 0;
-    unsigned int numLogSkip = 0;
 
     // Get the names of the output layers
     vector<String> getOutputsNames(const Net& net)
@@ -80,7 +77,7 @@ private:
     }
 
     // post process
-    vector<tuple<string, double, Rect>> postprocess(Mat& frame, const vector<Mat>& outs, bool bModify = true)
+    vector<tuple<string, double, Rect>> postprocess(Mat& frame, const vector<Mat>& outs)
     {
         vector<int> classIds;
         vector<float> confidences;
@@ -120,7 +117,6 @@ private:
             int idx = indices[i];
             Rect box = boxes[idx];
             ret.push_back(tuple<string, double, Rect>(classes[classIds[idx]], confidences[idx], box));
-            if(bModify)
             drawPred(classIds[idx], confidences[idx], box.x, box.y, box.x + box.width, box.y + box.height, frame);
         }
 
@@ -133,15 +129,12 @@ protected:
     //
 public:
     typedef int (*callback)(vector<tuple<string, double, Rect>>&, Mat);
-    YoloDectect(string path = "", unsigned int _wrapNum = 10, unsigned int _numLogSkip = 380)
+    YoloDectect(string path = "")
     {
         if(path.empty()) {
             path = ".";
         }
 
-        wrapNum = _wrapNum;
-        numLogSkip = _numLogSkip;
-        
         // Load names of classes
         string classesFile = path + "/coco.names";
         // Give the configuration and weight files for the model
@@ -166,7 +159,7 @@ public:
         spdlog::info("{} inited", selfId);
     }
 
-    vector<tuple<string, double, Rect>> process(Mat &inFrame, Mat* pOutFrame)
+    vector<tuple<string, double, Rect>> process(Mat &inFrame, Mat &outFrame)
     {
         if(inFrame.empty()) {
             return vector<tuple<string, double, Rect>>();
@@ -183,20 +176,15 @@ public:
         net.forward(outs, getOutputsNames(net));
 
         // Remove the bounding boxes with low confidence
-        auto ret = postprocess(inFrame, outs, true);
+        auto ret = postprocess(inFrame, outs);
 
         // The function getPerfProfile returns the overall time for inference(t) and the timings for each of the layers(in layersTimes)
         vector<double> layersTimes;
-        if(numLogSkip == 0 || numFrameProcessed % numLogSkip == 0) {
-            double freq = getTickFrequency() / 1000;
-            double t = net.getPerfProfile(layersTimes) / freq;
-            spdlog::info("{} infer time: {} ms", selfId, t);
-        }
-        if(pOutFrame != nullptr){
-            inFrame.convertTo(*pOutFrame, CV_8U);
-        }
-        
-        numFrameProcessed++;
+        double freq = getTickFrequency() / 1000;
+        double t = net.getPerfProfile(layersTimes) / freq;
+        spdlog::info("{} infer time: {} ms", selfId, t);
+
+        inFrame.convertTo(outFrame, CV_8U);
         return ret;
     }
 
@@ -229,8 +217,8 @@ public:
 
         spdlog::info("{} try to process video {} to {}", selfId, inVideoUri, outFile);
 
-        unsigned long frameCnt = 0;
-        unsigned long detCnt = 0, skipCnt = 0;
+        long frameCnt = 0;
+        long detCnt = 0, skipCnt = 0;
         Mat frame, outFrame;
         while (waitKey(1) < 0) {
             // get frame from the video
@@ -250,11 +238,11 @@ public:
                 continue;
             }
 
-            vector<tuple<string, double, Rect>> ret = process(frame, &outFrame);
+            vector<tuple<string, double, Rect>> ret = process(frame, outFrame);
             if(cb == nullptr) {
                 if(ret.size() == 0 && bOutputIsImg) {
                     // no detection
-                    if(numLogSkip == 0|| skipCnt % numLogSkip == 0) {
+                    if(skipCnt % 100 == 0) {
                         spdlog::info("{} no valid object detected skipped frame count {}", selfId, skipCnt);
                     }
                     skipCnt++;    
@@ -262,10 +250,6 @@ public:
                 }
 
                 if (bOutputIsImg) {
-                    if(wrapNum > 0) {
-                        detCnt = detCnt % wrapNum;
-                    }
-
                     string ofname = outFileBase + to_string(detCnt) + ".jpg";
                     imwrite(ofname, outFrame);
                     detCnt++;
@@ -288,7 +272,7 @@ public:
 int main(int argc, char** argv)
 {
     YoloDectect det;
-    det.process("rtsp://admin:ZQEAAI@192.168.0.101:554/h264/ch1/main/av_stream", "a.jpg");
+    det.process("rtsp://admin:ZQEAAI@192.168.0.101:554/h264/ch1/main/av_stream", "a.avi");
 
     return 0;
 }

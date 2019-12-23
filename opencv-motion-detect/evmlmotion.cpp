@@ -23,7 +23,6 @@ update: 2019/09/10
 #include "common.hpp"
 #include "avcvhelpers.hpp"
 #include "database.h"
-#include "yolo.hpp"
 
 using namespace std;
 using namespace zmqhelper;
@@ -82,7 +81,6 @@ private:
     long long packetTsDelta = 0;
     float pps = 0;
     int pktLag = 0;
-    unique_ptr<YoloDectect> pYolo = nullptr;
     //
 
     int handleCloudMsg(vector<vector<uint8_t> > v)
@@ -360,9 +358,6 @@ private:
             }
             //ping
             ret = ping();
-
-            //
-            pYolo = unique_ptr<YoloDectect>(new YoloDectect("../opencv-yolo"));
         }
         catch(exception &e) {
             spdlog::error("evmlmotion {} exception in EvPuller.init {:s} retrying", selfId, e.what());
@@ -564,26 +559,10 @@ private:
     void detectMotion(AVPixelFormat format,AVFrame *pFrame, bool detect = true)
     {
         static bool first = true;
-        static unsigned long detCnt = 0;
         static cv::Mat avg;
         static vector<vector<cv::Point> > cnts;
         cv::Mat origin, gray, thresh;
         avcvhelpers::frame2mat(format, pFrame, origin);
-        if(detCnt % 6 == 0) {
-            auto objDetRes = pYolo->process(origin, nullptr);
-            if(objDetRes.size() > 0) {
-                string s = fmt::format("{} {} object detected:\n", selfId, objDetRes.size());
-                int i = 0;
-                for(auto &[n, c, _]: objDetRes) {
-                    i++;
-                    s += fmt::format("\t\tobj {}:{}, prob: {}, x:{}, y:{}, w: {}, h:{}\n", i, n, c, _.x, _.y, _.width, _.height);
-                }
-
-                spdlog::info(s);
-            }
-        }
-        detCnt++;
-        
         cv::resize(origin, gray, cv::Size(FRAME_SIZE,FRAME_SIZE));
         cv::cvtColor(gray, thresh, cv::COLOR_BGR2GRAY);
         float fent = avcvhelpers::getEntropy(thresh);
