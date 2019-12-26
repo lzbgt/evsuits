@@ -28,8 +28,8 @@ public:
 private:
     // Initialize the parameters
     const string selfId = "YoloDetector";
-    float confThreshold = 0.5; // Confidence threshold
-    float nmsThreshold = 0.4;  // Non-maximum suppression threshold
+    float confThreshold = 0.1; // Confidence threshold
+    float nmsThreshold = 0.2;  // Non-maximum suppression threshold
     int inpWidth = 416;  // Width of network's input image
     int inpHeight = 416; // Height of network's input image
     vector<string> classes;
@@ -38,10 +38,14 @@ private:
     VideoCapture cap;
     VideoWriter video;
     bool bOutputIsImg = false;
+    bool bInputIsImage = true;
     string outFileBase;
     bool cmdStop = false;
     unsigned int wrapNum = 0;
     unsigned int numLogSkip = 0;
+    bool bHumanOnly = false;
+    bool bContinue = true;
+    int cameNo = -1;
 
     // Get the names of the output layers
     vector<String> getOutputsNames(const Net& net)
@@ -109,6 +113,12 @@ private:
                     int left = centerX - width / 2;
                     int top = centerY - height / 2;
 
+                    if(bHumanOnly){
+                        if(classes[classIdPoint.x] != "person"){
+                            continue;
+                        }
+                    }
+                    
                     classIds.push_back(classIdPoint.x);
                     confidences.push_back((float)confidence);
                     boxes.push_back(Rect(left, top, width, height));
@@ -137,11 +147,16 @@ protected:
     //
 public:
     typedef int (*callback)(vector<tuple<string, double, Rect>>&, Mat);
-    YoloDectect(string path = ".", unsigned int _wrapNum = 10, unsigned int _numLogSkip = 380)
+    YoloDectect(string path = ".", bool _humanOnly = false, float confThresh = 0.1, bool _bContinue = true, unsigned int _wrapNum = 10, unsigned int _numLogSkip = 380)
     {
         if(path.empty()) {
             path = ".";
         }
+
+        bHumanOnly = _humanOnly;
+        bContinue = _bContinue;
+
+        confThreshold = confThresh;
 
         wrapNum = _wrapNum;
         numLogSkip = _numLogSkip;
@@ -167,7 +182,7 @@ public:
         net = readNetFromDarknet(modCfg, modWeights);
         net.setPreferableBackend(DNN_BACKEND_OPENCV);
         net.setPreferableTarget(DNN_TARGET_CPU);
-        spdlog::info("{} inited", selfId);
+        spdlog::debug("{} inited", selfId);
     }
 
     vector<tuple<string, double, Rect>> process(Mat &inFrame, Mat* pOutFrame, bool bModify = false)
@@ -194,7 +209,7 @@ public:
         if(numLogSkip == 0 || numFrameProcessed % numLogSkip == 0) {
             double freq = getTickFrequency() / 1000;
             double t = net.getPerfProfile(layersTimes) / freq;
-            spdlog::info("{} infer time: {} ms", selfId, t);
+            spdlog::debug("{} infer time: {} ms", selfId, t);
         }
         if(pOutFrame != nullptr){
             inFrame.convertTo(*pOutFrame, CV_8U);
@@ -204,15 +219,27 @@ public:
         return ret;
     }
 
-    int process(string inVideoUri, string outFile = "processed.jpg", bool bHumanExit = false, callback cb = nullptr)
+    int process(string inVideoUri, string outFile = "processed.jpg", callback cb = nullptr)
     {
         if(inVideoUri.empty()) {
             inVideoUri = "0";
         }
 
-        if(!cap.open(inVideoUri)) {
-            spdlog::error("{} failed to open input video {}", selfId, inVideoUri);
-            return -1;
+        try{
+            if(inVideoUri.substr(inVideoUri.find_last_of(".") + 1) == "mp4"||(cameNo = stoi(inVideoUri)) >= 0) {
+                bInputIsImage = false;
+            }
+        }catch(Exception &e) {
+            
+        }
+        
+
+        if(!bInputIsImage) {
+            if((cameNo == -1 && !cap.open(inVideoUri))|| (cameNo != -1 && !cap.open(cameNo)))
+            {
+                spdlog::error("{} failed to open input video {}", selfId, inVideoUri);
+                exit(1);
+            }     
         }
 
         ghc::filesystem::path p(outFile);
@@ -221,9 +248,14 @@ public:
         if((outFile.substr(outFile.find_last_of(".") + 1) == "jpg")) {
             bOutputIsImg = true;
             outFileBase = string(dir / p.stem());
-            spdlog::info("{} outFileBase {}", selfId, outFileBase);
+            spdlog::debug("{} outFileBase {}", selfId, outFileBase);
         }
         else {
+            if(bInputIsImage) {
+                spdlog::error("{} can't output image {} as video {}, invalid params combination", selfId, inVideoUri, outFile);
+                exit(1);
+            }
+
             bOutputIsImg = false;
             if(!video.open(outFile, VideoWriter::fourcc('M','J','P','G'), 28, Size(cap.get(CAP_PROP_FRAME_WIDTH), cap.get(CAP_PROP_FRAME_HEIGHT)))) {
                 spdlog::error("{} failed to open output video {}", selfId, outFile);
@@ -231,7 +263,7 @@ public:
             }
         }
 
-        spdlog::info("{} try to process video {} to {}", selfId, inVideoUri, outFile);
+        spdlog::debug("{} try to process video {} to {}", selfId, inVideoUri, outFile);
 
         unsigned long frameCnt = 0;
         unsigned long detCnt = 0, skipCnt = 0;
@@ -241,23 +273,32 @@ public:
             if(cmdStop) {
                 break;
             }
-
-            if(!cap.read(frame)) {
-                spdlog::info("{} done reading frame from {}", selfId, inVideoUri);
-                break;
-            }
-
-            frameCnt++;
-            if(frameCnt %100 == 0)
-                spdlog::info("framecnt {}", frameCnt);
             
-            if(frameCnt % 30  != 0 ){
-                continue;
+            if(bInputIsImage){
+                frame = imread(inVideoUri);
+                if(!frame.data){
+                    spdlog::error("{} failed to read image {}", selfId, inVideoUri);
+                    exit(1);
+                }
+                cmdStop = true;
             }
+            else{
+                if(!cap.read(frame)) {
+                    break;
+                }
 
-            // Stop the program if reached end of video
-            if (frame.empty()) {
-                continue;
+                frameCnt++;
+                if(frameCnt %100 == 0)
+                    spdlog::debug("framecnt {}", frameCnt);
+                
+                if(frameCnt % 30  != 0 ){
+                    continue;
+                }
+
+                // Stop the program if reached end of video
+                if (frame.empty()) {
+                    continue;
+                }
             }
 
             vector<tuple<string, double, Rect>> ret = process(frame, &outFrame, true);
@@ -265,31 +306,34 @@ public:
                 if(ret.size() == 0 && bOutputIsImg) {
                     // no detection
                     if(numLogSkip == 0|| skipCnt % numLogSkip == 0) {
-                        spdlog::info("{} no valid object detected skipped frame count {}", selfId, skipCnt);
+                        spdlog::debug("{} no valid object detected skipped frame count {}", selfId, skipCnt);
                     }
                     skipCnt++;    
                     continue;
                 }
-                if(bHumanExit){
-                    for(auto &[s, c, r]:ret) {
-                        if (s == "person"){
-                            string ofname = outFileBase + "_person.jpg";
-                            imwrite(ofname, outFrame); 
-                            spdlog::info("found human {} x: {}, y: {}, w: {}, h: {}", c, r.x, r.y, r.width, r.height);
-                            cmdStop = true;
-                            break;
-                        }
-                    }
-                }
 
                 if (bOutputIsImg) {
-                    if(wrapNum > 0) {
-                        detCnt = detCnt % wrapNum;
+                    if(bHumanOnly){
+                        for(auto &[s, c, r]:ret) {
+                            if (s == "person"){
+                                auto ms = chrono::duration_cast<chrono::milliseconds >(chrono::system_clock::now().time_since_epoch()).count();
+                                string ofname = outFileBase + "_person_" + to_string(ms) + ".jpg";
+                                imwrite(ofname, outFrame);
+                                spdlog::info("found human {} x: {}, y: {}, w: {}, h: {}", c, r.x, r.y, r.width, r.height);
+                                if(!bContinue){
+                                    cmdStop = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }else{
+                        if(wrapNum > 0) {
+                            detCnt = detCnt % wrapNum;
+                        }
+                        string ofname = outFileBase + to_string(detCnt) + ".jpg";
+                        imwrite(ofname, outFrame);
+                        detCnt++;
                     }
-
-                    string ofname = outFileBase + to_string(detCnt) + ".jpg";
-                    imwrite(ofname, outFrame);
-                    detCnt++;
                 }
                 else {
                     video.write(outFrame);
@@ -299,6 +343,7 @@ public:
             }
         }
 
+        spdlog::info("{} done processing {}", selfId, inVideoUri);
         cap.release();
         if(!bOutputIsImg) video.release();
 

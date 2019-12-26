@@ -13,5 +13,8 @@ all: $(PROG) $(PROG2)
 $(PROG):$(SRCS)
 	$(CC) $(CFLAGS) -o $(PROG) $(SRCS) $(LIBS)
 
-$(PROG2):$(SRCS2)
+$(PROG2):$(SRCS2) yolo.hpp
 	$(CC) $(CFLAGS) -o $(PROG2) $(SRCS2) $(LIBS) -I../opencv-motion-detect/inc -I../opencv-motion-detect/vendor/include
+
+clean:
+	rm -fr main yolo
