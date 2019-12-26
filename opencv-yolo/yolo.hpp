@@ -226,7 +226,7 @@ public:
         }
 
         try{
-            if(inVideoUri.substr(inVideoUri.find_last_of(".") + 1) == "mp4"||(cameNo = stoi(inVideoUri)) >= 0) {
+            if(inVideoUri.substr(0, 4) == "rtsp"||inVideoUri.substr(0, 4) == "rtmp"||inVideoUri.substr(inVideoUri.find_last_of(".") + 1) == "mp4"||(cameNo = stoi(inVideoUri)) >= 0) {
                 bInputIsImage = false;
             }
         }catch(...) {
@@ -330,7 +330,7 @@ public:
                         if(wrapNum > 0) {
                             detCnt = detCnt % wrapNum;
                         }
-                        
+
                         string ofname = outFileBase + to_string(detCnt) + ".jpg";
                         imwrite(ofname, outFrame);
                         string msg = fmt::format("{} found {} {}:\n", selfId, ret.size(), ofname);
