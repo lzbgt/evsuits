@@ -1,3 +1,10 @@
+/**
+ * Author: bruce.lu (lzbgt@icloud.com)
+ * 
+ * 
+ * 
+ */
+
 #ifndef _MY_YOLO_HPP_
 #define _MY_YOLO_HPP_
 

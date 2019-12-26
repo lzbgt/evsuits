@@ -1,3 +1,11 @@
+/**
+ * Author: bruce.lu (lzbgt@icloud.com)
+ * 
+ * 
+ * 
+ */
+
+
 #include "yolo.hpp"
 #include "clipp.h"
 #include <sstream>
