@@ -2,7 +2,7 @@
 
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Linux)
-	LIBS= -lopencv_dnn -lopencv_core -lopencv_imgproc -lopencv_video -lopencv_imgcodecs
+	LIBS= -lopencv_dnn -lopencv_core -lopencv_imgproc -lopencv_video -lopencv_videoio -lopencv_imgcodecs
 endif
 ifeq ($(UNAME_S),Darwin)
 	OPENCV = `pkg-config opencv4 --cflags --libs`
