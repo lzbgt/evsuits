@@ -27,7 +27,7 @@ public:
     unsigned long numFrameProcessed = 0;
 private:
     // Initialize the parameters
-    const string selfId = "YoloDetector";
+    const string selfId = "ObjectDetector";
     float confThreshold = 0.1; // Confidence threshold
     float nmsThreshold = 0.2;  // Non-maximum suppression threshold
     int inpWidth = 416;  // Width of network's input image
@@ -229,7 +229,7 @@ public:
             if(inVideoUri.substr(inVideoUri.find_last_of(".") + 1) == "mp4"||(cameNo = stoi(inVideoUri)) >= 0) {
                 bInputIsImage = false;
             }
-        }catch(Exception &e) {
+        }catch(...) {
             
         }
         
@@ -319,7 +319,7 @@ public:
                                 auto ms = chrono::duration_cast<chrono::milliseconds >(chrono::system_clock::now().time_since_epoch()).count();
                                 string ofname = outFileBase + "_person_" + to_string(ms) + ".jpg";
                                 imwrite(ofname, outFrame);
-                                spdlog::info("found human {} x: {}, y: {}, w: {}, h: {}", c, r.x, r.y, r.width, r.height);
+                                spdlog::info("{} found human {} x: {}, y: {}, w: {}, h: {}; written image: {}", selfId, c, r.x, r.y, r.width, r.height, ofname);
                                 if(!bContinue){
                                     cmdStop = true;
                                     break;
@@ -330,8 +330,14 @@ public:
                         if(wrapNum > 0) {
                             detCnt = detCnt % wrapNum;
                         }
+                        
                         string ofname = outFileBase + to_string(detCnt) + ".jpg";
                         imwrite(ofname, outFrame);
+                        string msg = fmt::format("{} found {} {}:\n", selfId, ret.size(), ofname);
+                        for(auto &[s, c, r]:ret) {
+                            msg += fmt::format("\t{} {} x: {}, y: {}, w: {}, h: {}\n",s, c, r.x, r.y, r.width, r.height);
+                        }
+                        spdlog::info(msg);
                         detCnt++;
                     }
                 }

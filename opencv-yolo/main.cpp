@@ -6,7 +6,7 @@ using namespace clipp;
 using namespace std;
 
 int main(int argc, char *argv[]){
-    bool bHumanOnly = true;
+    string bHumanOnly = "true";
     float fConfident = 0.1;
     bool bVerbose = false;
     bool help = false;
@@ -16,12 +16,12 @@ int main(int argc, char *argv[]){
 
     auto cli = (
         value("input path", sInput),
-        option("-cl").set(fConfident).doc("confidence level of detection, default: 0.1"),
+        option("-cl") & value("confidence level of detection, default: 0.1", fConfident),
         option("-vv", "--debug").set(bVerbose).doc("verbose prints"),
-        option("-human", "--human-only").set(bHumanOnly).doc("detect only human object"),
-        option("-c", "--config-path").set(modelPath).doc("model and configuration path"),
+        option("-human", "--human-only") & value("detect only human object, default: true", bHumanOnly),
+        option("-c", "--config-path") & value("model and configuration path", modelPath),
         option("-h", "--help").set(help).doc("print this help info"),
-        option("-o", "--output").set(sOutput).doc("output, eg: a.jpg; b.avi"),
+        option("-o", "--output") & value("output, eg: a.jpg; b.avi. default: detect.jpg", sOutput),
         option("-r", "--continue").set(bCont).doc("continue detection, default: false")
     );
 
@@ -31,10 +31,12 @@ int main(int argc, char *argv[]){
         spdlog::info(s.str());
         exit(0);
     }
+    spdlog::info("{} {}", bHumanOnly, fConfident);
+
     if(bVerbose) {
         spdlog::set_level(spdlog::level::debug);
     }
 
-    YoloDectect detector(modelPath, bHumanOnly, fConfident, bCont);
+    YoloDectect detector(modelPath, bHumanOnly == "true"?true:false, fConfident, bCont);
     detector.process(sInput, sOutput);
 }
