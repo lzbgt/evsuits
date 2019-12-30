@@ -1,0 +1,143 @@
+openapi: '3.0.0'
+info:
+  title: video.ai API
+  version: 0.0.1
+  description:
+    rootpath = /api/video.ai/v1.0
+tags:
+  - name: va_config
+  - name: task_api
+paths:
+  /config_ipc:
+    post:
+      summary: video analysis configuration for ip camera
+      tags:
+        - va_config
+      operationId: va_config
+      requestBody:
+        description: va_config
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/vaConfig'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ok'
+        default:
+          description: error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error'
+  /task:
+    post:
+      summary: api for creating video.ai task synchronously. (there is another way by MQ.)
+      tags:
+        - task_api
+      operationId: none
+      requestBody:
+        description: task body
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/task'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ok'
+        default:
+          description: error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error'
+components:
+  schemas:
+    vaConfig:
+      type: object
+      properties:
+        cameraId:
+          type: string
+          example: D72158932
+        features:
+          type: object
+          properties:
+            humanDetect:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+                thresh:
+                  description: confidence level. the bigger the stricter
+                  type: number
+                  maximum: 0.99
+                  minimum: 0.1
+                  default: 0.2
+    task:
+      type: object
+      properties:
+        cameraId:
+          type: string
+          example: D72158932
+          required: [endTime, startTime]
+        endTime:
+          type: integer
+          example: 1576842488000
+          required: [cameraId]
+        startTime:
+          type: integer
+          example: 1576842457000
+          required: [cameraId]
+        length:
+          type: integer
+          example: 200
+        image:
+          type: string
+          example: http://40.73.41.176/video/D72158932/1576842457000-1576842488999/firstFrame.jpg
+        video:
+          type: string
+          example: http://40.73.41.176/video/D72158932/1576842457000-1576842488999/1576842457000-1576842488999.mp4
+
+    ret:
+      type: object
+      required: [code, msg]
+      properties:
+        code:
+          type: integer
+        msg:
+          type: string
+        data:
+          type: object
+    ok:
+      type: object
+      $ref: '#/components/schemas/ret'
+      properties:
+        code:
+          type: integer
+          value: 0
+        msg:
+          type: string
+          value: 'ok'
+
+    error:
+      type: object
+      $ref: '#/components/schemas/ret'
+
+
+      
+
+
+        

@@ -1,0 +1,54 @@
+my_mq_spec: v1.0
+info:
+  title: MQ spec for video_crud_svc & video.ai
+  version: 0.0.1
+
+queue:
+- name: video.ai/v1.0/task
+  retian: false
+  type: shared-queue
+  sub-prefix: $queue/
+  pub-prefix: None
+  qos: 1
+  payload:
+    type: object
+    $ref: video.ai.api.yaml/components/schemas/task
+  producer: video_crud_svc
+  consumer: video.ai
+
+- name: video.ai/v1.0/result
+  retain: false
+  type: shared-queue
+  sub-prefix: $queue/
+  pub-prefix: None
+  qos: 1
+  payload:
+    type: object
+    properties:
+      code:
+        type: integer
+        description: 0 ok, otherwise failed
+      msg:
+        type: string
+        description: OK when code is 0. otherwise is application provided error message
+      target:
+          type: object
+          $ref: video.ai.api.yaml/components/schemas/task
+      data:
+          type: object
+          properties:
+            humanDetect:
+              type: object
+              properties:
+                found:
+                  type: boolean
+                image:
+                  type: string
+                  example:
+                    http://40.73.41.176/video/D72158932/1576842457000-1576842488999/firstFrame.jpg
+
+
+
+    
+
+
