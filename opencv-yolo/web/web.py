@@ -33,7 +33,12 @@ VA_SCHEMAS = {
   },
 }
 
-CONNSTR='DefaultEndpointsProtocol=https;AccountName=ilsvideostablediag;AccountKey=rWeA/cUiWAsDqGHO0lfDB5eDHNZxCChrH0pMvICdNJR6tt+hE2tHlSl9kUEjqyOY6cztPWaaRbbeoI47uNEeWA==;EndpointSuffix=core.chinacloudapi.cn'
+aan = os.getenv('AAN', 'ilsvideostablediag')
+aak = os.getenv('AAK', 'rWeA/cUiWAsDqGHO0lfDB5eDHNZxCChrH0pMvICdNJR6tt+hE2tHlSl9kUEjqyOY6cztPWaaRbbeoI47uNEeWA==')
+CONNSTR="DefaultEndpointsProtocol=https;AccountName={};AccountKey={};EndpointSuffix=core.chinacloudapi.cn".format(aan,aak)
+#CONNSTR1= 'DefaultEndpointsProtocol=https;AccountName=ilsvideostablediag;AccountKey=rWeA/cUiWAsDqGHO0lfDB5eDHNZxCChrH0pMvICdNJR6tt+hE2tHlSl9kUEjqyOY6cztPWaaRbbeoI47uNEeWA==;EndpointSuffix=core.chinacloudapi.cn'
+#if CONNSTR1 != CONNSTR:
+#  print("======\n\n======= no valid key\n{}\n{}".format(CONNSTR1, CONNSTR))
 SHARENAME='pre-data'
 
 MQTT_HOST='evcloud.ilabservice.cloud'
