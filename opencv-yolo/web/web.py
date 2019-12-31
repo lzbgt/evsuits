@@ -1,4 +1,4 @@
-from flask import Flask, escape, request, jsonify, g, url_for
+from flask import Flask, escape, request, jsonify, g, url_for, current_app
 import paho.mqtt.client as mqtt
 from cerberus import schema_registry, Validator
 from celery import Celery
@@ -35,6 +35,9 @@ VA_SCHEMAS = {
 
 CONNSTR='DefaultEndpointsProtocol=https;AccountName=ilsvideostablediag;AccountKey=rWeA/cUiWAsDqGHO0lfDB5eDHNZxCChrH0pMvICdNJR6tt+hE2tHlSl9kUEjqyOY6cztPWaaRbbeoI47uNEeWA==;EndpointSuffix=core.chinacloudapi.cn'
 SHARENAME='pre-data'
+
+MQTT_HOST='evcloud.ilabservice.cloud'
+MQTT_PORT=1883
 
 def downloadFile(ipcSn, dirName, fileName, destDir):
   file_path=ipcSn + '/'+dirName+'/'+fileName
@@ -83,7 +86,7 @@ class VAMMQTTClient:
     #topic = "video.ai/v1.0/task"
     #client.publish(topic, payload=None, qos=1, retian=False)
     print("disconnected")
-  def __init__(self, callback, host = 'evcloud.ilabservice.cloud', port = 1883):
+  def __init__(self, callback, host = MQTT_HOST, port = MQTT_PORT):
     '''
     Parameters
     '''
@@ -173,6 +176,9 @@ def video_analysis(data):
           # upload
           uploadFile(ipcSN, dirName, 'result.json', downloadDir)
           uploadFile(ipcSN, dirName,  m.group(3), downloadDir)
+          mc = mqtt.Client("vamqtt-pub")
+          mc.connect(MQTT_HOST, MQTT_PORT)
+          mc.publish('video.ai/v1.0/result', json.dumps(ret), qos=1)
           break
         else:
           ret['data']['humanDetect']['found'] = 0
@@ -194,10 +200,12 @@ def video_analysis(data):
   except Exception as e:
     print('cascaded exception in va: {}'.format(e))
     #raise Exception()
+  # pub msg
   return ret
 
 if __name__ == '__main__':
   mq = VAMMQTTClient(take_task)
+  app.config['mc'] = mq.client
   app.run(host='0.0.0.0', port = '5000')
 
 
