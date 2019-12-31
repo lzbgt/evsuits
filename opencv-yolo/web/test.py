@@ -10,7 +10,7 @@ print(json.dumps( {
   }))
 
 
-m = re.match(r".*? found (\w+) ([\d\.]+) .*? image: ([_\w\d]+.jpg)", "ObjectDetector found human 0.857669 x: 655, y: 379, w: 300, h: 309; written image: detect_person_1577696746490.jpg")
+m = re.match(r".*? found (\w+) ([\d\.]+) .*? image: .*?/([_\w\d]+.jpg)", "ObjectDetector found human 0.857669 x: 655, y: 379, w: 300, h: 309; written image: /Users/blu/work/opencv-projects/opencv-yolo/D72154040/1550143347000-Rhwjpb/detect_person_1577774106607.jpg")
 
 if m:
   print("matched", m.group(1))

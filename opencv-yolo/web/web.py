@@ -45,6 +45,12 @@ def downloadFile(ipcSn, dirName, fileName, destDir):
           data = fc.download_file()
           data.readinto(f)
 
+def uploadFile(ipcSn, dirName, fileName, srcPath):
+  file_path=ipcSn + '/'+dirName+'/' + fileName
+  fc = ShareFileClient.from_connection_string(conn_str=CONNSTR, share_name=SHARENAME, file_path=file_path)
+  with open(srcPath + '/' + fileName, "rb") as source_file:
+    fc.upload_file(source_file)
+
 class VAMMQTTClient:
   # The callback for when the client receives a CONNACK response from the server.
   @staticmethod
@@ -144,7 +150,7 @@ def video_analysis(data):
       print("downloaded file {} into {}".format(fileName, downloadDir))
       # analyze
       #cmdLine = '/Users/blu/work/opencv-projects/opencv-yolo/detector /Users/blu/work/opencv-projects/opencv-yolo/web/1550143347000-1577267418999.mp4 -c /Users/blu/work/opencv-projects/opencv-yolo/'
-      cmdLine = workd + '/' + binName + ' ' +  downloadDir + fileName + ' -c ' + configDir
+      cmdLine = workd + '/' + binName + ' ' +  downloadDir + fileName + ' -c ' + configDir + ' -o ' + downloadDir + '/detect.jpg'
       cmdArgs = shlex.split(cmdLine)
       print(cmdLine, '\n\n', cmdArgs)
       output = subprocess.check_output(cmdArgs)
@@ -152,7 +158,7 @@ def video_analysis(data):
       # parse
       for line in output.decode('utf-8').split('\n'):
         print("\n", line)
-        m = re.match(r".*? found (\w+) ([\d\.]+) .*? image: ([_\w\d]+.jpg)", line)
+        m = re.match(r".*? found (\w+) ([\d\.]+) .*? image: .*?/([_\w\d]+.jpg)", line)
         ret['data'] = {}
         ret['data']['humanDetect'] = {}
         if m:
@@ -160,6 +166,13 @@ def video_analysis(data):
           ret['data']['humanDetect']['level'] = m.group(2)
           ret['data']['humanDetect']['image'] = m.group(3)
           print('found {}: {}, img: {}'.format(m.group(1), m.group(2), m.group(3)))
+          # write json
+          jsonFile = downloadDir + '/' + 'result.json'
+          with open(jsonFile, 'w') as outfile:
+            json.dump(ret, outfile)
+          # upload
+          uploadFile(ipcSN, dirName, 'result.json', downloadDir)
+          uploadFile(ipcSN, dirName,  m.group(3), downloadDir)
           break
         else:
           ret['data']['humanDetect']['found'] = 0
