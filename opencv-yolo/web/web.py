@@ -3,9 +3,11 @@ import paho.mqtt.client as mqtt
 from cerberus import schema_registry, Validator
 from celery import Celery
 from azure.storage.fileshare import ShareFileClient
-import os, yaml, logging, time, datetime, threading, json, subprocess, shlex,re
+import random
+import os, yaml, logging, time, datetime, threading, json, subprocess, shlex, re, string
+import pdb,traceback, sys
 
-#import pdb,traceback, sys
+random.seed(datetime.datetime.now())
 
 
 """
@@ -34,11 +36,12 @@ VA_SCHEMAS = {
 CONNSTR='DefaultEndpointsProtocol=https;AccountName=ilsvideostablediag;AccountKey=rWeA/cUiWAsDqGHO0lfDB5eDHNZxCChrH0pMvICdNJR6tt+hE2tHlSl9kUEjqyOY6cztPWaaRbbeoI47uNEeWA==;EndpointSuffix=core.chinacloudapi.cn'
 SHARENAME='pre-data'
 
-def downloadFile(ipcSn, dirName, fileName):
-  file_path=ipcSn+'/'+dirName+'/'+fileName
+def downloadFile(ipcSn, dirName, fileName, destDir):
+  file_path=ipcSn + '/'+dirName+'/'+fileName
+  destDir = destDir + '/' + fileName
   print("downloading: {} {} {}".format(ipcSn, dirName, file_path))
   with ShareFileClient.from_connection_string(conn_str=CONNSTR, share_name=SHARENAME, file_path=file_path) as fc:
-      with open(fileName, "wb") as f:
+      with open(destDir, "wb") as f:
           data = fc.download_file()
           data.readinto(f)
 
@@ -112,7 +115,7 @@ def take_task(task):
   else:
     # process
     video_analysis.apply_async(args=[task])
-  logger.info(json.dumps(ret))
+  print(json.dumps(ret))
   return ret
 
 @app.route('/api/video.ai/v1.0/task', methods=['POST'])
@@ -125,24 +128,30 @@ def video_analysis(data):
   ret = {'code': 0, 'msg': 'ok'}
   ret['target'] = data
   print(json.dumps(data))
-  # get video
   try:
     if 'cameraId' in data: # azure storage
+      # get azure storage video
       ipcSN = data["cameraId"]
       dirName = "{}-{}".format(data["startTime"],data["endTime"])
-      fileName = dirName + '.1mp4'
-      downloadFile(ipcSN, dirName, fileName)
-      print('== ', fileName)
-      workd = '/Users/blu/work/opencv-projects/opencv-yolo/'
-      cmdLine = workd + 'detector ' + workd + 'web/'+ fileName + ' -c ' + workd
+      fileName = dirName + '.mp4'
+      workd = os.getenv('BIN_DIR', '/Users/blu/work/opencv-projects/opencv-yolo')
+      binName = os.getenv('BIN_NAME', 'detector ')
+      configDir = os.getenv('CFG_DIR', workd)
+      strRand = "{}-{}".format(data["startTime"], ''.join(random.choice(string.ascii_letters) for i in range(6)))
+      downloadDir = "{}/{}/".format(os.getenv('DL_DIR', workd + '/' + ipcSN), strRand)
+      os.system('mkdir -p ' + downloadDir)
+      downloadFile(ipcSN, dirName, fileName, downloadDir)
+      print("downloaded file {} into {}".format(fileName, downloadDir))
+      # analyze
       #cmdLine = '/Users/blu/work/opencv-projects/opencv-yolo/detector /Users/blu/work/opencv-projects/opencv-yolo/web/1550143347000-1577267418999.mp4 -c /Users/blu/work/opencv-projects/opencv-yolo/'
+      cmdLine = workd + '/' + binName + ' ' +  downloadDir + fileName + ' -c ' + configDir
       cmdArgs = shlex.split(cmdLine)
       print(cmdLine, '\n\n', cmdArgs)
       output = subprocess.check_output(cmdArgs)
       print(output)
       # parse
       for line in output.decode('utf-8').split('\n'):
-        print("\n=====", line)
+        print("\n", line)
         m = re.match(r".*? found (\w+) ([\d\.]+) .*? image: ([_\w\d]+.jpg)", line)
         ret['data'] = {}
         ret['data']['humanDetect'] = {}
@@ -151,11 +160,12 @@ def video_analysis(data):
           ret['data']['humanDetect']['level'] = m.group(2)
           ret['data']['humanDetect']['image'] = m.group(3)
           print('found {}: {}, img: {}'.format(m.group(1), m.group(2), m.group(3)))
+          break
         else:
           ret['data']['humanDetect']['found'] = 0
-
     elif 'video' in data: # http
-      pass
+      ret['code'] = 2
+      ret['msg'] = 'not impelemented yet for http'
     else: # no video
       ret['code'] = 1
       ret['msg'] = 'no video specified'
@@ -164,9 +174,14 @@ def video_analysis(data):
     print("exception in va worker: {}".format(e));
     ret['code'] = -1
     ret['msg'] = str(e)
-
+    #extype, value, tb = sys.exc_info()
+    #traceback.print_exc()
+  try:
+    os.system('rm -fr ' + downloadDir)
+  except Exception as e:
+    print('cascaded exception in va: {}'.format(e))
+    #raise Exception()
   return ret
-
 
 if __name__ == '__main__':
   mq = VAMMQTTClient(take_task)
