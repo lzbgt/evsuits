@@ -39,10 +39,16 @@ CONNSTR="DefaultEndpointsProtocol=https;AccountName={};AccountKey={};EndpointSuf
 #CONNSTR1= 'DefaultEndpointsProtocol=https;AccountName=ilsvideostablediag;AccountKey=rWeA/cUiWAsDqGHO0lfDB5eDHNZxCChrH0pMvICdNJR6tt+hE2tHlSl9kUEjqyOY6cztPWaaRbbeoI47uNEeWA==;EndpointSuffix=core.chinacloudapi.cn'
 #if CONNSTR1 != CONNSTR:
 #  print("======\n\n======= no valid key\n{}\n{}".format(CONNSTR1, CONNSTR))
-SHARENAME='pre-data'
+SHARENAME=os.getenv('SHARE','pre-data')
 
-MQTT_HOST='evcloud.ilabservice.cloud'
-MQTT_PORT=1883
+MQTT_HOST=os.getenv('MQTT_HOST','evcloud.ilabservice.cloud')
+MQTT_PORT=int(os.getenv('MQTT_PORT', 1883))
+REDIS_ADDR = os.getenv('REDIS', 'redis://localhost:6379')
+workd = os.getenv('BIN_DIR', '/Users/blu/work/opencv-projects/opencv-yolo')
+binName = os.getenv('BIN_NAME', 'detector ')
+configDir = os.getenv('CFG_DIR', workd)
+
+print("CONFIG: \nMQTT: {}:{}\n".format(MQTT_HOST, MQTT_PORT))
 
 def downloadFile(ipcSn, dirName, fileName, destDir):
   file_path=ipcSn + '/'+dirName+'/'+fileName
@@ -106,7 +112,6 @@ app = Flask(__name__,
   static_folder='web/main/dist')
 logger = app.logger
 
-REDIS_ADDR = os.getenv('REDIS', 'redis://localhost:6379')
 app.config['broker_url'] = REDIS_ADDR
 app.config['result_backend'] = REDIS_ADDR
 worker = Celery(app.name, broker=app.config['broker_url'])
@@ -148,9 +153,6 @@ def video_analysis(data):
       ipcSN = data["cameraId"]
       dirName = "{}-{}".format(data["startTime"],data["endTime"])
       fileName = dirName + '.mp4'
-      workd = os.getenv('BIN_DIR', '/Users/blu/work/opencv-projects/opencv-yolo')
-      binName = os.getenv('BIN_NAME', 'detector ')
-      configDir = os.getenv('CFG_DIR', workd)
       strRand = "{}-{}".format(data["startTime"], ''.join(random.choice(string.ascii_letters) for i in range(6)))
       downloadDir = "{}/{}/".format(os.getenv('DL_DIR', workd + '/' + ipcSN), strRand)
       os.system('mkdir -p ' + downloadDir)
