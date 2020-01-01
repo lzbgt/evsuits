@@ -3,6 +3,7 @@ FROM python:slim
 ENV MAINTAINER=Bruce.Lu
 WORKDIR /apps/app
 RUN apt -qq update && apt install -y redis-server
+COPY opencv-yolo/web/requirement.txt /apps/app/
 RUN pip install -r requirement.txt
 
 ENV LD_LIBRARY_PATH=/apps/lib/vendor
@@ -11,7 +12,7 @@ ENV DL_DIR=/data
 #ENV REDIS=
 ENV CFG_DIR=/apps/app/
 ENV BIN_DIR=/apps/app/
-COPY opencv-yolo/web/requirement.txt /apps/app/
+
 COPY opencv-yolo/web/web.py /apps/app/
 COPY opencv-yolo/detector /apps/app/
 COPY opencv-yolo/coco.names /apps/app/
