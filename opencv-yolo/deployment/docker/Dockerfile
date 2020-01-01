@@ -3,8 +3,6 @@ FROM python:slim
 ENV MAINTAINER=Bruce.Lu
 WORKDIR /apps/app
 RUN apt -qq update && apt install -y redis-server
-COPY opencv-yolo/web/requirement.txt /apps/app/
-RUN pip install -r requirement.txt
 
 ENV LD_LIBRARY_PATH=/apps/lib/vendor
 ENV BIN_NAME=detector
@@ -18,6 +16,10 @@ COPY opencv-yolo/detector /apps/app/
 COPY opencv-yolo/coco.names /apps/app/
 COPY opencv-yolo/yolov3* /apps/app/
 COPY opencv-motion-detect/vendor/lib /apps/lib/vendor/
+
+COPY opencv-yolo/web/requirement.txt /apps/app/
+RUN pip install -r requirement.txt
+
 COPY opencv-yolo/web/start.sh /apps/app
 
 EXPOSE 5555
