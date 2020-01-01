@@ -154,7 +154,7 @@ def video_analysis(data):
       dirName = "{}-{}".format(data["startTime"],data["endTime"])
       fileName = dirName + '.mp4'
       strRand = "{}-{}".format(data["startTime"], ''.join(random.choice(string.ascii_letters) for i in range(6)))
-      downloadDir = "{}/{}/".format(os.getenv('DL_DIR', workd + '/' + ipcSN), strRand)
+      downloadDir = "{}/{}/".format(os.getenv('DL_DIR', workd) + '/' + ipcSN, strRand)
       os.system('mkdir -p ' + downloadDir)
       downloadFile(ipcSN, dirName, fileName, downloadDir)
       print("downloaded file {} into {}".format(fileName, downloadDir))
