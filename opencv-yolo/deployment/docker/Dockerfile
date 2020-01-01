@@ -15,7 +15,7 @@ COPY opencv-yolo/web/web.py /apps/app/
 COPY opencv-yolo/detector /apps/app/
 COPY opencv-yolo/coco.names /apps/app/
 COPY opencv-yolo/yolov3* /apps/app/
-COPY opencv-motion-detect/vendor/lib /apps/lib/vendor/
+COPY opencv-motion-detect/vendor/lib/ /apps/lib/vendor/
 
 COPY opencv-yolo/web/requirement.txt /apps/app/
 RUN pip install -r requirement.txt
