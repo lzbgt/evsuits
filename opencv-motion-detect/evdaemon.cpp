@@ -178,15 +178,7 @@ private:
 
     int reloadCfg(string subModGid = "")
     {
-        int ret = LVDB::getSn(this->info);
-        if(ret < 0) {
-            spdlog::error("evdaemon {} failed to get info", this->devSn);
-            return 1;
-        }
-
-        this->devSn = this->info["sn"];
-        this->daemonId = this->devSn + ":evdaemon:0";
-
+        int ret = 0;
         // apply config
         try {
             // lock_guard<mutex> lock(cacheLock);
@@ -952,8 +944,9 @@ public:
         }
 
         spdlog::info("evdaemon boot \n{}",info.dump());
-        string cmd = "hostnamectl set-hostname " + info["sn"].get<string>();
+        string cmd = "hostnamectl set-hostname EVB-" + info["sn"].get<string>();
         system(cmd.c_str());
+        this->daemonId = this->devSn + ":evdaemon:0";
 
         auto ipAddrs = netutils::getIps();
         if(ipAddrs.size() == 0) {

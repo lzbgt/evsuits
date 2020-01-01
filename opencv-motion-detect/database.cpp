@@ -18,6 +18,7 @@ update: 2019/09/10
 #include "inc/database.h"
 #include "spdlog/spdlog.h"
 #include "inc/httplib.h"
+#include "fs.h"
 
 using namespace leveldb;
 using namespace httplib;
@@ -245,7 +246,7 @@ namespace LVDB {
 
         ret = _getDB(fileName, &pdb);
         if(ret < 0) {
-            return ret;
+            return -10990;
         }
 
         Status s = pdb->Get(ReadOptions(), key, &value);
@@ -375,54 +376,69 @@ togo_end:
     }
 
     int getSn(json &info, string fileName){
+        const string snFileName = "/etc/devsn.cfg";
         int ret = 0;
-        int cnt = 0;
-
-        do{
-            ret = getValue(info, LVDB_KEY_SN, fileName, _validateSn);
-            cnt++;
-        }while(ret < 0 && cnt < 3);
+        string sn;
+        ret = getValue(info, LVDB_KEY_SN, fileName, _validateSn);
+        if(ret == -10990) {
+          spdlog::error("database.cpp failed to get sn: {}", ret);
+          exit(1);
+        }
 
         if(ret < 0) {
-            // read from text config
-            // /etc/devsn.cfg
-            string sn;
-            ifstream snFile ("/etc/devsn.cfg");
+          if(fs::exists(fs::path(snFileName))){
+            // sn file exist
+            ifstream snFile(snFileName);
             if (snFile.is_open())
             {
                 getline (snFile,sn);
                 snFile.close();
-            }
-            if(sn.empty()) {
-                // create default sn.
-                spdlog::warn("no valid sn in /etc/devsn.cfg, generating a random one.");
-                sn = getStrRand(8);
             }else{
-                std::remove(sn.begin(), sn.end(), ' ');
-                spdlog::info("successfully read sn from /etc/devsn.cfg");
-            }
-
-            info["sn"] = sn;
-            info["apiCloud"] = "http://127.0.0.1:8089";
-            spdlog::warn("new sn is: {}", sn);
-            auto tsNow = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
-            info["lastboot"] = tsNow;
-            ret = setSn(info, fileName);
-            if(ret < 0) {
-                spdlog::error("failed to save new generated sn");
+                spdlog::error("database.cpp failed to open sn file /etc/devsn.cfg");
                 exit(1);
-            }else{
-                //
             }
+          }
+
+          if(sn.empty()) {
+              // create default sn.
+              ofstream snFile(snFileName);
+              sn = getStrRand(8);
+              snFile << sn;
+              snFile.close();
+          }
+          
+          std::remove(sn.begin(), sn.end(), ' ');
+          spdlog::info("successfully get sn");
+
+          info["sn"] = sn;
+          info["apiCloud"] = "http://127.0.0.1:8089";
+          spdlog::warn("new sn is: {}", sn);
+          auto tsNow = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+          info["lastboot"] = tsNow;
+          ret = setSn(info, fileName);
+          if(ret < 0) {
+              spdlog::error("failed to save new generated sn");
+              exit(1);
+          }else{
+              //
+          }
+        }else{
+          ofstream snFile(snFileName);
+          sn = info["sn"].get<string>();
+          snFile << sn;
+          snFile.close();
         }
 
         return ret;
-    };
+    }
 
     int setSn(json &info, string fileName){
         info["lastupdated"] = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+        ofstream snFile("/etc/devsn.cfg", ios::trunc);
+        snFile << info["sn"];
+        snFile.close();
         return setValue(info, LVDB_KEY_SN, fileName, _validateSn);
-    };
+    }
 
     // config
     int _validateConfig(const json &config) {
@@ -437,7 +453,7 @@ togo_end:
             return getValue(config, key, fileName, _validateConfig);
         }
           
-    };
+    }
 
     int setLocalConfig(json &config, string key, string fileName){
 
@@ -451,18 +467,18 @@ togo_end:
     // slices
     int saveSlices(json &slices, string fileName){
         return 0;
-    };
+    }
     int loadSlices(json &slices, string fileName){
         return 0;
-    };
+    }
 
     // log
     int saveLog(json &log, json &writeOptions, string fileName){
         return 0;
-    };
+    }
     int readLog(json &log, json &readOptions, string fileName){
         return 0;
-    };
+    }
 
 }// namespace LVDB
 

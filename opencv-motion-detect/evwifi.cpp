@@ -442,8 +442,8 @@ void hand_sig(int sig) {
         // station mode
         mgr.enableMode(2);
     }else if(key_event_msg.count == 5 && key_event_msg.time * 10 >= 10 * 1000){
-        // clear SN && restart evdaemon
-        system("rm -fr /opt/lvldb && systemctl restart evdaemon");
+        // clear SN && reboot
+        system("rm -fr /opt/lvldb && reboot");
     }else if((key_event_msg.count == 1 && key_event_msg.time * 10 >= 10 * 1000)){
         // restart network and evdaemon
         system("/sbin/ifdown -a; /sbin/ifup -a; systemctl restart evdaemon");
