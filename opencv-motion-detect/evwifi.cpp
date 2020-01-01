@@ -129,6 +129,7 @@ private:
     const string apdCfgPath = "/etc/apd.conf";
     const string wpaCfgPath = "/etc/wpa_supplicant/wpa_supplicant-wlan1.conf";
 
+public:
     void scanWifi()
     {
         lock_guard<mutex> lk(mutMode);
@@ -440,6 +441,7 @@ void hand_sig(int sig) {
         mgr.enableMode(1);
     }else if(key_event_msg.count == 3){
         // station mode
+        mgr.scanWifi();
         mgr.enableMode(2);
     }else if(key_event_msg.count == 5 && key_event_msg.time * 10 >= 10 * 1000){
         // clear SN && reboot
