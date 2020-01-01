@@ -5,8 +5,6 @@ WORKDIR /apps/app
 RUN apt -qq update && apt install -y redis-server
 RUN pip install -r requirement.txt
 
-COPY /usr/local/gcc-9.2/lib64/ /apps/lib/vendor/
-
 ENV LD_LIBRARY_PATH=/apps/lib/vendor
 ENV BIN_NAME=detector
 ENV DL_DIR=/data
