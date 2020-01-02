@@ -30,6 +30,10 @@ PROG = main
 SRCS2 = main.cpp
 PROG2 = detector
 
+SRCS3 = test.cpp
+PROG3 = test
+
+
 all: $(PROG) $(PROG2)
 
 $(PROG):$(SRCS)
@@ -37,6 +41,9 @@ $(PROG):$(SRCS)
 
 $(PROG2):$(SRCS2) yolo.hpp
 	$(CC) $(CFLAGS) -o $(PROG2) $(SRCS2)  $(SHARED) $(LIBS)
+
+$(PROG3):$(SRCS3)
+	$(CC) $(CFLAGS) -o $(PROG3) $(SRCS3)  $(SHARED) $(LIBS) 
 
 clean:
 	rm -fr main detector
