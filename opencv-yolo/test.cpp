@@ -8,6 +8,6 @@ using namespace cv;
 
 int main(){
   VideoCapture cap;
-  if(!cap.open("a.mp4"))
+  if(!cap.open("a.mp4", CAP_FFMPEG))
   cout << "failed to open\n";
 }
