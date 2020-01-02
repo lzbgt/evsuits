@@ -53,7 +53,7 @@ print("CONFIG: \nMQTT: {}:{}\n".format(MQTT_HOST, MQTT_PORT))
 def downloadFile(ipcSn, dirName, fileName, destDir):
   file_path=ipcSn + '/'+dirName+'/'+fileName
   destDir = destDir + '/' + fileName
-  print("downloading: {} {} {}".format(ipcSn, dirName, file_path))
+  print("downloading {}: {} {} {}".format(destDir, ipcSn, dirName, file_path))
   with ShareFileClient.from_connection_string(conn_str=CONNSTR, share_name=SHARENAME, file_path=file_path) as fc:
       with open(destDir, "wb") as f:
           data = fc.download_file()
@@ -126,7 +126,7 @@ worker.conf.update(
 def take_task(task):
   ret = {'code': 0,'msg': 'ok'}
   print("taking task", json.dumps(task))
-  taskValidator = Validator(VA_SCHEMAS['task'])
+  taskValidator = Validator(VA_SCHEMAS['task'], allow_unknown=True)
   if not taskValidator.validate(task):
     ret['code'] = 1
     ret['msg'] = 'invalid request body'

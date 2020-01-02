@@ -240,9 +240,8 @@ public:
             
         }
         
-
         if(!bInputIsImage) {
-            if((cameNo == -1 && !cap.open(inVideoUri))|| (cameNo != -1 && !cap.open(cameNo)))
+            if((cameNo == -1 && !cap.open(inVideoUri, CAP_ANY))|| (cameNo != -1 && !cap.open(cameNo)))
             {
                 spdlog::error("{} failed to open input video {}", selfId, inVideoUri);
                 exit(1);
