@@ -53,17 +53,18 @@ int encode(AVPacket &pkt, char **bytes)
     wholeSize += sizeof(pkt.side_data_elems);
     if (pkt.side_data_elems != 0)
     {
+        spdlog::debug("having side data: {}", pkt.side_data_elems);
         for (int i = 0; i < pkt.side_data_elems; i++)
         {
-            wholeSize += pkt.side_data[i].size + sizeof(AVPacketSideData);
+            wholeSize += pkt.side_data[i].size + sizeof(AVPacketSideData::type) + sizeof(AVPacketSideData::size);
         }
     }
 
     // 4 + 8: wholeSize + DEADBEAF
     wholeSize += sizeof(pkt.pts) * 4 + sizeof(pkt.flags) + sizeof(pkt.stream_index) + sizeof(wholeSize) + strlen(PS_MARK_E);
     // timestamp
-    wholeSize += 8;
     auto now = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+    wholeSize += sizeof(now);
     *bytes = (char *)malloc(wholeSize);
 
     memcpy((*bytes) + cnt, PS_MARK_S, strlen(PS_MARK_S));
@@ -93,7 +94,7 @@ int encode(AVPacket &pkt, char **bytes)
     memcpy((*bytes) + cnt, &(pkt.pts), sizeof(pkt.pts));
     cnt += sizeof(pkt.pts);
     memcpy((*bytes) + cnt, &(pkt.dts), sizeof(pkt.dts));
-    cnt += 8;
+    cnt += sizeof(pkt.dts);
     memcpy((*bytes) + cnt, &(pkt.pos), sizeof(pkt.pos));
     cnt += sizeof(pkt.pos);
     memcpy((*bytes) + cnt, &(pkt.duration), sizeof(pkt.duration));
@@ -113,6 +114,10 @@ int encode(AVPacket &pkt, char **bytes)
     cnt += sizeof(wholeSize);
     memcpy((*bytes) + cnt, PS_MARK_E, strlen(PS_MARK_E));
     cnt += strlen(PS_MARK_E);
+    if(cnt != wholeSize) {
+      spdlog::error("pkt encode : {} != {}", wholeSize, cnt);
+    }
+    
     assert(cnt == wholeSize);
     av_log(NULL, AV_LOG_DEBUG, "pkt origin size %d, serialized size: %d, elems: %d", pkt.size, wholeSize, pkt.side_data_elems);
     return wholeSize;
@@ -138,10 +143,15 @@ int decode(char *bytes, int len, AVPacket *pkt, long long *ts = nullptr)
     got += pkt->size;
     memcpy(&pkt->side_data_elems, bytes + got, sizeof(pkt->side_data_elems));
     got += sizeof(pkt->side_data_elems);
+
+    if(pkt->side_data_elems != 0){
+      pkt->side_data =(AVPacketSideData*) av_malloc(sizeof(AVPacketSideData) * pkt->side_data_elems );
+    }
     for (int i = 0; i < pkt->side_data_elems; i++)
     {
         memcpy(&(pkt->side_data[i].size), bytes + got, sizeof(pkt->side_data[i].size));
         got += sizeof(pkt->side_data[i].size);
+        pkt->side_data[i].data = (uint8_t *)av_malloc(pkt->side_data[i].size);
         memcpy(pkt->side_data[i].data, bytes + got, pkt->side_data[i].size);
         got += pkt->side_data[i].size;
         memcpy(&(pkt->side_data[i].type), bytes + got, sizeof(pkt->side_data[i].type));
@@ -233,8 +243,8 @@ int encode(AVFormatContext *ctx, char **bytes)
         memcpy((*bytes) + got, ctx->streams[i]->codecpar, sizeof(AVCodecParameters));
         got += sizeof(AVCodecParameters);
         //extra
-        memcpy((*bytes) + got, &(ctx->streams[i]->codecpar->extradata_size), sizeof(int));
-        got += sizeof(int);
+        memcpy((*bytes) + got, &(ctx->streams[i]->codecpar->extradata_size), sizeof(ctx->streams[i]->codecpar->extradata_size));
+        got += sizeof(ctx->streams[i]->codecpar->extradata_size);
         memcpy((*bytes) + got,ctx->streams[i]->codecpar->extradata, ctx->streams[i]->codecpar->extradata_size);
         got += ctx->streams[i]->codecpar->extradata_size;
     }
@@ -243,7 +253,7 @@ int encode(AVFormatContext *ctx, char **bytes)
     memcpy((*bytes) + got, PS_MARK_E, strlen(PS_MARK_E));
     got += strlen(PS_MARK_E);
     if(wholeSize != got){
-        spdlog::error("encode wholesize: {}, should be {}", got, wholeSize);
+        spdlog::error("avctx encode wholesize: {}, should be {}", got, wholeSize);
     }
     assert(wholeSize == got);
     
@@ -264,11 +274,14 @@ int decode(char *bytes, int len, AVFormatContext *pCtx)
     got += strlen(PS_MARK_S);
     memcpy(&ret, bytes + got, sizeof(ret));
     got += sizeof(ret);
-    pCtx->streams = (AVStream **)malloc(sizeof(AVStream *) * ret);
+    pCtx->streams = (AVStream **)av_malloc(sizeof(AVStream *) * ret);
     pCtx->nb_streams = ret;
-    for (int i = 0; i < ret; i++)
+    spdlog::debug("avctx decode streams:{}", ret);
+    int numExtra = ret;
+    for (int i = 0; i < numExtra; i++)
     {
-        pCtx->streams[i] = (AVStream *)malloc(sizeof(AVStream));
+        ret = 0;
+        pCtx->streams[i] = (AVStream *)av_malloc(sizeof(AVStream));
         memcpy(pCtx->streams[i], bytes + got, sizeof(AVStream));
         got += sizeof(AVStream);
         pCtx->streams[i]->codecpar = (AVCodecParameters *)malloc(sizeof(AVCodecParameters));
@@ -278,8 +291,9 @@ int decode(char *bytes, int len, AVFormatContext *pCtx)
         memcpy(&ret, bytes + got, sizeof(int));
         got += sizeof(int);
         if(ret != 0) {
+            spdlog::debug("avctx decode has extra : {}", ret);
             pCtx->streams[i]->codecpar->extradata_size = ret;
-            pCtx->streams[i]->codecpar->extradata = (uint8_t *)malloc(ret);
+            pCtx->streams[i]->codecpar->extradata = (uint8_t *)av_malloc(ret);
             memcpy(pCtx->streams[i]->codecpar->extradata, bytes + got, ret);
             got += ret;
         }
