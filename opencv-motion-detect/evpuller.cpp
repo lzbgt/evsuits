@@ -356,6 +356,7 @@ protected:
         //pAVFormatInput->flags = AVFMT_FLAG_NOBUFFER | AVFMT_FLAG_FLUSH_PACKETS;
 
         numStreams = pAVFormatInput->nb_streams;
+        spdlog::info("{} num streams: {}", selfId, numStreams);
         int *streamList = (int *)av_mallocz_array(numStreams, sizeof(*streamList));
 
         if (!streamList) {
