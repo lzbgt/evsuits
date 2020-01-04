@@ -213,7 +213,7 @@ int encode(AVFormatContext *ctx, char **bytes, vector<int> ids = vector<int>())
     wholeSize += strlen(PS_MARK_S);
     // num streams
     wholeSize += sizeof(ctx->nb_streams);
-    spdlog::debug("encode num of streams: {:d}", ctx->nb_streams);
+    
     int numStreams = ctx->nb_streams;
     if(ids.size() != 0) {
       numStreams = ids.size();
@@ -221,6 +221,11 @@ int encode(AVFormatContext *ctx, char **bytes, vector<int> ids = vector<int>())
       for(int i = 0; i < numStreams; i++){
         ids.push_back(i);
       }
+    }
+
+    spdlog::info("encode num of streams: {}, {}", ctx->nb_streams, numStreams);
+    for(auto i: ids){
+        spdlog::info("\t sid: {}", i);
     }
 
     for (int i = 0; i < numStreams; i++)
