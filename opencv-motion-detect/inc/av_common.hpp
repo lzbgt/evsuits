@@ -205,7 +205,7 @@ namespace AVFormatCtxSerializer
  * */
 
 
-int encode(AVFormatContext *ctx, char **bytes)
+int encode(AVFormatContext *ctx, char **bytes, vector<int> ids = vector<int>())
 {
     int wholeSize = 0;
     int got = 0;
@@ -214,7 +214,16 @@ int encode(AVFormatContext *ctx, char **bytes)
     // num streams
     wholeSize += sizeof(ctx->nb_streams);
     spdlog::debug("encode num of streams: {:d}", ctx->nb_streams);
-    for (int i = 0; i < ctx->nb_streams; i++)
+    int numStreams = ctx->nb_streams;
+    if(ids.size() != 0) {
+      numStreams = ids.size();
+    }else{
+      for(int i = 0; i < numStreams; i++){
+        ids.push_back(i);
+      }
+    }
+
+    for (int i = 0; i < numStreams; i++)
     {
         wholeSize += sizeof(AVStream);
         wholeSize += sizeof(AVCodecParameters);
@@ -232,9 +241,9 @@ int encode(AVFormatContext *ctx, char **bytes)
     // populate
     memcpy((*bytes) + got, PS_MARK_S, strlen(PS_MARK_S));
     got += strlen(PS_MARK_S);
-    memcpy((*bytes) + got, (void *)&(ctx->nb_streams), sizeof(ctx->nb_streams));
+    memcpy((*bytes) + got, (void *)&(numStreams), sizeof(ctx->nb_streams));
     got += sizeof(ctx->nb_streams);
-    for (int i = 0; i < ctx->nb_streams; i++)
+    for (auto i: ids)
     {
         //
         memcpy((*bytes) + got, ctx->streams[i], sizeof(AVStream));

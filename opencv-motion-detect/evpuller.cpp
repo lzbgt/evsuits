@@ -369,16 +369,18 @@ protected:
 
         // find all video & audio streams for remuxing
         int i = 0, streamIdx = 0;
+        vector<int> ids;
         for (; i < pAVFormatInput->nb_streams; i++) {
             AVStream *in_stream = pAVFormatInput->streams[i];
             AVCodecParameters *in_codecpar = in_stream->codecpar;
             if (in_codecpar->codec_type != AVMEDIA_TYPE_AUDIO &&
-                    in_codecpar->codec_type != AVMEDIA_TYPE_VIDEO &&
-                    in_codecpar->codec_type != AVMEDIA_TYPE_SUBTITLE) {
+                    in_codecpar->codec_type != AVMEDIA_TYPE_VIDEO /* &&
+                    in_codecpar->codec_type != AVMEDIA_TYPE_SUBTITLE */) {
                 streamList[i] = -1;
                 continue;
             }
             streamList[i] = streamIdx++;
+            ids.push_back(i);
         }
 
         bool bStopSig = false;
@@ -423,7 +425,7 @@ protected:
                     // be attention to the scope of lock guard!
                     {
                         lock_guard<mutex> lock(this->mutMsg);
-                        lenAVFmtCtxBytes = AVFormatCtxSerializer::encode(pAVFormatInput, &pAVFmtCtxBytes);
+                        lenAVFmtCtxBytes = AVFormatCtxSerializer::encode(pAVFormatInput, &pAVFmtCtxBytes, ids);
                         if(lenAVFmtCtxBytes <= 0 || pAVFmtCtxBytes == nullptr) {
                             spdlog::error("evpuller {} failed to pull packet from {}. exiting...", selfId, urlIn);
                             // TODO: message report to cloud
