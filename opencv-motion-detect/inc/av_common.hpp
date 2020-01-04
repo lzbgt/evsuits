@@ -228,7 +228,7 @@ int encode(AVFormatContext *ctx, char **bytes, vector<int> ids = vector<int>())
         spdlog::info("\t sid: {}", i);
     }
 
-    for (int i = 0; i < numStreams; i++)
+    for (auto i:ids)
     {
         wholeSize += sizeof(AVStream);
         wholeSize += sizeof(AVCodecParameters);

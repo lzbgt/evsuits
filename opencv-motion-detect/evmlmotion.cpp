@@ -510,6 +510,9 @@ private:
                 if(this->pps != 0 && factor == 0) {
                     // lock the value
                     factor = int(int(this->pps) / this->detPara.fpsProc); // regulator to 0 if it was set inresonably high
+                    if(factor > 8) {
+                      factor = 8;
+                    }
                 }
 
                 if(factor != 0 ) {
