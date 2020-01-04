@@ -369,11 +369,11 @@ private:
                 AVStream *out_stream;
                 AVStream *in_stream = pAVFormatInput->streams[i];
                 AVCodecParameters *in_codecpar = in_stream->codecpar;
-                if (in_codecpar->codec_type != AVMEDIA_TYPE_AUDIO &&
-                        in_codecpar->codec_type != AVMEDIA_TYPE_VIDEO) {
-                    streamList[i] = -1;
-                    continue;
-                }
+                // if (in_codecpar->codec_type != AVMEDIA_TYPE_AUDIO &&
+                //         in_codecpar->codec_type != AVMEDIA_TYPE_VIDEO) {
+                //     streamList[i] = -1;
+                //     continue;
+                // }
                 streamList[i] = streamIdx++;
                 out_stream = avformat_new_stream(pAVFormatRemux, NULL);
                 if (!out_stream) {
