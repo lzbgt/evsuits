@@ -521,6 +521,10 @@ protected:
             AVStream *in_stream =NULL, *out_stream = nullptr;
             in_stream  = pAVFormatInput->streams[packet.stream_index];
             packet.stream_index = streamList[packet.stream_index];
+            if(streamList[packet.stream_index] == -1) {
+              av_packet_unref(&packet);
+              continue;
+            }
             out_stream = pAVFormatRemux->streams[packet.stream_index];
 
             /* copy packet */
