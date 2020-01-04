@@ -583,6 +583,10 @@ protected:
 
                 AVStream *in_stream = nullptr, *out_stream = nullptr;
                 in_stream  = pAVFormatInput->streams[packet.stream_index];
+                if(streamList[packet.stream_index] == -1) {
+                  av_packet_unref(&packet);
+                  continue;
+                }
                 packet.stream_index = streamList[packet.stream_index];
                 out_stream = pAVFormatRemux->streams[packet.stream_index];
                 //calc pts
