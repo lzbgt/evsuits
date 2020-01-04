@@ -308,7 +308,10 @@ protected:
         else {
             //
         }
+        const char * userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3554.0 Safari/537.36";
         av_dict_set(&optsIn, "r", "18", 0);
+        av_dict_set(&optsIn, "user-agent", userAgent, 0);
+        
 
         spdlog::info("evpuller {} openning stream: {}", selfId, urlIn);
         if ((ret = avformat_open_input(&pAVFormatInput, urlIn.c_str(), NULL, &optsIn)) < 0) {
