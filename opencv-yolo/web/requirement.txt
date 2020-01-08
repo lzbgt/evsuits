@@ -1,0 +1,11 @@
+flask
+cerberus
+celery
+flower
+paho-mqtt
+azure-storage-file-share
+pyyaml
+redis
+efficientnet_pytorch
+tensorboardX
+pycocotools
