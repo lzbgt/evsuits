@@ -408,9 +408,10 @@ private:
         }
         unique_lock<mutex> lk(this->mutMsg);
         bool got = this->cvMsg.wait_for(lk, 30s, [this] {return this->gotFormat;});
-        if(got){
+        if(got) {
 
-        }else{
+        }
+        else {
             // restart
             spdlog::error("evmlmotion {} failed wait for avformatctx for {}s, restart", devSn, 30);
             exit(1);
@@ -511,7 +512,7 @@ private:
                     // lock the value
                     factor = int(int(this->pps) / this->detPara.fpsProc); // regulator to 0 if it was set inresonably high
                     if(factor > 8) {
-                      factor = 8;
+                        factor = 8;
                     }
                 }
 
