@@ -11,7 +11,7 @@ def get_args():
     parser.add_argument("--image_size", type=int, default=512, help="The common width and height for all images")
     parser.add_argument("--cls_threshold", type=float, default=0.5)
     parser.add_argument("--nms_threshold", type=float, default=0.5)
-    parser.add_argument("-c", "--pretrained_model", type=str, default="signatrix_efficientdet_coco.pth")
+    parser.add_argument("-c", "--pretrained_model", type=str, default="edet_model.pth")
     parser.add_argument("input", type=str, default="input.mp4")
     parser.add_argument("-o", "--output", type=str, default="detect_person.jpg")
     args = parser.parse_args()
@@ -28,6 +28,8 @@ def test(opt):
     strDetMsg = ''
     ts = int((datetime.datetime.now() - tsEpoch).total_seconds())
     fname = opt.output + "_" + str(ts) + ".jpg"
+    frameCnt = 0
+    tsStart = datetime.datetime.now()
     while cap.isOpened():
         flag, image = cap.read()
         output_image = np.copy(image)
@@ -35,6 +37,7 @@ def test(opt):
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         else:
             break
+        frameCnt += 1
         height, width = image.shape[:2]
         image = image.astype(np.float32) / 255
         image[:, :, 0] = (image[:, :, 0] - 0.485) / 0.229
@@ -85,10 +88,17 @@ def test(opt):
             if not bDetected:
               strDetMsg = "edet found human {:.3f} x: {}, y: {}, w: {}, h: {}; written image: {}".format(pred_prob, int(xmin), int(ymin), int(xmax-xmin), int(ymax-ymin), fname)
               bDetected = True
+
+        if frameCnt % 1000 == 0:
+            tsEnd = datetime.datetime.now()
+            fps = frameCnt/(tsEnd - tsStart).total_seconds()
+            print("fps: ", fps)
+            frameCnt = 0
+            tsStart = datetime.datetime.now()
         if bDetected:
-          cv2.imwrite(fname, output_image)
-          print(strDetMsg)
-          break
+            cv2.imwrite(fname, output_image)
+            print(strDetMsg)
+            break
     cap.release()
 
 if __name__ == "__main__":

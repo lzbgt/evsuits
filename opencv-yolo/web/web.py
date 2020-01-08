@@ -143,7 +143,7 @@ def new_task():
   ret = take_task(request.json)
   return jsonify(ret);
 
-@worker.task
+@worker.task(acks_late=True)
 def video_analysis(data):
   ret = {'code': 0, 'msg': 'ok'}
   ret['target'] = data
