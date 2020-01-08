@@ -66,8 +66,8 @@ private:
     AVCodecContext *pCodecCtx = nullptr;
     DetectParam detPara = {25, 500, -1, 3, 3, 30, 0.3, 25};
     EventState evtState = EventState::NONE;
-    // chrono::system_clock::time_point evtStartTm, evtStartTmLast, evtStartTmOrig;
-    long long evtStartTm = 0, evtStartTmLast = 0, evtStartTmOrig = 0;
+    // chrono::system_clock::time_point packetTm, evtStartTmLast, evtStartTmOrig;
+    long long packetTm = 0, evtStartTmLast = 0, evtStartTmOrig = 0, evtStartTmPre = 0;
     queue<string> *evtQueue;
     int streamIdx = -1;
     json config;
@@ -583,8 +583,8 @@ private:
         matShow3 = gray.clone();
         matShow2 = origin;
 #endif
-        // evtStartTm = chrono::system_clock::now();
-        evtStartTm = packetTs;
+        // packetTm = chrono::system_clock::now();
+        packetTm = packetTs;
         // TODO: AVG
         // cv::accumulateWeighted(gray, avg, 0.5);
         cv::absdiff(gray, avg, thresh);
@@ -625,47 +625,49 @@ private:
         spdlog::debug("evmlmotion {} contours {} area {}, thresh {} hasEvent {}", selfId, cnts.size(), hasEvent? cv::contourArea(cnts[i]):0, detPara.area, hasEvent);
 
         // business logic for event
-        // auto dura = chrono::duration_cast<chrono::seconds>(evtStartTm - evtStartTmLast).count();
+        // auto dura = chrono::duration_cast<chrono::seconds>(packetTm - evtStartTmLast).count();
+        if(hasEvent){
+          evtStartTmLast = packetTm;
+        }
+        
         long long dura = 0;
         if(evtStartTmLast != 0) {
-            dura = evtStartTm - evtStartTmLast;
+            dura = packetTm - evtStartTmLast;
         }
 
         switch(evtState) {
         case NONE: {
             if(hasEvent) {
                 evtState = PRE;
-                spdlog::debug("state: NONE->PRE ({}, {})", dura, evtCnt);
+                spdlog::info("{} state: NONE->PRE ({}, {})", selfId, dura, evtCnt);
                 evtCnt = 0;
-                evtStartTmLast = evtStartTm;
-                evtStartTmOrig = evtStartTm;
+                evtStartTmOrig = packetTm;
             }
             break;
         }
         case PRE: {
             if(hasEvent) {
-                evtStartTmLast = evtStartTm;
-                evtStartTmOrig = evtStartTm;
                 if(dura > detPara.pre /*&& evtCnt < detPara.pre*/) {
                     spdlog::debug("state: PRE->PRE ({}, {})", dura, evtCnt);
                     evtState = PRE;
+                    evtStartTmOrig = packetTm;
                     evtCnt = 0;
                 }
                 else if (true/*dura > detPara.pre && evtCnt >= detPara.pre*/) {
                     evtState = IN;
                     json p;
-                    spdlog::debug("state: PRE->IN ({}, {})", dura, evtCnt);
+                    spdlog::info("{} state: PRE->IN ({}, {})", selfId, dura, evtCnt);
                     evtCnt = 0;
-                    makeEvent(EV_MSG_EVENT_MOTION_START, packetTs);
+                    makeEvent(EV_MSG_EVENT_MOTION_START, evtStartTmOrig);
                     auto tmp =  chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
-                    packetTsDelta = tmp - evtStartTm;
+                    packetTsDelta = tmp - packetTm;
                     spdlog::info("evmlmotion {} packet ts delta: {}", selfId, packetTsDelta);
                 }
             }
             else {
                 if(dura > detPara.pre) {
                     evtState= NONE;
-                    spdlog::debug("state: PRE->NONE ({}, {})", dura, evtCnt);
+                    spdlog::info("state: PRE->NONE ({}, {})", dura, evtCnt);
                     evtCnt = 0;
                 }
             }
@@ -675,19 +677,18 @@ private:
             if(!hasEvent) {
                 if(dura > (int)(detPara.post/2)) {
                     evtState = POST;
-                    spdlog::debug("state: IN->POST ({}, {})", dura, evtCnt);
+                    spdlog::info("state: IN->POST ({}, {})", dura, evtCnt);
                     evtCnt = 0;
                 }
             }
             else {
-                if( (evtStartTm - evtStartTmOrig) > (60 *detPara.maxDuration) ) {
-                    evtStartTmOrig = evtStartTm;
+                if( (packetTm - evtStartTmOrig) > (60 *detPara.maxDuration) ) {
+                    evtStartTmOrig = packetTm;
                     makeEvent(EV_MSG_EVENT_MOTION_END, packetTs);
                     evtCnt = 0;
                     makeEvent(EV_MSG_EVENT_MOTION_START, packetTs);
                     spdlog::warn("evmlmotion {} event video continued over {} minutes, force segmenting and continue", devSn, detPara.maxDuration);
                 }
-                evtStartTmLast = evtStartTm;
                 spdlog::debug("state: IN->IN ({}, {})", dura, evtCnt);
                 evtCnt = 0;
             }
@@ -696,17 +697,16 @@ private:
         case POST: {
             if(!hasEvent) {
                 if(dura > detPara.post) {
-                    spdlog::debug("state: POST->NONE ({}, {})", dura, evtCnt);
+                    spdlog::info("state: POST->NONE ({}, {})", dura, evtCnt);
                     evtState = NONE;
                     evtCnt = 0;
                     makeEvent(EV_MSG_EVENT_MOTION_END, packetTs);
                 }
             }
             else {
-                spdlog::debug("state: POST->IN ({}, {})", dura, evtCnt);
+                spdlog::info("state: POST->IN ({}, {})", dura, evtCnt);
                 evtState=IN;
                 evtCnt = 0;
-                evtStartTmLast = evtStartTm;
             }
             break;
         }
