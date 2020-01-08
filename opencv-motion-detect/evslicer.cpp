@@ -736,13 +736,13 @@ protected:
             for (const auto & entry : fs::directory_iterator(path)) {
                 fname = entry.path().c_str();
                 if(entry.file_size() == 0 || !entry.is_regular_file()||entry.path().extension() != ".mp4") {
-                    spdlog::warn("evslicer {} loadVideoFiles skipped {} (empty/directory/!mp4)", selfId, entry.path().c_str());
+                    spdlog::debug("evslicer {} loadVideoFiles skipped {} (empty/directory/!mp4)", selfId, entry.path().c_str());
                     continue;
                 }
 
                 baseName = getBaseName(fname);
                 auto ts = videoFileName2Ts(baseName);
-                spdlog::info("evslicer {} loadVideoFiles basename: {}, ts: {}", selfId, baseName, ts);
+                spdlog::debug("evslicer {} loadVideoFiles basename: {}, ts: {}", selfId, baseName, ts);
 
                 // check old files
                 if(ts - now > hours * 60 * 60) {
