@@ -6,6 +6,7 @@ paho-mqtt
 azure-storage-file-share
 pyyaml
 redis
+torch
 efficientnet_pytorch
 tensorboardX
 pycocotools
