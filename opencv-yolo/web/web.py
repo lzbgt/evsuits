@@ -44,11 +44,12 @@ SHARENAME=os.getenv('SHARE','pre-data')
 MQTT_HOST=os.getenv('MQTT_HOST','evcloud.ilabservice.cloud')
 MQTT_PORT=int(os.getenv('MQTT_PORT', 1883))
 REDIS_ADDR = os.getenv('REDIS', 'redis://localhost:6379')
-workd = os.getenv('BIN_DIR', '/Users/blu/work/opencv-projects/opencv-yolo')
+workd = os.getenv('BIN_DIR', '../')
 binName = os.getenv('BIN_NAME', 'detector ')
+binPrefix = os.getenv('BIN_PRE', '')
 configDir = os.getenv('CFG_DIR', workd)
 
-print("CONFIG: \nMQTT: {}:{}\n".format(MQTT_HOST, MQTT_PORT))
+print("CONFIG: \n\tMQTT: {}:{}\n\tBIN_NAME: {}".format(MQTT_HOST, MQTT_PORT, binName))
 
 def downloadFile(ipcSn, dirName, fileName, destDir):
   file_path=ipcSn + '/'+dirName+'/'+fileName
@@ -160,7 +161,8 @@ def video_analysis(data):
       print("downloaded file {} into {}".format(fileName, downloadDir))
       # analyze
       #cmdLine = '/Users/blu/work/opencv-projects/opencv-yolo/detector /Users/blu/work/opencv-projects/opencv-yolo/web/1550143347000-1577267418999.mp4 -c /Users/blu/work/opencv-projects/opencv-yolo/'
-      cmdLine = workd + '/' + binName + ' ' +  downloadDir + fileName + ' -c ' + configDir + ' -o ' + downloadDir + '/detect.jpg'
+      prefix = binPrefix + ' ' if binPrefix else binPrefix
+      cmdLine = prefix + workd + '/' + binName + ' ' +  downloadDir + fileName + ' -c ' + configDir + ' -o ' + downloadDir + '/detect.jpg'
       cmdArgs = shlex.split(cmdLine)
       print(cmdLine, '\n\n', cmdArgs)
       output = subprocess.check_output(cmdArgs)

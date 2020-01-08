@@ -8,17 +8,17 @@ ENV BIN_PRE=/usr/local/bin/python
 ENV BIN_NAME=web/detect_video.py
 ENV DL_DIR=/data
 #ENV REDIS=
-ENV CFG_DIR=/apps/app/
 ENV BIN_DIR=/apps/app/
+ENV CFG_DIR=edet_model.pth 
 
-COPY opencv-yolo/web/web.py /apps/app/
-COPY opencv-yolo/web/web.py /apps/app/
-COPY opencv-yolo/web/detect_video.py /apps/app/
+COPY web.py /apps/app/
+COPY detect_video.py /apps/app/
+COPY requirement.txt /apps/app/
+COPY edet_model.pth /apps/app/
+COPY src  /apps/app/src
 
-COPY opencv-yolo/web/requirement.txt /apps/app/
 RUN pip install -r requirement.txt
-
-COPY opencv-yolo/web/start.sh /apps/app
+COPY start.sh /apps/app
 
 EXPOSE 5555
 EXPOSE 5000
