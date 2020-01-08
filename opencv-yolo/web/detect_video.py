@@ -38,6 +38,10 @@ def test(opt):
         else:
             break
         frameCnt += 1
+        if frameCnt % (18*3) == 0:
+          pass
+        else:
+          continue
         height, width = image.shape[:2]
         image = image.astype(np.float32) / 255
         image[:, :, 0] = (image[:, :, 0] - 0.485) / 0.229
