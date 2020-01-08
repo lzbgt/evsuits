@@ -661,13 +661,13 @@ private:
                     makeEvent(EV_MSG_EVENT_MOTION_START, evtStartTmOrig);
                     auto tmp =  chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                     packetTsDelta = tmp - packetTm;
-                    spdlog::info("evmlmotion {} packet ts delta: {}", selfId, packetTsDelta);
+                    spdlog::info("{} packet ts delta: {}", selfId, packetTsDelta);
                 }
             }
             else {
                 if(dura > detPara.pre) {
                     evtState= NONE;
-                    spdlog::info("state: PRE->NONE ({}, {})", dura, evtCnt);
+                    spdlog::info("{} state: PRE->NONE ({}, {})", selfId, dura, evtCnt);
                     evtCnt = 0;
                 }
             }
@@ -677,7 +677,7 @@ private:
             if(!hasEvent) {
                 if(dura > (int)(detPara.post/2)) {
                     evtState = POST;
-                    spdlog::info("state: IN->POST ({}, {})", dura, evtCnt);
+                    spdlog::info("{} state: IN->POST ({}, {})", selfId, dura, evtCnt);
                     evtCnt = 0;
                 }
             }
@@ -689,7 +689,7 @@ private:
                     makeEvent(EV_MSG_EVENT_MOTION_START, packetTs);
                     spdlog::warn("evmlmotion {} event video continued over {} minutes, force segmenting and continue", devSn, detPara.maxDuration);
                 }
-                spdlog::debug("state: IN->IN ({}, {})", dura, evtCnt);
+                spdlog::debug("{} state: IN->IN ({}, {})",selfId, dura, evtCnt);
                 evtCnt = 0;
             }
             break;
