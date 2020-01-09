@@ -50,6 +50,9 @@ int encode(AVPacket &pkt, char **bytes)
     //data
     int wholeSize = strlen(PS_MARK_S) + sizeof(pkt.size) + pkt.size;
     //side data
+    // TODO: ignore side_data
+    pkt.side_data_elems = 0;
+    
     wholeSize += sizeof(pkt.side_data_elems);
     if (pkt.side_data_elems != 0)
     {
@@ -144,7 +147,7 @@ int decode(char *bytes, int len, AVPacket *pkt, long long *ts = nullptr)
 
     // TODO: ignore side_data
     pkt->side_data_elems = 0;
-    
+
     memcpy(&pkt->side_data_elems, bytes + got, sizeof(pkt->side_data_elems));
     got += sizeof(pkt->side_data_elems);
 
