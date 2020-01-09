@@ -141,6 +141,10 @@ int decode(char *bytes, int len, AVPacket *pkt, long long *ts = nullptr)
     av_new_packet(pkt, pkt->size);
     memcpy(pkt->data, bytes + got, pkt->size);
     got += pkt->size;
+
+    // TODO: ignore side_data
+    pkt->side_data_elems = 0;
+    
     memcpy(&pkt->side_data_elems, bytes + got, sizeof(pkt->side_data_elems));
     got += sizeof(pkt->side_data_elems);
 
@@ -226,6 +230,8 @@ int encode(AVFormatContext *ctx, char **bytes, vector<int> ids = vector<int>())
     spdlog::info("encode num of streams: {}, {}", ctx->nb_streams, numStreams);
     for(auto i: ids){
         spdlog::info("\t sid: {}", i);
+        // TODO: ignore extradata
+        // ctx->streams[i]->codecpar->extradata_size = 0;
     }
 
     for (auto i:ids)
