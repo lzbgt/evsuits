@@ -35,6 +35,7 @@ query configuration for edge device with specified sn
                         "thresh":30,
                         "fpsProc": 3,
                         "entropy": 0.3,
+                        "region": {"center": [0.5,0.5], "wh": [0.75, 0.75]}
                         "type":"motion"
                      }
                   ],
