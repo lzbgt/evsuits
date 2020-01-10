@@ -15,7 +15,7 @@ query configuration for edge device with specified sn
 - field "data": configuration for sn.
 - field .evml.region detecting region box if specified, otherwise using the whole scene.
   - .center: center pointer of region box in ratio
-  - .wh: width and height of region box in ratioo
+  - .wh: width and height of region box in ratio
 - example
 ```
 {
