@@ -333,10 +333,7 @@ private:
                     }
                 }
             }
-            else {
-                detPara.maxDuration = evmlmotion["maxDuration"];
-            }
-
+            
             spdlog::info("evmlmotion {} detection params: entropy {}, area {}, thresh {}, fpsProc {}", selfId, detPara.entropy, detPara.area, detPara.thre, detPara.fpsProc);
 
             // setup sub
