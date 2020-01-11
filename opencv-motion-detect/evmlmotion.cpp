@@ -47,6 +47,7 @@ struct DetectParam {
     int post;
     float entropy;
     int maxDuration; // max event video length in minutes
+    cv::Point2f region[2];
 };
 
 enum EventState {
@@ -64,7 +65,7 @@ private:
     int iid;
     AVFormatContext *pAVFormatInput = nullptr;
     AVCodecContext *pCodecCtx = nullptr;
-    DetectParam detPara = {25, 500, -1, 3, 3, 30, 0.3, 25};
+    DetectParam detPara = {25, 500, -1, 3, 3, 30, 0.3, 25, {{0,0},{0,0}}};
     EventState evtState = EventState::NONE;
     // chrono::system_clock::time_point packetTm, evtStartTmLast, evtStartTmOrig;
     long long packetTm = 0, evtStartTmLast = 0, evtStartTmOrig = 0, evtStartTmPre = 0;
@@ -303,6 +304,34 @@ private:
 
             if(evmlmotion.count("maxDuration") == 0|| !evmlmotion["maxDuration"].is_number_integer() ||evmlmotion["maxDuration"] <= 1 || evmlmotion["maxDuration"] >= 100) {
                 spdlog::info("evmlmotion {} invalid maxDuration value. should be in (0, 100) as int(minutes), default to {}", selfId, detPara.maxDuration);
+            }
+            else {
+                detPara.maxDuration = evmlmotion["maxDuration"];
+            }
+
+            if(evmlmotion.count("region") == 0|| !evmlmotion["maxDuration"].is_object()) {
+                json &region = evmlmotion["region"];
+                if((region.count("center") == 0|| !region["center"].is_array()) || (region.count("wh") == 0||!region["wh"].is_array())){
+                    spdlog::error("evmlmotion {} invalid region config: format. ignored", selfId);
+                }else{
+                    cv::Point2f p1, p2;
+                    const float EVML_MARGIN_F = 0.0001;
+                    try{
+                        p1.x = region["center"][0];
+                        p1.y = region["center"][1];
+                        p2.x = region["wh"][0];
+                        p2.y = region["wh"][1];
+                        if((p1.x - p2.x/2) < EVML_MARGIN_F || (p1.x + p2.x/2) > (1 - EVML_MARGIN_F) || 
+                          (p1.y - p2.y/2) < EVML_MARGIN_F || (p1.y + p2.y/2) > (1 - EVML_MARGIN_F)) {
+                              spdlog::error("evmlmotion {} invalid region config: valid exceeding. ignored", selfId);
+                        }else{
+                            detPara.region[0] = p1;
+                            detPara.region[1] = p2;
+                        }
+                    }catch(exception &e) {
+                        spdlog::error("evmlmotion {} failed to parse regoin config: {}. ignored", selfId, e.what());
+                    }
+                }
             }
             else {
                 detPara.maxDuration = evmlmotion["maxDuration"];
@@ -567,6 +596,20 @@ private:
         static vector<vector<cv::Point> > cnts;
         cv::Mat origin, gray, thresh;
         avcvhelpers::frame2mat(format, pFrame, origin);
+        // check region
+        if(detPara.region[0].x == 0) {
+            // do nothing
+        }else {
+            // crop
+            auto w = origin.size().width;
+            auto h = origin.size().height;
+            auto x = (int)(w * (detPara.region[0].x - detPara.region[1].x/2));
+            auto y = (int)(h * (detPara.region[0].y - detPara.region[1].y/2));
+            w = w * detPara.region[1].x;
+            h = h * detPara.region[1].y;
+            cv::Rect crop(x,y,w,h);
+            origin = origin(crop);
+        }
         cv::resize(origin, gray, cv::Size(FRAME_SIZE,FRAME_SIZE));
         cv::cvtColor(gray, thresh, cv::COLOR_BGR2GRAY);
         float fent = avcvhelpers::getEntropy(thresh);
