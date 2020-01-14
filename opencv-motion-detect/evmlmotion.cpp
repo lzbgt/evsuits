@@ -309,7 +309,7 @@ private:
                 detPara.maxDuration = evmlmotion["maxDuration"];
             }
 
-            if(evmlmotion.count("region") == 0|| !evmlmotion["region"].is_object()) {
+            if(evmlmotion.count("region") != 0 && evmlmotion["region"].is_object()) {
                 json &region = evmlmotion["region"];
                 if(region.count("minX") == 0|| !region["minX"].is_number() || 
                     region.count("minY") == 0||!region["minY"].is_number() ||
@@ -337,6 +337,8 @@ private:
                         spdlog::error("evmlmotion {} failed to parse regoin config: {}. ignored", selfId, e.what());
                     }
                 }
+            }else{
+                spdlog::error("evmlmotion {} no/invalid region config. ignored");
             }
 
             spdlog::info("evmlmotion {} detection params: entropy {}, area {}, thresh {}, fpsProc {}", selfId, detPara.entropy, detPara.area, detPara.thre, detPara.fpsProc);
