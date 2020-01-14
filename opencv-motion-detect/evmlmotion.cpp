@@ -309,7 +309,7 @@ private:
                 detPara.maxDuration = evmlmotion["maxDuration"];
             }
 
-            if(evmlmotion.count("region") != 0 && evmlmotion["region"].is_object()) {
+            if(evmlmotion.count("region") != 0) {
                 json &region = evmlmotion["region"];
                 if(region.count("minX") == 0|| !region["minX"].is_number() || 
                     region.count("minY") == 0||!region["minY"].is_number() ||
@@ -331,7 +331,7 @@ private:
                         }else{
                             detPara.region[0] = p1;
                             detPara.region[1] = p2;
-                            spdlog::info("evmlmotion {} region: {} {}, {} {}", p1.x, p1.y, p2.x, p2.y);
+                            spdlog::info("evmlmotion {} region: {} {}, {} {}", selfId, p1.x, p1.y, p2.x, p2.y);
                         }
                     }catch(exception &e) {
                         spdlog::error("evmlmotion {} failed to parse regoin config: {}. ignored", selfId, e.what());
