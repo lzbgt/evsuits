@@ -331,6 +331,7 @@ private:
                         }else{
                             detPara.region[0] = p1;
                             detPara.region[1] = p2;
+                            spdlog::info("evmlmotion {} region: {} {}, {} {}", p1.x, p1.y, p2.x, p2.y);
                         }
                     }catch(exception &e) {
                         spdlog::error("evmlmotion {} failed to parse regoin config: {}. ignored", selfId, e.what());
