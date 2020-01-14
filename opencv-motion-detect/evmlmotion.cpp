@@ -326,7 +326,7 @@ private:
                         p2.y = region["maxY"].get<float>();
 
                         if(p1.x < 0 || p1.x>=1 || p1.y <=0 || p1.y > 1||
-                            p2.x <=0 || p2.x > 1 || p2.y <=0 || p2.y >1 || p1.x < p2.x || p1.y < p2.y) {
+                            p2.x <=0 || p2.x > 1 || p2.y <=0 || p2.y >1 || p1.x >= p2.x || p1.y >= p2.y) {
                               spdlog::error("evmlmotion {} invalid region config: invalid value range. ignored", selfId);
                         }else{
                             detPara.region[0] = p1;
@@ -338,7 +338,7 @@ private:
                     }
                 }
             }else{
-                spdlog::error("evmlmotion {} no/invalid region config. ignored");
+                spdlog::error("evmlmotion {} no/invalid region config. ignored", selfId);
             }
 
             spdlog::info("evmlmotion {} detection params: entropy {}, area {}, thresh {}, fpsProc {}", selfId, detPara.entropy, detPara.area, detPara.thre, detPara.fpsProc);
