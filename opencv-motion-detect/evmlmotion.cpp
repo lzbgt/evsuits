@@ -80,7 +80,7 @@ private:
     bool gotFormat = false;
     long long packetTs = 0;
     long long packetTsDelta = 0;
-    float pps = 0;
+    float pps = 0, imgScalor = 1;
     int pktLag = 0;
     //
 
@@ -268,7 +268,7 @@ private:
             }
 
             if(evmlmotion.count("area") == 0||evmlmotion["area"] < 10 ||evmlmotion["area"] >= int(FRAME_SIZE*FRAME_SIZE)*9/10) {
-                spdlog::info("evmlmotion {} invalid area value. should be in (10, 500*500*/10), default to {}", selfId, detPara.area);
+                spdlog::info("evmlmotion {} invalid area value. should be in (10, 500*500*9/10), default to {}", selfId, detPara.area);
             }
             else {
                 detPara.area = evmlmotion["area"];
@@ -598,12 +598,12 @@ private:
         cv::Mat origin, gray, thresh;
         avcvhelpers::frame2mat(format, pFrame, origin);
         // check region
+        auto w = origin.size().width;
+        auto h = origin.size().height;
         if(detPara.region[0].y == 0) {
             // do nothing
         }else {
             // crop
-            auto w = origin.size().width;
-            auto h = origin.size().height;
             auto x = (int)(w * detPara.region[0].x);
             auto y = (int)(h * detPara.region[0].y);
             w = w * (detPara.region[1].x - detPara.region[0].x);
@@ -611,7 +611,9 @@ private:
             cv::Rect crop(x,y,w,h);
             origin = origin(crop);
         }
-        cv::resize(origin, gray, cv::Size(FRAME_SIZE,FRAME_SIZE));
+
+        imgScalor = w * h / (FRAME_SIZE * FRAME_SIZE * 1.0);
+        // cv::resize(origin, gray, cv::Size(FRAME_SIZE,FRAME_SIZE));
         cv::cvtColor(gray, thresh, cv::COLOR_BGR2GRAY);
         float fent = avcvhelpers::getEntropy(thresh);
         cv::GaussianBlur(thresh, gray, cv::Size(21, 21), cv::THRESH_BINARY);
@@ -651,7 +653,7 @@ private:
         int evtCnt = 0;
         int i = 0;
         for(; i < cnts.size(); i++) {
-            if(cv::contourArea(cnts[i]) < detPara.area) {
+            if(cv::contourArea(cnts[i]) < (double)(detPara.area * imgScalor)) {
                 // nothing
             }
             else {
