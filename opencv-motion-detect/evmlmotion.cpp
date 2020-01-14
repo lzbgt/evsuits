@@ -614,6 +614,7 @@ private:
 
         imgScalor = w * h / (FRAME_SIZE * FRAME_SIZE * 1.0);
         // cv::resize(origin, gray, cv::Size(FRAME_SIZE,FRAME_SIZE));
+        gray = origin;
         cv::cvtColor(gray, thresh, cv::COLOR_BGR2GRAY);
         float fent = avcvhelpers::getEntropy(thresh);
         cv::GaussianBlur(thresh, gray, cv::Size(21, 21), cv::THRESH_BINARY);
