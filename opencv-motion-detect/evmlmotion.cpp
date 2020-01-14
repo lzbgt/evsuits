@@ -309,21 +309,25 @@ private:
                 detPara.maxDuration = evmlmotion["maxDuration"];
             }
 
-            if(evmlmotion.count("region") == 0|| !evmlmotion["maxDuration"].is_object()) {
+            if(evmlmotion.count("region") == 0|| !evmlmotion["region"].is_object()) {
                 json &region = evmlmotion["region"];
-                if((region.count("center") == 0|| !region["center"].is_array()) || (region.count("wh") == 0||!region["wh"].is_array())){
+                if(region.count("minX") == 0|| !region["minX"].is_number() || 
+                    region.count("minY") == 0||!region["minY"].is_number() ||
+                    region.count("maxX") == 0||!region["maxX"].is_number() ||
+                    region.count("maxY") == 0||!region["maxY"].is_number()){
                     spdlog::error("evmlmotion {} invalid region config: format. ignored", selfId);
                 }else{
                     cv::Point2f p1, p2;
                     const float EVML_MARGIN_F = 0.0001;
                     try{
-                        p1.x = region["center"][0];
-                        p1.y = region["center"][1];
-                        p2.x = region["wh"][0];
-                        p2.y = region["wh"][1];
-                        if((p1.x - p2.x/2) < EVML_MARGIN_F || (p1.x + p2.x/2) > (1 - EVML_MARGIN_F) || 
-                          (p1.y - p2.y/2) < EVML_MARGIN_F || (p1.y + p2.y/2) > (1 - EVML_MARGIN_F)) {
-                              spdlog::error("evmlmotion {} invalid region config: valid exceeding. ignored", selfId);
+                        p1.x = region["minX"].get<float>();
+                        p1.y = region["minY"].get<float>();
+                        p2.x = region["maxX"].get<float>();
+                        p2.y = region["maxY"].get<float>();
+
+                        if(p1.x < 0 || p1.x>=1 || p1.y <=0 || p1.y > 1||
+                            p2.x <=0 || p2.x > 1 || p2.y <=0 || p2.y >1 || p1.x < p2.x || p1.y < p2.y) {
+                              spdlog::error("evmlmotion {} invalid region config: invalid value range. ignored", selfId);
                         }else{
                             detPara.region[0] = p1;
                             detPara.region[1] = p2;
@@ -333,7 +337,7 @@ private:
                     }
                 }
             }
-            
+
             spdlog::info("evmlmotion {} detection params: entropy {}, area {}, thresh {}, fpsProc {}", selfId, detPara.entropy, detPara.area, detPara.thre, detPara.fpsProc);
 
             // setup sub
@@ -594,16 +598,16 @@ private:
         cv::Mat origin, gray, thresh;
         avcvhelpers::frame2mat(format, pFrame, origin);
         // check region
-        if(detPara.region[0].x == 0) {
+        if(detPara.region[0].y == 0) {
             // do nothing
         }else {
             // crop
             auto w = origin.size().width;
             auto h = origin.size().height;
-            auto x = (int)(w * (detPara.region[0].x - detPara.region[1].x/2));
-            auto y = (int)(h * (detPara.region[0].y - detPara.region[1].y/2));
-            w = w * detPara.region[1].x;
-            h = h * detPara.region[1].y;
+            auto x = (int)(w * detPara.region[0].x);
+            auto y = (int)(h * detPara.region[0].y);
+            w = w * (detPara.region[1].x - detPara.region[0].x);
+            h = h * (detPara.region[1].y - detPara.region[0].y);
             cv::Rect crop(x,y,w,h);
             origin = origin(crop);
         }
