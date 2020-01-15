@@ -218,7 +218,7 @@ public:
                 fileApd.close();
                 // start hostapd
                 auto t = thread([this]() {
-                    system("pkill hostapd;systemctl stop wpa_supplicant@wlan1;ifconfig wlan1 down;"
+                    system("pkill -9 hostapd;systemctl stop wpa_supplicant@wlan1;ifconfig wlan1 down;"
                            "ifconfig wlan1 up;ifconfig wlan1 192.168.0.1;hostapd /etc/apd.conf -B");
                     // TODO: check result
                 });
@@ -255,7 +255,7 @@ public:
                     auto t = thread([this]() {
                         // delay for rest return (ifdown caused no networking available)
                         this_thread::sleep_for(chrono::seconds(1));
-                        system("pkill hostapd; pkill dhclient;systemctl enable wpa_supplicant@wlan1;systemctl restart wpa_supplicant@wlan1;"
+                        system("pkill -9 hostapd; pkill dhclient;systemctl enable wpa_supplicant@wlan1;systemctl restart wpa_supplicant@wlan1;"
                                "/sbin/ifdown -a --read-environment; /sbin/ifup -a --read-environment");
                         // check status
                         auto s = exec("ifconfig wlan1|grep -v inet6|grep inet");
