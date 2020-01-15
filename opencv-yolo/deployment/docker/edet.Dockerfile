@@ -14,8 +14,8 @@ ENV CFG_DIR=edet_model.pth
 COPY requirement.txt /apps/app/
 
 RUN pip install --upgrade cython numpy
-RUN pip install -r requirement.txt
 RUN pip install pillow==6.1 torchvision opencv-contrib-python
+RUN pip install -r requirement.txt
 COPY web.py /apps/app/
 COPY detect_video.py /apps/app/
 COPY edet_model.pth /apps/app/
