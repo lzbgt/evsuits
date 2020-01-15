@@ -605,7 +605,7 @@ private:
         // check region
         auto w = origin.size().width;
         auto h = origin.size().height;
-        if(detPara.region[0].y == 0) {
+        if(detPara.region[0].y == 0 || (detPara.region[0].x == 0 && detPara.region[0].y == 0 && detPara.region[1].x == 1 && detPara.region[1].y == 1)) {
             // do nothing
         }else {
             // crop
