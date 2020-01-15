@@ -1,4 +1,4 @@
-FROM python:slim
+FROM python:3.7-buster
 
 ENV MAINTAINER=Bruce.Lu
 WORKDIR /apps/app
@@ -12,14 +12,13 @@ ENV BIN_DIR=/apps/app/
 ENV CFG_DIR=edet_model.pth 
 
 COPY requirement.txt /apps/app/
-
 RUN pip install --upgrade cython numpy
-RUN pip install pillow==6.1 torchvision opencv-contrib-python
 RUN pip install -r requirement.txt
-COPY web.py /apps/app/
+RUN pip install pillow==6.1 torchvision opencv-contrib-python
 COPY detect_video.py /apps/app/
 COPY edet_model.pth /apps/app/
 COPY src  /apps/app/src
+COPY web.py /apps/app/
 COPY start.sh /apps/app
 
 EXPOSE 5555
