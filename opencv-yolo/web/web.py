@@ -188,7 +188,6 @@ def video_analysis(data):
     else: # no video
       ret['code'] = 1
       ret['msg'] = 'no video specified'
-      return ret
   except Exception as e:
     print("exception in va worker: {}".format(e));
     ret['code'] = -1
