@@ -28,6 +28,7 @@ update: 2019/09/10
 #include "postfile.h"
 #include "dirmon.h"
 #include "inc/fs.h"
+#include "singprocess.hpp"
 
 using namespace std;
 using namespace zmqhelper;
@@ -38,6 +39,7 @@ private:
 #define NUM_HOURS_DEFAULT 2
 #define SECONDS_PER_SLICE_DEFAULT 30
 // 2 hours, 30 seconds per record
+    string selfName = "evslicer";
     void *pSubCtx = nullptr, *pDealerCtx = nullptr; // for packets relay
     void *pSub = nullptr, *pDealer = nullptr, *pDaemonCtx = nullptr, *pDaemon = nullptr;
     string urlOut, urlPub, urlRouter, devSn, mgrSn, selfId, pullerGid, ipcSn;
@@ -100,11 +102,11 @@ private:
                             AVFormatCtxSerializer::decode((char *)(v[2].data()), v[2].size(), pAVFormatInput);
                             gotFormat = true;
                             cvMsg.notify_one();
-                            spdlog::info("evslicer {} got avformat from {}", selfId, peerId);
+                            spdlog::info("{} got avformat from {}", selfId, peerId);
                         }
                         else {
-                            spdlog::warn("evslicer {} received avformatctx msg from {}, but already proceessed before, restarting", selfId, peerId);
-                            spdlog::error("evslicer {} restart since reinit", selfId);
+                            spdlog::warn("{} received avformatctx msg from {}, but already proceessed before, restarting", selfId, peerId);
+                            spdlog::error("{} restart since reinit", selfId);
                             exit(0);
                         }
                     }
@@ -112,38 +114,38 @@ private:
                 else if(metaType == EV_MSG_META_EVENT) {
                     data = json::parse(body2str(v[2]));
 
-                    /// evslicer has two msg interfaces to subsystems on edge side
+                    /// has two msg interfaces to subsystems on edge side
                     /// 1. type = "event";  start: timestamp; end: timestamp
                     /// 2. type = "media"; duration: seconds
                     if(!validMsg(data)) {
-                        spdlog::info("evslicer {} received invalid msg from {}: {}", selfId, peerId, msg);
+                        spdlog::info("{} received invalid msg from {}: {}", selfId, peerId, msg);
                     }
                     else {
-                        spdlog::info("evslicer {} received msg from {}, type = {}, data = {}", selfId, peerId, metaType, data.dump());
+                        spdlog::info("{} received msg from {}, type = {}, data = {}", selfId, peerId, metaType, data.dump());
                         if(data["type"] == "event") {
                             lock_guard<mutex> lock(this->mutEvent);
                             eventQueue.push(data.dump());
-                            spdlog::info("evslicer {} event num: {}", selfId, eventQueue.size());
+                            spdlog::info("{} event num: {}", selfId, eventQueue.size());
                             if(eventQueue.size() > MAX_EVENT_QUEUE_SIZE) {
                                 eventQueue.pop();
                             }
                             cvEvent.notify_one();
                         }
                         else {
-                            spdlog::error("evslicer {} msg not supported from {}: {}", selfId, peerId, msg);
+                            spdlog::error("{} msg not supported from {}: {}", selfId, peerId, msg);
                         }
                     }
                 }
                 else {
-                    spdlog::info("evslicer {} received unkown msg from {}: {}", selfId, peerId, msg);
+                    spdlog::info("{} received unkown msg from {}: {}", selfId, peerId, msg);
                 }
             }
             catch(exception &e) {
-                spdlog::error("evslicer {} exception to process msg {}: {}", selfId, msg, e.what());
+                spdlog::error("{} exception to process msg {}: {}", selfId, msg, e.what());
             }
         }
         else {
-            spdlog::error("evslicer {} get invalid msg with size {}: {}", selfId, v.size(), msg);
+            spdlog::error("{} get invalid msg with size {}: {}", selfId, v.size(), msg);
         }
 
         return ret;
@@ -172,7 +174,7 @@ private:
                 // msg from cluster mgr
                 if(peerId == daemonId) {
                     if(metaValue == EV_MSG_META_VALUE_CMD_STOP || metaValue == EV_MSG_META_VALUE_CMD_RESTART) {
-                        spdlog::info("evslicer {} received {} cmd from cluster mgr {}", selfId, metaValue, daemonId);
+                        spdlog::info("{} received {} cmd from cluster mgr {}", selfId, metaValue, daemonId);
                         bProcessed = true;
                         exit(0);
                     }
@@ -193,7 +195,7 @@ private:
                             }
                         }
                         catch(exception &e) {
-                            spdlog::error("evslicer {} exception in handleCloudMsg: {}", selfId, e.what());
+                            spdlog::error("{} exception in handleCloudMsg: {}", selfId, e.what());
                         }
                     }
                     else if(metaValue == "debug:xxx") {
@@ -221,12 +223,12 @@ private:
                 }
             }
             catch(exception &e) {
-                spdlog::error("evslicer {} exception to process msg {}: {}", selfId, msg, e.what());
+                spdlog::error("{} exception to process msg {}: {}", selfId, msg, e.what());
             }
         }
 
         if(!bProcessed) {
-            spdlog::error("evslicer {} received msg having no implementation from peer: {}", selfId, msg);
+            spdlog::error("{} received msg having no implementation from peer: {}", selfId, msg);
         }
 
         return ret;
@@ -237,7 +239,7 @@ private:
         int ret = 0;
         bool found = false;
         try {
-            spdlog::info("evslicer boot config: {} -> {}", selfId, config.dump());
+            spdlog::info("{} boot config: {}", selfId, config.dump());
             json evslicer;
             json &evmgr = this->config;
             json ipc;
@@ -262,7 +264,7 @@ private:
             }
 
             if(!found) {
-                spdlog::error("evslicer {}: no valid config found. retrying load config...", devSn);
+                spdlog::error("{}: no valid config found. retrying load config...", devSn);
                 exit(1);
             }
 
@@ -290,7 +292,7 @@ private:
             mgrSn = evmgr["sn"];
 
             if(evslicer.count("path") == 0) {
-                spdlog::info("evslicer {} no params for path, using default: {}", selfId, URLOUT_DEFAULT);
+                spdlog::info("{} no params for path, using default: {}", selfId, URLOUT_DEFAULT);
                 urlOut = URLOUT_DEFAULT;
             }
             else {
@@ -301,7 +303,7 @@ private:
             urlOut += string("/") + ipcSn + "_" + to_string(iid);
 
             if(evslicer.count("hours") == 0) {
-                spdlog::info("evslicer {} no params for hours, using default: {}", selfId, NUM_HOURS_DEFAULT);
+                spdlog::info("{} no params for hours, using default: {}", selfId, NUM_HOURS_DEFAULT);
                 hours = NUM_HOURS_DEFAULT;
             }
             else {
@@ -309,7 +311,7 @@ private:
             }
 
             if(evslicer.count("seconds") == 0) {
-                spdlog::info("evslicer {} no params for seconds, using default: {}", selfId, SECONDS_PER_SLICE_DEFAULT);
+                spdlog::info("{} no params for seconds, using default: {}", selfId, SECONDS_PER_SLICE_DEFAULT);
                 seconds = SECONDS_PER_SLICE_DEFAULT;
             }
             else {
@@ -318,7 +320,7 @@ private:
 
             numSlices = hours * 60 * 60 /seconds;
 
-            spdlog::info("evslicer mkdir -p {}", selfId, urlOut);
+            spdlog::info("mkdir -p {}", selfId, urlOut);
             ret = system((string("mkdir -p ") + urlOut).c_str());
 
 
@@ -340,7 +342,7 @@ private:
 
             urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(portPub);
             urlRouter = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(portRouter);
-            spdlog::info("evslicer {} will connect to {} for sub, {} for router", selfId, urlPub, urlRouter);
+            spdlog::info("{} will connect to {} for sub, {} for router", selfId, urlPub, urlRouter);
 
             // setup sub
             pSubCtx = zmq_ctx_new();
@@ -355,20 +357,20 @@ private:
             zmq_setsockopt(pSub, ZMQ_TCP_KEEPALIVE_INTVL, &ret, sizeof (ret));
             ret = zmq_setsockopt(pSub, ZMQ_SUBSCRIBE, "", 0);
             if(ret != 0) {
-                spdlog::error("evslicer {} failed set setsockopt: {}", selfId, urlPub);
+                spdlog::error("{} failed set setsockopt: {}", selfId, urlPub);
                 exit(1);
             }
 
             ret = zmq_connect(pSub, urlPub.c_str());
             if(ret != 0) {
-                spdlog::error("evslicer {} failed connect pub: {}", selfId, urlPub);
+                spdlog::error("{} failed connect pub: {}", selfId, urlPub);
                 exit(1);
             }
 
             // setup dealer
             pDealerCtx = zmq_ctx_new();
             pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
-            spdlog::info("evslicer {} try create req to {}", selfId, urlRouter);
+            spdlog::info("{} try create req to {}", selfId, urlRouter);
             //ZMQ_TCP_KEEPALIVE
             //ZMQ_TCP_KEEPALIVE_IDLE
             //ZMQ_TCP_KEEPALIVE_INTVL
@@ -380,23 +382,23 @@ private:
             ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());
             ret += zmq_setsockopt (pDealer, ZMQ_ROUTING_ID, selfId.c_str(), selfId.size());
             if(ret < 0) {
-                spdlog::error("evslicer {} {} failed setsockopts router: {}", selfId, urlRouter);
+                spdlog::error("{} {} failed setsockopts router: {}", selfId, urlRouter);
                 exit(1);
             }
             if(ret < 0) {
-                spdlog::error("evslicer {} failed setsockopts router: {}", selfId, urlRouter);
+                spdlog::error("{} failed setsockopts router: {}", selfId, urlRouter);
                 exit(1);
             }
             ret = zmq_connect(pDealer, urlRouter.c_str());
             if(ret != 0) {
-                spdlog::error("evslicer {} failed connect dealer: {}", selfId, urlRouter);
+                spdlog::error("{} failed connect dealer: {}", selfId, urlRouter);
                 exit(1);
             }
             //ping
             ret = ping();
         }
         catch(exception &e) {
-            spdlog::error("evslicer {} exception in init {:s} retrying", selfId, e.what());
+            spdlog::error("{} exception in init {:s} retrying", selfId, e.what());
             exit(1);
         }
 
@@ -411,10 +413,10 @@ private:
         vector<vector<uint8_t> >body = {str2body(mgrSn+":evmgr:0"), str2body(EV_MSG_META_PING), str2body(MSG_HELLO)};
         ret = z_send_multiple(pDealer, body);
         if(ret < 0) {
-            spdlog::error("evslicer {} failed to send multiple: {}", selfId, zmq_strerror(zmq_errno()));
+            spdlog::error("{} failed to send multiple: {}", selfId, zmq_strerror(zmq_errno()));
         }
         else {
-            spdlog::info("evslicer {} sent hello to router: {}", selfId, mgrSn);
+            spdlog::info("{} sent hello to router: {}", selfId, mgrSn);
         }
 
         return ret;
@@ -425,7 +427,7 @@ private:
         int ret = 0;
         // req avformatcontext packet
         // send hello to puller
-        spdlog::info("evslicer {} send hello to puller: {}", selfId, pullerGid);
+        spdlog::info("{} send hello to puller: {}", selfId, pullerGid);
         vector<vector<uint8_t> > body;
         body.push_back(str2body(pullerGid));
         json meta;
@@ -437,7 +439,7 @@ private:
 
         ret = z_send_multiple(pDealer, body);
         if(ret < 0) {
-            spdlog::error("evslicer {}, failed to send hello to puller: {}. exiting ...", selfId, zmq_strerror(zmq_errno()));
+            spdlog::error("{}, failed to send hello to puller: {}. exiting ...", selfId, zmq_strerror(zmq_errno()));
             // TODO: message report to cloud
             exit(1);
         }
@@ -447,7 +449,7 @@ private:
 
         }else{
             // restart
-            spdlog::error("evslicer {} failed wait for avformatctx for {}s, restart", devSn, 30);
+            spdlog::error("{} failed wait for avformatctx for {}s, restart", devSn, 30);
             exit(1);
         }
 
@@ -472,7 +474,7 @@ private:
         }
 
         for(int i = 0; i < pAVFormatInput->nb_streams; i++ ) {
-            spdlog::info("evslicer {} streamList[{:d}]: {:d}", selfId, i, streamList[i]);
+            spdlog::info("{} streamList[{:d}]: {:d}", selfId, i, streamList[i]);
         }
 
         //av_dict_set(&pOptsRemux, "movflags", "frag_keyframe+empty_moov+default_base_moof", 0);
@@ -523,7 +525,7 @@ protected:
             name = urlOut + "/" + "%Y%m%d_%H%M%S.mp4";
             ret = avformat_alloc_output_context2(&pAVFormatRemux, NULL, "segment", name.c_str());
             if (ret < 0) {
-                spdlog::error("evslicer {} failed create avformatcontext for output: %s", selfId, av_err2str(ret));
+                spdlog::error("{} failed create avformatcontext for output: %s", selfId, av_err2str(ret));
                 // TODO: message report to cloud
                 exit(1);
             }
@@ -533,12 +535,12 @@ protected:
                 if(streamList[i] != -1) {
                     out_stream = avformat_new_stream(pAVFormatRemux, NULL);
                     if (!out_stream) {
-                        spdlog::error("evslicer {} failed allocating output stream {}", selfId, i);
+                        spdlog::error("{} failed allocating output stream {}", selfId, i);
                         ret = AVERROR_UNKNOWN;
                     }
                     ret = avcodec_parameters_copy(out_stream->codecpar, pAVFormatInput->streams[i]->codecpar);
                     if (ret < 0) {
-                        spdlog::error("evslicer {} failed to copy codec parameters", selfId);
+                        spdlog::error("{} failed to copy codec parameters", selfId);
                     }
                 }
             }
@@ -546,30 +548,30 @@ protected:
             if (!(pAVFormatRemux->oformat->flags & AVFMT_NOFILE)) {
                 ret = avio_open2(&pAVFormatRemux->pb, name.c_str(), AVIO_FLAG_WRITE, NULL, &pOptsRemux);
                 if (ret < 0) {
-                    spdlog::error("evslicer {} could not open output file {}", selfId, name);
+                    spdlog::error("{} could not open output file {}", selfId, name);
                 }
             }
             // TODO
             av_dict_set(&pOptsRemux, "segment_start_number", to_string(this->sTsList.size()).data(), 0);
             ret = avformat_write_header(pAVFormatRemux, &pOptsRemux);
             if (ret < 0) {
-                spdlog::error("evslicer {} error occurred when opening output file", selfId);
+                spdlog::error("{} error occurred when opening output file", selfId);
             }
 
             bootTime = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
-            spdlog::info("evslicer {} start writing new slices", selfId);
+            spdlog::info("{} start writing new slices", selfId);
             int pktIgnore = 0;
             while(true) {
                 int ret =zmq_msg_init(&msg);
                 ret = zmq_recvmsg(pSub, &msg, 0);
                 if(ret < 0) {
-                    spdlog::error("evslicer {} failed to recv zmq msg: {}",selfId, zmq_strerror(ret));
+                    spdlog::error("{} failed to recv zmq msg: {}",selfId, zmq_strerror(ret));
                     continue;
                 }
                 ret = AVPacketSerializer::decode((char*)zmq_msg_data(&msg), ret, &packet);
                 {
                     if (ret < 0) {
-                        spdlog::error("evslicer {} packet decode failed: {}", selfId, ret);
+                        spdlog::error("{} packet decode failed: {}", selfId, ret);
                         continue;
                     }
                 }
@@ -592,7 +594,7 @@ protected:
                 //calc pts
 
                 if(pktCnt % EV_LOG_PACKET_CNT == 0) {
-                    spdlog::info("evslicer {} seq: {}, pts: {}, dts: {}, idx: {}", selfId, pktCnt, packet.pts, packet.dts, packet.stream_index);
+                    spdlog::info("{} seq: {}, pts: {}, dts: {}, idx: {}", selfId, pktCnt, packet.pts, packet.dts, packet.stream_index);
                 }
                 /* copy packet */
                 if(pktCnt == 0) {
@@ -613,7 +615,7 @@ protected:
                 av_packet_unref(&packet);
                 if (ret < 0) {
                     // TODO: report message to cloud
-                    string msg = fmt::format("evslicer {} error write file, resetting:{}", selfId, av_err2str(ret));
+                    string msg = fmt::format("{} error write file, resetting:{}", selfId, av_err2str(ret));
                     json meta;
                     json data;
                     data["msg"] = msg;
@@ -627,7 +629,7 @@ protected:
                     meta["value"] = EV_MSG_META_VALUE_REPORT_LEVEL_ERROR;
                     z_send(pDaemon, "evcloudsvc", meta.dump(), data.dump());
 
-                    spdlog::error("evslicer {} error muxing packet: {}, {}, {}, {}, reloading...", selfId, av_err2str(ret), packet.dts, packet.pts, packet.dts==AV_NOPTS_VALUE);
+                    spdlog::error("{} error muxing packet: {}, {}, {}, {}, reloading...", selfId, av_err2str(ret), packet.dts, packet.pts, packet.dts==AV_NOPTS_VALUE);
                     if(pktCnt != 0 && packet.pts == AV_NOPTS_VALUE) {
                         // reset
                         av_write_trailer(pAVFormatRemux);
@@ -642,7 +644,7 @@ protected:
                 else {
                     if(!bStatsSent) {
                         bStatsSent = true;
-                        string msg = fmt::format("evslicer {} starting write file", selfId);
+                        string msg = fmt::format("{} starting write file", selfId);
                         json meta;
                         json data;
                         data["msg"] = msg;
@@ -689,7 +691,7 @@ protected:
             posE = posE -1;
         }
         if(posE < posS) {
-            spdlog::error("evslicer getBaseName invalid filename");
+            spdlog::error("getBaseName invalid filename");
             return ret;
         }
 
@@ -721,7 +723,7 @@ protected:
 
     void printVideoFiles(set<long> &list)
     {
-        spdlog::info("evslicer {} debug files ring. size: {} max: {}",this->selfId, list.size(), this->numSlices);
+        spdlog::info("{} debug files ring. size: {} max: {}",this->selfId, list.size(), this->numSlices);
         // lock_guard<mutex> lg(mutTsList);
         for(auto i: list) {
             spdlog::info("\tevslicer {} file ts: {}, baseName: {}", selfId, i, videoFileTs2Name(i));
@@ -736,17 +738,17 @@ protected:
             for (const auto & entry : fs::directory_iterator(path)) {
                 fname = entry.path().c_str();
                 if(entry.file_size() == 0 || !entry.is_regular_file()||entry.path().extension() != ".mp4") {
-                    spdlog::debug("evslicer {} loadVideoFiles skipped {} (empty/directory/!mp4)", selfId, entry.path().c_str());
+                    spdlog::debug("{} loadVideoFiles skipped {} (empty/directory/!mp4)", selfId, entry.path().c_str());
                     continue;
                 }
 
                 baseName = getBaseName(fname);
                 auto ts = videoFileName2Ts(baseName);
-                spdlog::debug("evslicer {} loadVideoFiles basename: {}, ts: {}", selfId, baseName, ts);
+                spdlog::debug("{} loadVideoFiles basename: {}, ts: {}", selfId, baseName, ts);
 
                 // check old files
                 if(ts - now > hours * 60 * 60) {
-                    spdlog::info("evslicer {} file {} old than {} hours: {}, {}", selfId, entry.path().c_str(), hours, ts, now);
+                    spdlog::info("{} file {} old than {} hours: {}, {}", selfId, entry.path().c_str(), hours, ts, now);
                     fs::path fname(this->urlOut + "/" + baseName + ".mp4");
                     fs::remove(fname);
                 }
@@ -756,7 +758,7 @@ protected:
             }
         }
         catch(exception &e) {
-            spdlog::error("evslicer {} {}:{} loadVideoFiles exception : {}",selfId, __FILE__, __LINE__, e.what());
+            spdlog::error("{} {}:{} loadVideoFiles exception : {}",selfId, __FILE__, __LINE__, e.what());
         }
     }
 
@@ -804,28 +806,28 @@ protected:
             string fullPath = i.get_path();
             size_t pos = fullPath.find(ext, 0);
             if(fullPath.size() < ext.size() ||  pos == string::npos || pos != (fullPath.size() - ext.size())) {
-                spdlog::debug("evslicer {} invalid file: {}, last: {}", self->selfId, fullPath, lastFile);
+                spdlog::debug("{} invalid file: {}, last: {}", self->selfId, fullPath, lastFile);
                 continue;
             }
 
             if(lastFile == i.get_path()) {
-                spdlog::debug("evslicer {} skip file : {}, last: {}", self->selfId, fullPath, lastFile);
+                spdlog::debug("{} skip file : {}, last: {}", self->selfId, fullPath, lastFile);
                 continue;
             }
             else if(!lastFile.empty()) {
-                spdlog::debug("evslicer {} filemon file: {}, ts: {}, last: {}", self->selfId, i.get_path().c_str(), i.get_time(), lastFile);
+                spdlog::debug("{} filemon file: {}, ts: {}, last: {}", self->selfId, i.get_path().c_str(), i.get_time(), lastFile);
                 try {
                     auto baseName = self->getBaseName(lastFile);
                     auto ts = self->videoFileName2Ts(baseName);
                     if(ts == -1) {
-                        spdlog::error("evslicer {} fileMonHandler failed to process file: {}", self->selfId, lastFile);
+                        spdlog::error("{} fileMonHandler failed to process file: {}", self->selfId, lastFile);
                     }
                     else {
                         self->insertTsList(self->sTsList, ts, self->numSlices);
                     }
                 }
                 catch(exception &e) {
-                    spdlog::error("evslicer {} fileMonHandler exception: {}", self->selfId, e.what());
+                    spdlog::error("{} fileMonHandler exception: {}", self->selfId, e.what());
                 }
             }
             else {
@@ -850,7 +852,7 @@ protected:
         long end =  *(--_it);
 
         if(tse < first||tss > end) {
-            spdlog::info("evslicer {} event range ({}, {}) is not in range ({}, {}).", selfId, tss, tse, first, end);
+            spdlog::info("{} event range ({}, {}) is not in range ({}, {}).", selfId, tss, tse, first, end);
             return ret;
         }
 
@@ -884,7 +886,7 @@ protected:
                 sf += "\n\t" + this->urlOut + "/" + fname + ".mp4, " + to_string(*itr);
                 ret.push_back(fname);
             }
-            spdlog::info("evslicer {} event {} - {} files to upload: {}", selfId, videoFileTs2Name(tss), videoFileTs2Name(tse), sf);
+            spdlog::info("{} event {} - {} files to upload: {}", selfId, videoFileTs2Name(tss), videoFileTs2Name(tse), sf);
         }
 
         return ret;
@@ -894,7 +896,7 @@ protected:
     {
         string modifier = fail?"failed": "successfully";
         string status = fail?"active":"recover";
-        string msg = fmt::format("evslicer {} {} upload videos: {}", selfId, modifier, reason);
+        string msg = fmt::format("{} {} upload videos: {}", selfId, modifier, reason);
         json meta;
         json data;
         data["msg"] = msg;
@@ -922,30 +924,35 @@ public:
             selfId = strEnv;
             auto v = strutils::split(selfId, ':');
             if(v.size() != 3||v[1] != "evslicer") {
-                spdlog::error("evslicer received invalid gid: {}", selfId);
+                spdlog::error("received invalid gid: {}", selfId);
                 exit(1);
             }
             devSn = v[0];
             iid = stoi(v[2]);
         }
         else {
-            spdlog::error("evslicer failed to start. no SN set");
+            spdlog::error("failed to start. no SN set");
             exit(1);
         }
 
-        spdlog::info("evslicer {} boot", selfId);
+        spdlog::info("{} boot", selfId);
+        SingletonProcess self(selfName, iid);
+        if(!self()){
+          spdlog::error("{} already running. ignore this instance", selfId);
+          exit(0);
+        }
 
         //
         string addr = string("tcp://127.0.0.1:") + drport;
         int ret = zmqhelper::setupDealer(&pDaemonCtx, &pDaemon, addr, selfId);
         if(ret != 0) {
-            spdlog::error("evslicer {} failed to setup dealer {}", devSn, addr);
+            spdlog::error("{} failed to setup dealer {}", devSn, addr);
             exit(1);
         }
 
         ret = zmqhelper::recvConfigMsg(pDaemon, config, addr, selfId);
         if(ret != 0) {
-            spdlog::error("evslicer {} failed to receive configration message {}", devSn, addr);
+            spdlog::error("{} failed to receive configration message {}", devSn, addr);
         }
 
         init();
@@ -955,7 +962,7 @@ public:
             while(true) {
                 auto body = z_recv_multiple(pDealer,false);
                 if(body.size() == 0) {
-                    spdlog::error("evslicer {} failed to receive multiple edge msg: {}", selfId, zmq_strerror(zmq_errno()));
+                    spdlog::error("{} failed to receive multiple edge msg: {}", selfId, zmq_strerror(zmq_errno()));
                 }
                 else {
                     // full proto msg received.
@@ -971,7 +978,7 @@ public:
             {
                 auto body = z_recv_multiple(pDaemon,false);
                 if(body.size() == 0) {
-                    spdlog::error("evslicer {} failed to receive multiple cloud msg: {}", selfId, zmq_strerror(zmq_errno()));
+                    spdlog::error("{} failed to receive multiple cloud msg: {}", selfId, zmq_strerror(zmq_errno()));
                 }
                 else {
                     // full proto msg received.
@@ -1021,7 +1028,7 @@ public:
                     long offsetE = 0;
 
                     if(tss < this->bootTime) {
-                        spdlog::warn("evslicer {} should we discard old msg?  {} <  bootTime {}", selfId, evt, this->bootTime);
+                        spdlog::warn("{} should we discard old msg?  {} <  bootTime {}", selfId, evt, this->bootTime);
                     }
 
                     long first = 0, end = 0;
@@ -1032,11 +1039,11 @@ public:
                     }
 
                     if(tse < first) {
-                        spdlog::info("evslicer {} thEventHandler event range ({}, {}) is not in range ({}, {}).", selfId, tss, tse, first, end);
+                        spdlog::info("{} thEventHandler event range ({}, {}) is not in range ({}, {}).", selfId, tss, tse, first, end);
                         continue;
                     }
                     else if(first == 0||tse > end) {
-                        spdlog::info("evslicer {} thEventHandler event range ({}, {}) is not in range ({}, {}), resched to run in {}s.", selfId, tss, tse, first, end, this->seconds + 5);
+                        spdlog::info("{} thEventHandler event range ({}, {}) is not in range ({}, {}), resched to run in {}s.", selfId, tss, tse, first, end, this->seconds + 5);
                         auto th = thread([evt, this]() {
                             this_thread::sleep_for(chrono::seconds(this->seconds + 5));
                             lock_guard<mutex> lock(this->mutEvent);
@@ -1053,7 +1060,7 @@ public:
 
                     auto v = findSlicesByRange(tss, tse, offsetS, offsetE);
                     if(v.size() == 0) {
-                        spdlog::error("evslicer {} thEventHandler event ({}, {}) = ({}, {}) not in range: ({}, {}), ({}, {})", this->selfId, tss, tse, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse), first, end, this->videoFileTs2Name(first), this->videoFileTs2Name(end));
+                        spdlog::error("{} thEventHandler event ({}, {}) = ({}, {}) not in range: ({}, {}), ({}, {})", this->selfId, tss, tse, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse), first, end, this->videoFileTs2Name(first), this->videoFileTs2Name(end));
                     }
                     else {
                         json params;
@@ -1068,7 +1075,7 @@ public:
                         for(auto &i: v) {
                             string fname = this->urlOut + "/" + i + ".mp4";
                             if(fs::file_size(fname) == 0) {
-                                spdlog::error("evslicer {} video size is 0: {}. ignore this event: {}", this->selfId, fname, evt);
+                                spdlog::error("{} video size is 0: {}. ignore this event: {}", this->selfId, fname, evt);
                                 hasError = true;
                                 break;
                             }
@@ -1080,12 +1087,12 @@ public:
                             continue;
                         }
 
-                        spdlog::info("evslicer {} file upload range:({},{}) = ({}, {}), url: {}", selfId, tss, tse, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse), this->videoFileServerApi);
+                        spdlog::info("{} file upload range:({},{}) = ({}, {}), url: {}", selfId, tss, tse, this->videoFileTs2Name(tss), this->videoFileTs2Name(tse), this->videoFileServerApi);
                         string strResp;
                         ret = netutils::postFiles(this->videoFileServerApi, params, fileNames, strResp);
                         if( ret != 0 ) {
                             bUploadFailed = true;
-                            spdlog::error("evslicer {} failed uploaded ({}, {}). local({}, {}). resp: {} files:\n{}", selfId, tss, tse, first, end, strResp, sf);
+                            spdlog::error("{} failed uploaded ({}, {}). local({}, {}). resp: {} files:\n{}", selfId, tss, tse, first, end, strResp, sf);
                             reportUploadFailure(selfId, true, strResp);
                             if(ret > 0) {
                                 if(jEvt.count("cnt") == 0) {
@@ -1094,7 +1101,7 @@ public:
 
                                 if(jEvt["cnt"].get<int>() <= 0) {
                                     // TODO: report message to cloud
-                                    string msg = fmt::format("evslicer {} failed to upload videos over N times: {}", selfId, strResp);
+                                    string msg = fmt::format("{} failed to upload videos over N times: {}", selfId, strResp);
                                     spdlog::error(msg);
                                     // TODO: move to failed folder
                                     string dirDest = "/var/data/evsuits/failed_events/";
@@ -1121,7 +1128,7 @@ public:
                                     }
                                 }
                                 else {
-                                    spdlog::info("evslicer {} retrying upload", selfId);
+                                    spdlog::info("{} retrying upload", selfId);
                                     jEvt["cnt"] = jEvt["cnt"].get<int>() - 1;
                                     lock_guard<mutex> lock(this->mutEvent);
                                     this->eventQueue.push(jEvt.dump());
@@ -1133,7 +1140,7 @@ public:
                             }
                         }
                         else { // ret == 0
-                            spdlog::info("evslicer {} upload ({}, {}). local({}, {}). resp: {} files:\n{}", selfId, tss, tse, first, end, strResp, sf);
+                            spdlog::info("{} upload ({}, {}). local({}, {}). resp: {} files:\n{}", selfId, tss, tse, first, end, strResp, sf);
                             try {
                                 auto resp = json::parse(strResp);
                                 //TODO: open this swith when video server has implemented this functionality
@@ -1150,7 +1157,7 @@ public:
                                         }
                                         else {
                                             if(jEvt["cnt"].get<int>() <= 0) {
-                                                string msg = fmt::format("evslicer {} failed to upload videos over N times. reason: {}", selfId, strResp);
+                                                string msg = fmt::format("{} failed to upload videos over N times. reason: {}", selfId, strResp);
                                                 spdlog::error(msg);
                                             }
                                             else {
@@ -1166,10 +1173,10 @@ public:
                                     }
                                     else if(resp["code"] == 6) {
                                         // TODO: cloud storage issue. need stratigy policy
-                                        spdlog::warn("evslicer {} TODO: handle cloud storage", this->selfId);
+                                        spdlog::warn("{} TODO: handle cloud storage", this->selfId);
                                     }
                                     else {
-                                        spdlog::error("evslicer {} failed to upload videos. abort retry.", this->selfId);
+                                        spdlog::error("{} failed to upload videos. abort retry.", this->selfId);
                                     }
                                 }
 
@@ -1181,13 +1188,13 @@ public:
                                 }
                             }
                             catch(exception &e) {
-                                spdlog::error("evslicer {} {}:{} exception: {}", this->selfId, __FILE__, __LINE__, e.what());
+                                spdlog::error("{} {}:{} exception: {}", this->selfId, __FILE__, __LINE__, e.what());
                             }
                         }
                     }
                 }
                 else {
-                    spdlog::error("evslicer {} unkown event :{}", this->selfId, evt);
+                    spdlog::error("{} unkown event :{}", this->selfId, evt);
                 }
             }
         });

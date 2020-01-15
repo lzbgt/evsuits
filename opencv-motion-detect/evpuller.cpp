@@ -18,12 +18,14 @@ update: 2019/09/10
 #include "inc/tinythread.hpp"
 #include "inc/common.hpp"
 #include "inc/database.h"
+#include "singprocess.hpp"
 
 using namespace std;
 using namespace zmqhelper;
 
 class EvPuller: public TinyThread {
 private:
+    string selfName = "evpuller";
     void *pPubCtx = nullptr; // for packets publishing
     void *pPub = nullptr;
     void *pDealerCtx = nullptr;
@@ -65,19 +67,19 @@ private:
                 string daemonId = this->devSn + ":evdaemon:0";
                 if(peerId == daemonId) {
                     if(metaValue == EV_MSG_META_VALUE_CMD_STOP || metaValue == EV_MSG_META_VALUE_CMD_RESTART) {
-                        spdlog::info("evpuller {} received {} cmd from cluster mgr {}", selfId, metaValue, daemonId);
+                        spdlog::info("{} received {} cmd from cluster mgr {}", selfId, metaValue, daemonId);
                         bProcessed = true;
                         exit(0);
                     }
                 }
             }
             catch(exception &e) {
-                spdlog::error("evpuller {} exception to process msg {}: {}", selfId, msg, e.what());
+                spdlog::error("{} exception to process msg {}: {}", selfId, msg, e.what());
             }
         }
 
         if(!bProcessed) {
-            spdlog::error("evpuller {} received msg having no implementation from peer: {}", selfId, msg);
+            spdlog::error("{} received msg having no implementation from peer: {}", selfId, msg);
         }
 
         return ret;
@@ -99,10 +101,10 @@ private:
         vector<vector<uint8_t> > rep = {str2body(peerId), str2body(meta.dump()), msgBody};
         int ret = z_send_multiple(pDealer, rep);
         if(ret < 0) {
-            spdlog::error("evpuller {} failed to send avformatctx data to requester {}: {}", selfId, peerId, zmq_strerror(zmq_errno()));
+            spdlog::error("{} failed to send avformatctx data to requester {}: {}", selfId, peerId, zmq_strerror(zmq_errno()));
         }
         else {
-            spdlog::info("evpuller {} success to send avformatctx data to requester {}", selfId, peerId);
+            spdlog::info("{} success to send avformatctx data to requester {}", selfId, peerId);
         }
     }
 
@@ -114,7 +116,7 @@ private:
             this->cvMsg.wait(lk, [this] {return this->gotFormat;});
         }
 
-        spdlog::info("evpuller {} got inputformat", selfId);
+        spdlog::info("{} got inputformat", selfId);
         try {
             // rep framectx
             // TODO: verify sender id?
@@ -126,14 +128,14 @@ private:
             }
             else if(meta["type"].get<string>() == EV_MSG_META_EVENT) {
                 // event msg
-                spdlog::info("evpuller {} received event: {}", selfId, body2str(v[2]));
+                spdlog::info("{} received event: {}", selfId, body2str(v[2]));
             }
             else {
-                spdlog::error("evpuller {} unknown meta from {}: {}", selfId, body2str(v[0]), body2str(v[1]));
+                spdlog::error("{} unknown meta from {}: {}", selfId, body2str(v[0]), body2str(v[1]));
             }
         }
         catch(exception &e) {
-            spdlog::error("evpuller {} excpetion parse request from {}: {}", selfId, body2str(v[0]), body2str(v[1]));
+            spdlog::error("{} excpetion parse request from {}: {}", selfId, body2str(v[0]), body2str(v[1]));
         }
 
         return ret;
@@ -146,7 +148,7 @@ private:
 
         ret = z_send_multiple(pDealer, body);
         if(ret < 0) {
-            spdlog::error("evpuller {} failed to send multiple: {}", selfId, zmq_strerror(zmq_errno()));
+            spdlog::error("{} failed to send multiple: {}", selfId, zmq_strerror(zmq_errno()));
         }
         return ret;
     }
@@ -158,7 +160,7 @@ private:
         bool found = false;
         string user, passwd, addr;
         try {
-            spdlog::info("evpuller boot config: {} -> {}", selfId, config.dump());
+            spdlog::info("{} boot config: {}", selfId, config.dump());
             json evpuller;
             json &evmgr = this->config;
             json ipc;
@@ -183,7 +185,7 @@ private:
 
 
             if(!found) {
-                spdlog::error("evpuller {} no valid config found", devSn);
+                spdlog::error("{} no valid config found", devSn);
                 exit(1);
             }
 
@@ -221,9 +223,9 @@ private:
             }
 
             addr = evpuller["addr"].get<string>();
-            spdlog::info("evpuller {} connecting to IPC {}", selfId, urlIn);
+            spdlog::info("{} connecting to IPC {}", selfId, urlIn);
             if(addr == "*" || addr == "0.0.0.0") {
-                spdlog::error("evpuller {} invalid addr {} for pub", selfId, evpuller.dump());
+                spdlog::error("{} invalid addr {} for pub", selfId, evpuller.dump());
                 exit(1);
             }
 
@@ -245,13 +247,13 @@ private:
 
             urlPub = string("tcp://*:") + to_string(portPub);
             urlDealer = "tcp://" + evmgr["addr"].get<string>() + string(":") + to_string(portRouter);
-            spdlog::info("evpuller {} bind on {} for pub, connect to {} for dealer", selfId, urlPub, urlDealer);
+            spdlog::info("{} bind on {} for pub, connect to {} for dealer", selfId, urlPub, urlDealer);
 
             pPubCtx = zmq_ctx_new();
             pPub = zmq_socket(pPubCtx, ZMQ_PUB);
             ret = zmq_bind(pPub, urlPub.c_str());
             if(ret < 0) {
-                spdlog::error("evpuller {} failed to bind to {}", selfId, urlPub);
+                spdlog::error("{} failed to bind to {}", selfId, urlPub);
                 exit(1);
             }
             pDealerCtx = zmq_ctx_new();
@@ -266,17 +268,17 @@ private:
             zmq_setsockopt(pDealer, ZMQ_TCP_KEEPALIVE_INTVL, &ret, sizeof (ret));
             ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());
             if(ret < 0) {
-                spdlog::error("evpuller {} failed to set identity", selfId);
+                spdlog::error("{} failed to set identity", selfId);
                 exit(1);
             }
             ret += zmq_setsockopt (pDealer, ZMQ_ROUTING_ID, selfId.c_str(), selfId.size());
             if(ret < 0) {
-                spdlog::error("evpuller {} {} failed setsockopts router: {}", selfId, urlDealer);
+                spdlog::error("{} {} failed setsockopts router: {}", selfId, urlDealer);
                 exit(1);
             }
             ret = zmq_connect(pDealer, urlDealer.c_str());
             if(ret < 0) {
-                spdlog::error("evpuller {} failed to connect to router {}", selfId, urlDealer);
+                spdlog::error("{} failed to connect to router {}", selfId, urlDealer);
                 exit(1);
             }
 
@@ -284,12 +286,12 @@ private:
         }
         catch(exception &e) {
             this_thread::sleep_for(chrono::seconds(3));
-            spdlog::error("evpuller {} exception in EvPuller.init {:s}, retrying... ", selfId, e.what());
+            spdlog::error("{} exception in EvPuller.init {:s}, retrying... ", selfId, e.what());
             exit(1);
         }
 
         inited = true;
-        spdlog::info("evpuller successfully load config");
+        spdlog::info("successfully load config");
 
         return 0;
     }
@@ -313,9 +315,9 @@ protected:
         // av_dict_set(&optsIn, "user-agent", userAgent, 0);
         
 
-        spdlog::info("evpuller {} openning stream: {}", selfId, urlIn);
+        spdlog::info("{} openning stream: {}", selfId, urlIn);
         if ((ret = avformat_open_input(&pAVFormatInput, urlIn.c_str(), NULL, &optsIn)) < 0) {
-            string msg = fmt::format("evpuller {} Could not open input stream {}: {}", selfId, urlIn, av_err2str(ret));
+            string msg = fmt::format("{} Could not open input stream {}: {}", selfId, urlIn, av_err2str(ret));
             json meta;
             json data;
             data["msg"] = msg;
@@ -333,7 +335,7 @@ protected:
             exit(1);
         }
         else {
-            string msg = fmt::format("evpuller {} successfully openned input stream {}", selfId, urlIn);
+            string msg = fmt::format("{} successfully openned input stream {}", selfId, urlIn);
             json meta;
             json data;
             data["msg"] = msg;
@@ -349,9 +351,9 @@ protected:
             spdlog::info(msg);
         }
 
-        spdlog::info("evpuller {} finding stream info: {}", selfId, urlIn);
+        spdlog::info("{} finding stream info: {}", selfId, urlIn);
         if ((ret = avformat_find_stream_info(pAVFormatInput, NULL)) < 0) {
-            spdlog::error("evpuller {} Failed to retrieve input stream information", selfId);
+            spdlog::error("{} Failed to retrieve input stream information", selfId);
             // TODO: message report to cloud
             exit(1);
         }
@@ -364,7 +366,7 @@ protected:
 
         if (!streamList) {
             ret = AVERROR(ENOMEM);
-            spdlog::error("evpuller {} failed create avformatcontext for output: {}", selfId, av_err2str(AVERROR(ENOMEM)));
+            spdlog::error("{} failed create avformatcontext for output: {}", selfId, av_err2str(AVERROR(ENOMEM)));
         }
 
         // find all video & audio streams for remuxing
@@ -393,7 +395,7 @@ protected:
             }
 
             // if(1 == getppid()) {
-            //     spdlog::error("evpuller {} exit since evdaemon is dead", selfId);
+            //     spdlog::error("{} exit since evdaemon is dead", selfId);
             //     exit(1);
             // }
 
@@ -403,7 +405,7 @@ protected:
 
             ret = av_read_frame(pAVFormatInput, &packet);
             if (ret < 0) {
-                spdlog::error("evpuller {} failed read packet: {}", selfId, av_err2str(ret));
+                spdlog::error("{} failed read packet: {}", selfId, av_err2str(ret));
                 // TODO: message report to cloud
                 exit(1);
             }
@@ -413,7 +415,7 @@ protected:
                 continue;
             }
             if(pktCnt % EV_LOG_PACKET_CNT == 0) {
-                spdlog::info("evpuller {} pktCnt: {:d}", selfId, pktCnt);
+                spdlog::info("{} pktCnt: {:d}", selfId, pktCnt);
             }
 
             pktCnt++;
@@ -427,7 +429,7 @@ protected:
                         lock_guard<mutex> lock(this->mutMsg);
                         lenAVFmtCtxBytes = AVFormatCtxSerializer::encode(pAVFormatInput, &pAVFmtCtxBytes, ids);
                         if(lenAVFmtCtxBytes <= 0 || pAVFmtCtxBytes == nullptr) {
-                            spdlog::error("evpuller {} failed to pull packet from {}. exiting...", selfId, urlIn);
+                            spdlog::error("{} failed to pull packet from {}. exiting...", selfId, urlIn);
                             // TODO: message report to cloud
                             exit(1);
                         }
@@ -480,7 +482,7 @@ public:
             selfId = strEnv;
             auto v = strutils::split(selfId, ':');
             if(v.size() != 3||v[1] != "evpuller") {
-                spdlog::error("evpuller {} received invalid gid: {}", selfId);
+                spdlog::error("{} received invalid gid: {}", selfId);
                 // TODO: message report to cloud
                 exit(1);
             }
@@ -488,29 +490,34 @@ public:
             iid = stoi(v[2]);
         }
         else {
-            spdlog::error("evpuller {} failed to start. no SN set", selfId);
+            spdlog::error("{} failed to start. no SN set", selfId);
             exit(1);
         }
 
-        spdlog::info("evpuller {} boot", selfId);
+        spdlog::info("{} boot", selfId);
+        SingletonProcess self(selfName, iid);
+        if(!self()){
+          spdlog::error("{} already running. ignore this instance", selfId);
+          exit(0);
+        }
 
         //
         string addr = string("tcp://127.0.0.1:") + drport;
         int ret = zmqhelper::setupDealer(&pDaemonCtx, &pDaemon, addr, selfId);
         if(ret != 0) {
-            spdlog::error("evpuller {} failed to setup dealer {}", selfId, addr);
+            spdlog::error("{} failed to setup dealer {}", selfId, addr);
             exit(1);
         }
-        spdlog::info("evpuller {} setup dealer to daemon OK", selfId);
+        spdlog::info("{} setup dealer to daemon OK", selfId);
 
         ret = zmqhelper::recvConfigMsg(pDaemon, config, addr, selfId);
         if(ret != 0) {
-            spdlog::error("evpuller {} failed to receive configration message {}", selfId, addr);
+            spdlog::error("{} failed to receive configration message {}", selfId, addr);
         }
 
-        spdlog::info("evpuller {} receive config from daemon OK", selfId);
+        spdlog::info("{} receive config from daemon OK", selfId);
         init();
-        spdlog::info("evpuller {} init OK", selfId);
+        spdlog::info("{} init OK", selfId);
 
         thEdgeMsgHandler = thread([this] {
             while(true)
@@ -527,7 +534,7 @@ public:
                     }
 
                     msg = msg.substr(0, msg.size()> EV_MSG_DEBUG_LEN? EV_MSG_DEBUG_LEN:msg.size());
-                    spdlog::info("evpuller {} received edge msg: {}", selfId, msg);
+                    spdlog::info("{} received edge msg: {}", selfId, msg);
                     this->handleEdgeMsg(body);
                 }
 

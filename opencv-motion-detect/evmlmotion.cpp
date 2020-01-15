@@ -23,6 +23,7 @@ update: 2019/09/10
 #include "common.hpp"
 #include "avcvhelpers.hpp"
 #include "database.h"
+#include "singprocess.hpp"
 
 using namespace std;
 using namespace zmqhelper;
@@ -59,6 +60,7 @@ enum EventState {
 
 class EvMLMotion: public TinyThread {
 private:
+    string selfName = "evmlmotion";
     void *pSubCtx = nullptr, *pDealerCtx = nullptr; // for packets relay
     void *pSub = nullptr, *pDealer = nullptr, *pDaemonCtx = nullptr, *pDaemon = nullptr;
     string urlOut, urlPub, urlRouter, devSn, mgrSn, selfId, pullerGid, slicerGid;
@@ -108,19 +110,19 @@ private:
                 string daemonId = this->devSn + ":evdaemon:0";
                 if(peerId == daemonId) {
                     if(metaValue == EV_MSG_META_VALUE_CMD_STOP || metaValue == EV_MSG_META_VALUE_CMD_RESTART) {
-                        spdlog::info("evmlmotion {} received {} cmd from cluster mgr {}", selfId, metaValue, daemonId);
+                        spdlog::info("{} received {} cmd from cluster mgr {}", selfId, metaValue, daemonId);
                         bProcessed = true;
                         exit(0);
                     }
                 }
             }
             catch(exception &e) {
-                spdlog::error("evmlmotion {} exception to process msg {}: {}", selfId, msg, e.what());
+                spdlog::error("{} exception to process msg {}: {}", selfId, msg, e.what());
             }
         }
 
         if(!bProcessed) {
-            spdlog::error("evmlmotion {} received msg having no implementation from peer: {}", selfId, msg);
+            spdlog::error("{} received msg having no implementation from peer: {}", selfId, msg);
         }
 
         return ret;
@@ -162,8 +164,8 @@ private:
                             cvMsg.notify_one();
                         }
                         else {
-                            spdlog::warn("evmlmotion {} received avformatctx msg from {}, but already proceessed before, restarting", selfId, peerId);
-                            spdlog::error("evmlmotion {} restart since reinit", selfId);
+                            spdlog::warn("{} received avformatctx msg from {}, but already proceessed before, restarting", selfId, peerId);
+                            spdlog::error("{} restart since reinit", selfId);
                             exit(0);
                         }
                         bProcessed = true;
@@ -171,12 +173,12 @@ private:
                 }
             }
             catch(exception &e) {
-                spdlog::error("evmlmotion {} exception to process msg {}: {}", selfId, msg, e.what());
+                spdlog::error("{} exception to process msg {}: {}", selfId, msg, e.what());
             }
         }
 
         if(!bProcessed) {
-            spdlog::error("evmlmotion {} received msg having no implementation from peer: {}", selfId, msg);
+            spdlog::error("{} received msg having no implementation from peer: {}", selfId, msg);
         }
 
         return ret;
@@ -187,7 +189,7 @@ private:
         int ret = 0;
         bool found = false;
         try {
-            spdlog::info("evmlmotion boot config: {} -> {}", selfId, config.dump());
+            spdlog::info("{} boot config: {}", selfId, config.dump());
             json evmlmotion;
             json &evmgr = this->config;
             json ipc;
@@ -212,7 +214,7 @@ private:
             }
 
             if(!found) {
-                spdlog::error("evmlmotion {}: no valid config found. retrying load config...", devSn);
+                spdlog::error("{}: no valid config found. retrying load config...", devSn);
                 exit(1);
             }
             // TODO: currently just take the first puller, but should test connectivity
@@ -242,11 +244,11 @@ private:
 
             urlPub = string("tcp://") + evpuller["addr"].get<string>() + ":" + to_string(portPub);
             urlRouter = string("tcp://") + evmgr["addr"].get<string>() + ":" + to_string(portRouter);
-            spdlog::info("evmlmotion {} will connect to {} for sub, {} for router", selfId, urlPub, urlRouter);
+            spdlog::info("{} will connect to {} for sub, {} for router", selfId, urlPub, urlRouter);
 
             // TODO: multiple protocols support
             if(evmlmotion.count("path") == 0) {
-                spdlog::info("evmlmotion {} no params for path, using default: {}", selfId, URLOUT_DEFAULT);
+                spdlog::info("{} no params for path, using default: {}", selfId, URLOUT_DEFAULT);
                 urlOut = URLOUT_DEFAULT;
             }
             else {
@@ -261,49 +263,49 @@ private:
 
             // detection params
             if(evmlmotion.count("thresh") == 0||evmlmotion["thresh"] < 10 ||evmlmotion["thresh"] >= 255) {
-                spdlog::info("evmlmotion {} invalid thresh value. should be in (10,255), default to {}", selfId, detPara.thre);
+                spdlog::info("{} invalid thresh value. should be in (10,255), default to {}", selfId, detPara.thre);
             }
             else {
                 detPara.thre = evmlmotion["thresh"];
             }
 
             if(evmlmotion.count("area") == 0||evmlmotion["area"] < 10 ||evmlmotion["area"] >= int(FRAME_SIZE*FRAME_SIZE)*9/10) {
-                spdlog::info("evmlmotion {} invalid area value. should be in (10, 500*500*9/10), default to {}", selfId, detPara.area);
+                spdlog::info("{} invalid area value. should be in (10, 500*500*9/10), default to {}", selfId, detPara.area);
             }
             else {
                 detPara.area = evmlmotion["area"];
             }
 
             if(evmlmotion.count("pre") == 0||evmlmotion["pre"] < 1 ||evmlmotion["pre"] >= 120) {
-                spdlog::info("evmlmotion {} invalid pre value. should be in (1, 120), default to {}", selfId, detPara.pre);
+                spdlog::info("{} invalid pre value. should be in (1, 120), default to {}", selfId, detPara.pre);
             }
             else {
                 detPara.pre = evmlmotion["pre"];
             }
 
             if(evmlmotion.count("post") == 0||evmlmotion["post"] < 6 ||evmlmotion["post"] >= 120) {
-                spdlog::info("evmlmotion {} invalid post value. should be in (6, 120), default to {}", selfId, detPara.post);
+                spdlog::info("{} invalid post value. should be in (6, 120), default to {}", selfId, detPara.post);
             }
             else {
                 detPara.post = evmlmotion["post"];
             }
 
             if(evmlmotion.count("entropy") == 0||evmlmotion["entropy"] < 0 || evmlmotion["entropy"] >= 10) {
-                spdlog::info("evmlmotion {} invalid entropy value. should be in (0, 10), default to {}", selfId, detPara.entropy);
+                spdlog::info("{} invalid entropy value. should be in (0, 10), default to {}", selfId, detPara.entropy);
             }
             else {
                 detPara.entropy = evmlmotion["entropy"];
             }
 
             if(evmlmotion.count("fpsProc") == 0|| !evmlmotion["fpsProc"].is_number_integer() ||evmlmotion["fpsProc"] < 0 || evmlmotion["fpsProc"] >= 40) {
-                spdlog::info("evmlmotion {} invalid fpsProc value. should be in (0, 40) as int, default to {}", selfId, detPara.fpsProc);
+                spdlog::info("{} invalid fpsProc value. should be in (0, 40) as int, default to {}", selfId, detPara.fpsProc);
             }
             else {
                 detPara.fpsProc = evmlmotion["fpsProc"];
             }
 
             if(evmlmotion.count("maxDuration") == 0|| !evmlmotion["maxDuration"].is_number_integer() ||evmlmotion["maxDuration"] <= 1 || evmlmotion["maxDuration"] >= 100) {
-                spdlog::info("evmlmotion {} invalid maxDuration value. should be in (0, 100) as int(minutes), default to {}", selfId, detPara.maxDuration);
+                spdlog::info("{} invalid maxDuration value. should be in (0, 100) as int(minutes), default to {}", selfId, detPara.maxDuration);
             }
             else {
                 detPara.maxDuration = evmlmotion["maxDuration"];
@@ -315,7 +317,7 @@ private:
                     region.count("minY") == 0||!region["minY"].is_number() ||
                     region.count("maxX") == 0||!region["maxX"].is_number() ||
                     region.count("maxY") == 0||!region["maxY"].is_number()){
-                    spdlog::error("evmlmotion {} invalid region config: format. ignored", selfId);
+                    spdlog::error("{} invalid region config: format. ignored", selfId);
                 }else{
                     cv::Point2f p1, p2;
                     const float EVML_MARGIN_F = 0.0001;
@@ -327,21 +329,21 @@ private:
 
                         if(p1.x < 0 || p1.x>=1 || p1.y <=0 || p1.y > 1||
                             p2.x <=0 || p2.x > 1 || p2.y <=0 || p2.y >1 || p1.x >= p2.x || p1.y >= p2.y) {
-                              spdlog::error("evmlmotion {} invalid region config: invalid value range. ignored", selfId);
+                              spdlog::error("{} invalid region config: invalid value range. ignored", selfId);
                         }else{
                             detPara.region[0] = p1;
                             detPara.region[1] = p2;
-                            spdlog::info("evmlmotion {} region: {} {}, {} {}", selfId, p1.x, p1.y, p2.x, p2.y);
+                            spdlog::info("{} region: {} {}, {} {}", selfId, p1.x, p1.y, p2.x, p2.y);
                         }
                     }catch(exception &e) {
-                        spdlog::error("evmlmotion {} failed to parse regoin config: {}. ignored", selfId, e.what());
+                        spdlog::error("{} failed to parse regoin config: {}. ignored", selfId, e.what());
                     }
                 }
             }else{
-                spdlog::error("evmlmotion {} no/invalid region config. ignored", selfId);
+                spdlog::error("{} no/invalid region config. ignored", selfId);
             }
 
-            spdlog::info("evmlmotion {} detection params: entropy {}, area {}, thresh {}, fpsProc {}", selfId, detPara.entropy, detPara.area, detPara.thre, detPara.fpsProc);
+            spdlog::info("{} detection params: entropy {}, area {}, thresh {}, fpsProc {}", selfId, detPara.entropy, detPara.area, detPara.thre, detPara.fpsProc);
 
             // setup sub
             pSubCtx = zmq_ctx_new();
@@ -356,19 +358,19 @@ private:
             zmq_setsockopt(pSub, ZMQ_TCP_KEEPALIVE_INTVL, &ret, sizeof (ret));
             ret = zmq_setsockopt(pSub, ZMQ_SUBSCRIBE, "", 0);
             if(ret != 0) {
-                spdlog::error("evmlmotion {} failed set setsockopt: {}", selfId, urlPub);
+                spdlog::error("{} failed set setsockopt: {}", selfId, urlPub);
                 exit(1);
             }
             ret = zmq_connect(pSub, urlPub.c_str());
             if(ret != 0) {
-                spdlog::error("evmlmotion {} failed connect pub: {}", selfId, urlPub);
+                spdlog::error("{} failed connect pub: {}", selfId, urlPub);
                 exit(1);
             }
 
             // setup dealer
             pDealerCtx = zmq_ctx_new();
             pDealer = zmq_socket(pDealerCtx, ZMQ_DEALER);
-            spdlog::info("evmlmotion {} connect to router {}", selfId, urlRouter);
+            spdlog::info("{} connect to router {}", selfId, urlRouter);
             ret = 1;
             zmq_setsockopt(pDealer, ZMQ_TCP_KEEPALIVE, &ret, sizeof (ret));
             ret = 5;
@@ -377,23 +379,23 @@ private:
             ret = zmq_setsockopt(pDealer, ZMQ_IDENTITY, selfId.c_str(), selfId.size());
             ret += zmq_setsockopt (pDealer, ZMQ_ROUTING_ID, selfId.c_str(), selfId.size());
             if(ret < 0) {
-                spdlog::error("evmlmotion {} {} failed setsockopts router: {}", selfId, urlRouter);
+                spdlog::error("{} {} failed setsockopts router: {}", selfId, urlRouter);
                 exit(1);
             }
             if(ret < 0) {
-                spdlog::error("evmlmotion {} failed setsockopts router: {}", selfId, urlRouter);
+                spdlog::error("{} failed setsockopts router: {}", selfId, urlRouter);
                 exit(1);
             }
             ret = zmq_connect(pDealer, urlRouter.c_str());
             if(ret != 0) {
-                spdlog::error("evmlmotion {} failed connect dealer: {}", selfId, urlRouter);
+                spdlog::error("{} failed connect dealer: {}", selfId, urlRouter);
                 exit(1);
             }
             //ping
             ret = ping();
         }
         catch(exception &e) {
-            spdlog::error("evmlmotion {} exception in EvPuller.init {:s} retrying", selfId, e.what());
+            spdlog::error("{} exception in EvPuller.init {:s} retrying", selfId, e.what());
             exit(1);
         }
         return 0;
@@ -411,10 +413,10 @@ private:
 
         ret = z_send_multiple(pDealer, body);
         if(ret < 0) {
-            spdlog::error("evmlmotion {} failed to send multiple: {}", selfId, zmq_strerror(zmq_errno()));
+            spdlog::error("{} failed to send multiple: {}", selfId, zmq_strerror(zmq_errno()));
         }
         else {
-            spdlog::info("evmlmotion {} sent hello to router: {}", selfId, mgrSn);
+            spdlog::info("{} sent hello to router: {}", selfId, mgrSn);
         }
 
         return ret;
@@ -425,7 +427,7 @@ private:
         int ret = 0;
         // req avformatcontext packet
         // send hello to puller
-        spdlog::info("evmlmotion {} send hello to puller: {}", selfId, pullerGid);
+        spdlog::info("{} send hello to puller: {}", selfId, pullerGid);
         vector<vector<uint8_t> > body;
         body.push_back(str2body(pullerGid));
         json meta;
@@ -446,7 +448,7 @@ private:
         }
         else {
             // restart
-            spdlog::error("evmlmotion {} failed wait for avformatctx for {}s, restart", devSn, 30);
+            spdlog::error("{} failed wait for avformatctx for {}s, restart", devSn, 30);
             exit(1);
         }
         return ret;
@@ -468,7 +470,7 @@ private:
         }
 
         if(streamIdx == -1) {
-            spdlog::error("evmlmotion {} no video stream found.", selfId);
+            spdlog::error("{} no video stream found.", selfId);
             return -1;
         }
 
@@ -476,22 +478,22 @@ private:
         detPara.fpsIn = (int)(pStream->r_frame_rate.num/pStream->r_frame_rate.den);
         AVCodec *pCodec = avcodec_find_decoder(pStream->codecpar->codec_id);
         if (pCodec==NULL) {
-            spdlog::error("evmlmotion {} ERROR unsupported codec!", selfId);
+            spdlog::error("{} ERROR unsupported codec!", selfId);
             return -1;
         }
 
         pCodecCtx = avcodec_alloc_context3(pCodec);
         if (!pCodecCtx) {
-            spdlog::error("evmlmotion {} failed to allocated memory for AVCodecContext", selfId);
+            spdlog::error("{} failed to allocated memory for AVCodecContext", selfId);
             return -1;
         }
         if (avcodec_parameters_to_context(pCodecCtx, pStream->codecpar) < 0) {
-            spdlog::error("evmlmotion {} failed to copy codec params to codec context", selfId);
+            spdlog::error("{} failed to copy codec params to codec context", selfId);
             return -1;
         }
 
         if (avcodec_open2(pCodecCtx, pCodec, NULL) < 0) {
-            spdlog::error("evmlmotion {} failed to open codec through avcodec_open2", selfId);
+            spdlog::error("{} failed to open codec through avcodec_open2", selfId);
             return -1;
         }
 
@@ -512,7 +514,7 @@ private:
     {
         int response = avcodec_send_packet(pCodecContext, pPacket);
         if (response < 0) {
-            spdlog::error("evmlmotion {} Error while sending a packet to the decoder: {}", selfId, av_err2str(response));
+            spdlog::error("{} Error while sending a packet to the decoder: {}", selfId, av_err2str(response));
             return response;
         }
 
@@ -523,7 +525,7 @@ private:
             }
 
             if (response < 0) {
-                spdlog::error("evmlmotion {} Error while receiving a frame from the decoder: {}", selfId, av_err2str(response));
+                spdlog::error("{} Error while receiving a frame from the decoder: {}", selfId, av_err2str(response));
                 return response;
             }
             else {
@@ -561,13 +563,13 @@ private:
 
                 if(!proc) {
                     if(this->pps != 0 && (called %180) == 0) {
-                        spdlog::info("evmlmotion {} pps {}, fpsFactor {}, called {}, lag {}, skip processing", this->selfId, this->pps, factor, called, this->pktLag);
+                        spdlog::info("{} pps {}, fpsFactor {}, called {}, lag {}, skip processing", this->selfId, this->pps, factor, called, this->pktLag);
                     }
                     // detectMotion(pCodecContext->pix_fmt, pFrame, false);
                 }
                 else {
                     if((called % (180*4)) == 0) {
-                        spdlog::info("evmlmotion {} pps {}, fpsFactor {}, called {}, lag {}", this->selfId, this->pps, factor, called, this->pktLag);
+                        spdlog::info("{} pps {}, fpsFactor {}, called {}, lag {}", this->selfId, this->pps, factor, called, this->pktLag);
                     }
                     detectMotion(pCodecContext->pix_fmt, pFrame, detect);
                     factor = 0; // refresh to latest value
@@ -586,7 +588,7 @@ private:
         p["gid"] = selfId;
         p["event"] = evtType; //EV_MSG_EVENT_MOTION_END;
         p["ts"] = ts;
-        spdlog::info("evmlmotion {} packet ts delta: {}", selfId, packetTsDelta);
+        spdlog::info("{} packet ts delta: {}", selfId, packetTsDelta);
         evtQueue->push(p.dump());
         if(evtQueue->size() > MAX_EVENT_QUEUE_SIZE*2) {
             evtQueue->pop();
@@ -672,7 +674,7 @@ private:
             }
         } //end for
 
-        spdlog::debug("evmlmotion {} contours {} area {}, thresh {} hasEvent {}", selfId, cnts.size(), hasEvent? cv::contourArea(cnts[i]):0, detPara.area, hasEvent);
+        spdlog::debug("{} contours {} area {}, thresh {} hasEvent {}", selfId, cnts.size(), hasEvent? cv::contourArea(cnts[i]):0, detPara.area, hasEvent);
 
         // business logic for event
         // auto dura = chrono::duration_cast<chrono::seconds>(packetTm - evtStartTmLast).count();
@@ -737,7 +739,7 @@ private:
                     makeEvent(EV_MSG_EVENT_MOTION_END, packetTs);
                     evtCnt = 0;
                     makeEvent(EV_MSG_EVENT_MOTION_START, packetTs);
-                    spdlog::warn("evmlmotion {} event video continued over {} minutes, force segmenting and continue", devSn, detPara.maxDuration);
+                    spdlog::warn("{} event video continued over {} minutes, force segmenting and continue", devSn, detPara.maxDuration);
                 }
                 spdlog::debug("{} state: IN->IN ({}, {})",selfId, dura, evtCnt);
                 evtCnt = 0;
@@ -806,25 +808,25 @@ protected:
                         v[2] = str2body(eventToSlicer.dump());
                         ret = z_send_multiple(this->pDealer, v);
                         if(ret < 0) {
-                            spdlog::error("evmlmotion {} failed to send event {} to {}: {}", this->selfId, eventToSlicer.dump(), this->slicerGid, zmq_strerror(zmq_errno()));
+                            spdlog::error("{} failed to send event {} to {}: {}", this->selfId, eventToSlicer.dump(), this->slicerGid, zmq_strerror(zmq_errno()));
                         }
                         else {
-                            spdlog::info("evmlmotion {} sent event to {}: {}", this->selfId, this->slicerGid, eventToSlicer.dump());
+                            spdlog::info("{} sent event to {}: {}", this->selfId, this->slicerGid, eventToSlicer.dump());
                         }
                         eventToSlicer.clear();
                     }
                     else {
-                        spdlog::error("evmlmotion {} unknown event to {}: {}", this->selfId, this->slicerGid, eventToSlicer.dump());
+                        spdlog::error("{} unknown event to {}: {}", this->selfId, this->slicerGid, eventToSlicer.dump());
                     }
 
                     // send to evdaemon
                     v1[2] = str2body(evt);
                     ret = z_send_multiple(this->pDaemon, v1);
                     if(ret < 0) {
-                        spdlog::error("evmlmotion {} failed to send event {} to {}: {}", this->selfId, evt, daemonId, zmq_strerror(zmq_errno()));
+                        spdlog::error("{} failed to send event {} to {}: {}", this->selfId, evt, daemonId, zmq_strerror(zmq_errno()));
                     }
                     else {
-                        spdlog::info("evmlmotion {} sent event to {}: {}", this->selfId, daemonId, evt);
+                        spdlog::info("{} sent event to {}: {}", this->selfId, daemonId, evt);
                     }
 
                 }
@@ -838,7 +840,7 @@ protected:
 
         AVFrame *pFrame = av_frame_alloc();
         if (!pFrame) {
-            spdlog::error("evmlmotion {} failed to allocated memory for AVFrame", selfId);
+            spdlog::error("{} failed to allocated memory for AVFrame", selfId);
             // TODO: message report to cloud
             exit(1);
         }
@@ -856,19 +858,19 @@ protected:
             int ret =zmq_msg_init(&msg);
             ret = zmq_recvmsg(pSub, &msg, 0);
             if(ret < 0) {
-                spdlog::error("evmlmotion {} failed to recv zmq msg: {}", selfId, zmq_strerror(ret));
+                spdlog::error("{} failed to recv zmq msg: {}", selfId, zmq_strerror(ret));
                 continue;
             }
             ret = AVPacketSerializer::decode((char*)zmq_msg_data(&msg), ret, &packet, &packetTs);
             {
                 if (ret < 0) {
-                    spdlog::error("evmlmotion {} packet decode failed: {}", selfId, ret);
+                    spdlog::error("{} packet decode failed: {}", selfId, ret);
                     continue;
                 }
             }
             zmq_msg_close(&msg);
             if(pktCnt % EV_LOG_PACKET_CNT == 0) {
-                spdlog::info("evmlmotion {} seq: {}, pts: {}, dts: {}, idx: {}", selfId, pktCnt, packet.pts, packet.dts, packet.stream_index);
+                spdlog::info("{} seq: {}, pts: {}, dts: {}, idx: {}", selfId, pktCnt, packet.pts, packet.dts, packet.stream_index);
             }
             pktCnt++;
 
@@ -886,7 +888,7 @@ protected:
             av_packet_unref(&packet);
             if (ret < 0) {
                 // TODO: report message to cloud
-                string msg = fmt::format("evmlmotion {} failed to decode packet", selfId);
+                string msg = fmt::format("{} failed to decode packet", selfId);
                 json meta;
                 json data;
                 data["msg"] = msg;
@@ -904,7 +906,7 @@ protected:
             else {
                 if(!bStatsSent) {
                     bStatsSent = true;
-                    string msg = fmt::format("evmlmotion {} successfully decode packet", selfId);
+                    string msg = fmt::format("{} successfully decode packet", selfId);
                     json meta;
                     json data;
                     data["msg"] = msg;
@@ -927,7 +929,7 @@ protected:
                 pktLag = chrono::duration_cast<chrono::seconds>(now.time_since_epoch()).count() - this->packetTs;
                 this->pps = 18.0 * 1000/delta;
                 // if(pktCnt % (180 * 5) == 0) {
-                //     spdlog::info("evmlmotion {} metering: 18 packet in {}ms, pps: {}, lag:{}", selfId, delta, pps, pktLag);
+                //     spdlog::info("{} metering: 18 packet in {}ms, pps: {}, lag:{}", selfId, delta, pps, pktLag);
                 // }
 
                 pktCntLast = pktCnt;
@@ -952,30 +954,35 @@ public:
             selfId = strEnv;
             auto v = strutils::split(selfId, ':');
             if(v.size() != 3||v[1] != "evmlmotion") {
-                spdlog::error("evmlmotion received invalid gid: {}", selfId);
+                spdlog::error("received invalid gid: {}", selfId);
                 exit(1);
             }
             devSn = v[0];
             iid = stoi(v[2]);
         }
         else {
-            spdlog::error("evmlmotion failed to start. no SN set");
+            spdlog::error("failed to start. no SN set");
             exit(1);
         }
 
         spdlog::info("evmlmotio {} boot", selfId);
+        SingletonProcess self(selfName, iid);
+        if(!self()){
+          spdlog::error("{} already running. ignore this instance", selfId);
+          exit(0);
+        }
 
         //
         string addr = string("tcp://127.0.0.1:") + drport;
         int ret = zmqhelper::setupDealer(&pDaemonCtx, &pDaemon, addr, selfId);
         if(ret != 0) {
-            spdlog::error("evmlmotion {} failed to setup dealer {}", devSn, addr);
+            spdlog::error("{} failed to setup dealer {}", devSn, addr);
             exit(1);
         }
 
         ret = zmqhelper::recvConfigMsg(pDaemon, config, addr, selfId);
         if(ret != 0) {
-            spdlog::error("evmlmotion {} failed to receive configration message {}", devSn, addr);
+            spdlog::error("{} failed to receive configration message {}", devSn, addr);
         }
 
         init();
