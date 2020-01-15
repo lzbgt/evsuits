@@ -167,27 +167,18 @@ def video_analysis(data):
       print(cmdLine, '\n\n', cmdArgs)
       output = subprocess.check_output(cmdArgs)
       print(output)
+      ret['data'] = {}
+      ret['data']['humanDetect'] = {}
+      ret['data']['humanDetect']['found'] = 0
       # parse
       for line in output.decode('utf-8').split('\n'):
         print("\n", line)
         m = re.match(r".*? found (\w+) ([\d\.]+) .*? image: .*?/([_\w\d]+.jpg)", line)
-        ret['data'] = {}
-        ret['data']['humanDetect'] = {}
         if m:
           ret['data']['humanDetect']['found'] = 1
           ret['data']['humanDetect']['level'] = m.group(2)
           ret['data']['humanDetect']['image'] = m.group(3)
           print('found {}: {}, img: {}'.format(m.group(1), m.group(2), m.group(3)))
-          # write json
-          jsonFile = downloadDir + '/' + 'result.json'
-          with open(jsonFile, 'w') as outfile:
-            json.dump(ret, outfile)
-          # upload
-          uploadFile(ipcSN, dirName, 'result.json', downloadDir)
-          uploadFile(ipcSN, dirName,  m.group(3), downloadDir)
-          mc = mqtt.Client("vamqtt-pub")
-          mc.connect(MQTT_HOST, MQTT_PORT)
-          mc.publish('video.ai/v1.0/result', json.dumps(ret), qos=1)
           break
         else:
           ret['data']['humanDetect']['found'] = 0
@@ -204,12 +195,24 @@ def video_analysis(data):
     ret['msg'] = str(e)
     #extype, value, tb = sys.exc_info()
     #traceback.print_exc()
+  # write json
+  jsonFile = downloadDir + '/' + 'result.json'
+  with open(jsonFile, 'w') as outfile:
+    json.dump(ret, outfile)
+  # upload
+  uploadFile(ipcSN, dirName, 'result.json', downloadDir)
+  if ret['data']['humanDetect']['found'] != 0:
+    uploadFile(ipcSN, dirName,  ret['data']['humanDetect']['image'], downloadDir)
+  # pub msg
+  mc = mqtt.Client("vamqtt-pub")
+  mc.connect(MQTT_HOST, MQTT_PORT)
+  mc.publish('video.ai/v1.0/result', json.dumps(ret), qos=1)
   try:
     os.system('rm -fr ' + downloadDir)
   except Exception as e:
     print('cascaded exception in va: {}'.format(e))
     #raise Exception()
-  # pub msg
+    
   return ret
 
 if __name__ == '__main__':
