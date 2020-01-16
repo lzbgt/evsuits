@@ -94,8 +94,8 @@ private:
         for(auto &b:v) {
             msg +=body2str(b) + ";";
         }
-
-        // msg = msg.substr(0, msg.size()> 100? 15:msg.size());
+        msg = msg.substr(0, msg.size()> 100? 15:msg.size());
+        
         bool bProcessed = false;
         if(v.size() == 3) {
             try {
