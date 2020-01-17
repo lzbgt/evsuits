@@ -37,12 +37,13 @@ private:
     string urlIn, urlPub, urlDealer, mgrSn, devSn, selfId, ipcPort;
     int numStreams = 0, iid;
     json config;
-    thread thEdgeMsgHandler, thCloudMsgHandler;
+    thread thEdgeMsgHandler, thCloudMsgHandler, thMonitor;
     string proto = "rtsp";
     string drport = "5549";
     condition_variable cvMsg;
     mutex mutMsg;
     bool gotFormat = false;
+    uint64_t pktCnt = 0;
 
     int handleCloudMsg(vector<vector<uint8_t> > v)
     {
@@ -313,7 +314,20 @@ protected:
         // const char * userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3554.0 Safari/537.36";
         // av_dict_set(&optsIn, "r", "18", 0);
         // av_dict_set(&optsIn, "user-agent", userAgent, 0);
-        
+
+        // monitor thread
+        thMonitor = thread([this] {
+            uint64_t pktCntLast = this->pktCnt;
+            while(1)
+            {
+                this_thread::sleep_for(chrono::seconds(30));
+                if(pktCntLast == this->pktCnt) {
+                    spdlog::error("{} failed read packet in 30s, restart", selfId);
+                    kill(getpid(), SIGTERM);
+                }
+                pktCntLast = this->pktCnt;  
+            }
+        });
 
         spdlog::info("{} openning stream: {}", selfId, urlIn);
         if ((ret = avformat_open_input(&pAVFormatInput, urlIn.c_str(), NULL, &optsIn)) < 0) {
@@ -386,13 +400,12 @@ protected:
         }
 
         bool bStopSig = false;
-        uint64_t pktCnt = 0;
         spdlog::info("evpulelr {} reading packets from {}", selfId, urlIn);
         while (true) {
-            if(checkStop() == true) {
-                bStopSig = true;
-                break;
-            }
+            // if(checkStop() == true) {
+            //     bStopSig = true;
+            //     break;
+            // }
 
             // if(1 == getppid()) {
             //     spdlog::error("{} exit since evdaemon is dead", selfId);
@@ -496,9 +509,9 @@ public:
 
         spdlog::info("{} boot", selfId);
         SingletonProcess self(selfName, iid);
-        if(!self()){
-          spdlog::error("{} already running. ignore this instance", selfId);
-          exit(0);
+        if(!self()) {
+            spdlog::error("{} already running. ignore this instance", selfId);
+            exit(0);
         }
 
         //
