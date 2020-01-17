@@ -943,6 +943,8 @@ public:
             exit(1);
         }
 
+        devSn = info["sn"];
+
         spdlog::info("evdaemon boot \n{}",info.dump());
         string cmd = "hostnamectl set-hostname EVB-" + info["sn"].get<string>();
         system(cmd.c_str());
@@ -957,8 +959,6 @@ public:
         for(const auto &[k, v]: ipAddrs) {
             jsonIPs.push_back(k);
         }
-
-        devSn = info["sn"];
 
         char* strEnv = getenv("BOOTSTRAP");
         if(strEnv != nullptr && memcmp(strEnv, "false", 5) == 0) {
