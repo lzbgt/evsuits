@@ -628,6 +628,7 @@ private:
             avg.release();
             avg = gray.clone();
             first = false;
+            spdlog::info("{} imgScalor: {}, area: {}", selfId, imgScalor, detPara.area * imgScalor);
             return;
         }
 
@@ -658,8 +659,12 @@ private:
         bool hasEvent = false;
         int evtCnt = 0;
         int i = 0;
+        double area = (double)(detPara.area * imgScalor);
+        if(area < 10) {
+          area = 10;
+        }
         for(; i < cnts.size(); i++) {
-            if(cv::contourArea(cnts[i]) < (double)(detPara.area * imgScalor)) {
+            if(cv::contourArea(cnts[i]) < area) {
                 // nothing
             }
             else {
