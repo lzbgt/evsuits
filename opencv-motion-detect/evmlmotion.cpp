@@ -617,7 +617,7 @@ private:
             origin = origin(crop);
         }
 
-        imgScalor = w * h / (FRAME_SIZE * FRAME_SIZE * 1.0);
+        //imgScalor = w * h / (FRAME_SIZE * FRAME_SIZE * 1.0);
         // cv::resize(origin, gray, cv::Size(FRAME_SIZE,FRAME_SIZE));
         gray = origin;
         cv::cvtColor(gray, thresh, cv::COLOR_BGR2GRAY);
