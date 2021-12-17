@@ -8,20 +8,23 @@
 #ifndef _MY_YOLO_HPP_
 #define _MY_YOLO_HPP_
 
+#include <filesystem>
 #include <fstream>
-#include <sstream>
 #include <iostream>
+#include <sstream>
 #include <tuple>
-#include "fs.h"
+// #include "fs.h"
 #include "spdlog/spdlog.h"
 
 #ifdef _MY_HEADERS_
 #include <opencv2/core/types_c.h>
+
 #include <opencv2/dnn.hpp>
-#include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
 #else
 #include <opencv2/core/types_c.h>
+
 #include <opencv2/opencv.hpp>
 #endif
 
@@ -30,15 +33,16 @@ using namespace dnn;
 using namespace std;
 
 class YoloDectect {
-public:
+   public:
     unsigned long numFrameProcessed = 0;
-private:
+
+   private:
     // Initialize the parameters
     const string selfId = "ObjectDetector";
-    float confThreshold = 0.1; // Confidence threshold
-    float nmsThreshold = 0.2;  // Non-maximum suppression threshold
-    int inpWidth = 416;  // Width of network's input image
-    int inpHeight = 416; // Height of network's input image
+    float confThreshold = 0.1;  // Confidence threshold
+    float nmsThreshold = 0.2;   // Non-maximum suppression threshold
+    int inpWidth = 416;         // Width of network's input image
+    int inpHeight = 416;        // Height of network's input image
     vector<string> classes;
     Net net;
     Mat blob;
@@ -55,8 +59,7 @@ private:
     int cameNo = -1;
 
     // Get the names of the output layers
-    vector<String> getOutputsNames(const Net& net)
-    {
+    vector<String> getOutputsNames(const Net& net) {
         static vector<String> names;
         if (names.empty()) {
             //Get the indices of the output layers, i.e. the layers with unconnected outputs
@@ -74,8 +77,7 @@ private:
     }
 
     // draw the predicted bounding box
-    void drawPred(int classId, float conf, int left, int top, int right, int bottom, Mat& frame)
-    {
+    void drawPred(int classId, float conf, int left, int top, int right, int bottom, Mat& frame) {
         // draw a rectangle displaying the bounding box
         rectangle(frame, Point(left, top), Point(right, bottom), Scalar(255, 178, 50), 3);
 
@@ -90,13 +92,12 @@ private:
         int baseLine;
         Size labelSize = getTextSize(label, FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseLine);
         top = max(top, labelSize.height);
-        rectangle(frame, Point(left, top - round(1.5*labelSize.height)), Point(left + round(1.5*labelSize.width), top + baseLine), Scalar(255, 255, 255), FILLED);
-        putText(frame, label, Point(left, top), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(0,0,0),1);
+        rectangle(frame, Point(left, top - round(1.5 * labelSize.height)), Point(left + round(1.5 * labelSize.width), top + baseLine), Scalar(255, 255, 255), FILLED);
+        putText(frame, label, Point(left, top), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(0, 0, 0), 1);
     }
 
     // post process
-    vector<tuple<string, double, Rect>> postprocess(Mat& frame, const vector<Mat>& outs, bool bModify = false)
-    {
+    vector<tuple<string, double, Rect>> postprocess(Mat& frame, const vector<Mat>& outs, bool bModify = false) {
         vector<int> classIds;
         vector<float> confidences;
         vector<Rect> boxes;
@@ -120,12 +121,12 @@ private:
                     int left = centerX - width / 2;
                     int top = centerY - height / 2;
 
-                    if(bHumanOnly){
-                        if(classes[classIdPoint.x] != "person"){
+                    if (bHumanOnly) {
+                        if (classes[classIdPoint.x] != "person") {
                             continue;
                         }
                     }
-                    
+
                     classIds.push_back(classIdPoint.x);
                     confidences.push_back((float)confidence);
                     boxes.push_back(Rect(left, top, width, height));
@@ -141,7 +142,7 @@ private:
             int idx = indices[i];
             Rect box = boxes[idx];
             ret.push_back(tuple<string, double, Rect>(classes[classIds[idx]], confidences[idx], box));
-            if(bModify)
+            if (bModify)
                 drawPred(classIds[idx], confidences[idx], box.x, box.y, box.x + box.width, box.y + box.height, frame);
         }
 
@@ -149,14 +150,12 @@ private:
     }
 
     //
-protected:
-
+   protected:
     //
-public:
+   public:
     typedef int (*callback)(vector<tuple<string, double, Rect>>&, Mat);
-    YoloDectect(string path = ".", bool _humanOnly = false, float confThresh = 0.1, bool _bContinue = true, unsigned int _wrapNum = 10, unsigned int _numLogSkip = 380)
-    {
-        if(path.empty()) {
+    YoloDectect(string path = ".", bool _humanOnly = false, float confThresh = 0.1, bool _bContinue = true, unsigned int _wrapNum = 10, unsigned int _numLogSkip = 380) {
+        if (path.empty()) {
             path = ".";
         }
 
@@ -167,17 +166,17 @@ public:
 
         wrapNum = _wrapNum;
         numLogSkip = _numLogSkip;
-        
+
         // Load names of classes
         string classesFile = path + "/coco.names";
         // Give the configuration and weight files for the model
         String modCfg = path + "/yolov3-tiny.cfg";
         String modWeights = path + "/yolov3-tiny.weights";
 
-        if(!fs::exists(classesFile) || !fs::exists(modCfg) || !fs::exists(modWeights)) {
-            spdlog::error("{} failed to load configration files", selfId);
-            exit(1);
-        }
+        // if(!fs::exists(classesFile) || !fs::exists(modCfg) || !fs::exists(modWeights)) {
+        //     spdlog::error("{} failed to load configration files", selfId);
+        //     exit(1);
+        // }
 
         ifstream ifs(classesFile.c_str());
         string line;
@@ -192,14 +191,13 @@ public:
         spdlog::debug("{} inited", selfId);
     }
 
-    vector<tuple<string, double, Rect>> process(Mat &inFrame, Mat* pOutFrame, bool bModify = false)
-    {
-        if(inFrame.empty()) {
+    vector<tuple<string, double, Rect>> process(Mat& inFrame, Mat* pOutFrame, bool bModify = false) {
+        if (inFrame.empty()) {
             return vector<tuple<string, double, Rect>>();
         }
 
         // Create a 4D blob from a frame.
-        blobFromImage(inFrame, blob, 1/255.0, cvSize(inpWidth, inpHeight), Scalar(0,0,0), true, false);
+        blobFromImage(inFrame, blob, 1 / 255.0, cvSize(inpWidth, inpHeight), Scalar(0, 0, 0), true, false);
 
         //Sets the input to the network
         net.setInput(blob);
@@ -213,57 +211,55 @@ public:
 
         // The function getPerfProfile returns the overall time for inference(t) and the timings for each of the layers(in layersTimes)
         vector<double> layersTimes;
-        if(numLogSkip == 0 || numFrameProcessed % numLogSkip == 0) {
+        if (numLogSkip == 0 || numFrameProcessed % numLogSkip == 0) {
             double freq = getTickFrequency() / 1000;
             double t = net.getPerfProfile(layersTimes) / freq;
             spdlog::debug("{} infer time: {} ms", selfId, t);
         }
-        if(pOutFrame != nullptr){
+        if (pOutFrame != nullptr) {
             inFrame.convertTo(*pOutFrame, CV_8U);
         }
-        
+
         numFrameProcessed++;
         return ret;
     }
 
-    int process(string inVideoUri, string outFile = "processed.jpg", callback cb = nullptr)
-    {
-        if(inVideoUri.empty()) {
+    int process(string inVideoUri, string outFile = "processed.jpg", callback cb = nullptr) {
+        if (inVideoUri.empty()) {
             inVideoUri = "0";
         }
 
-        try{
-            if(inVideoUri.substr(0, 4) == "rtsp"||inVideoUri.substr(0, 4) == "rtmp"||inVideoUri.substr(inVideoUri.find_last_of(".") + 1) == "mp4"||(cameNo = stoi(inVideoUri)) >= 0) {
+        try {
+            if (inVideoUri.substr(0, 4) == "rtsp" || inVideoUri.substr(0, 4) == "rtmp" || inVideoUri.substr(inVideoUri.find_last_of(".") + 1) == "mp4" || (cameNo = stoi(inVideoUri)) >= 0) {
                 bInputIsImage = false;
             }
-        }catch(...) {
-            
+        } catch (...) {
         }
-        
-        if(!bInputIsImage) {
-            if((cameNo == -1 && !cap.open(inVideoUri, CAP_ANY))|| (cameNo != -1 && !cap.open(cameNo)))
-            {
+
+        if (!bInputIsImage) {
+            if ((cameNo == -1 && !cap.open(inVideoUri, CAP_ANY)) || (cameNo != -1 && !cap.open(cameNo))) {
                 spdlog::error("{} failed to open input video {}", selfId, inVideoUri);
                 exit(1);
-            }     
+            }
         }
 
-        ghc::filesystem::path p(outFile);
+        filesystem::path p(outFile);
         auto dir = p.parent_path();
 
-        if((outFile.substr(outFile.find_last_of(".") + 1) == "jpg")) {
+        if ((outFile.substr(outFile.find_last_of(".") + 1) == "jpg")) {
             bOutputIsImg = true;
-            outFileBase = string(dir / p.stem());
+            // TODO: dir
+            // outFileBase = dir.string() + "/" + p.stem().string();
+            outFileBase = p.stem().string();
             spdlog::debug("{} outFileBase {}", selfId, outFileBase);
-        }
-        else {
-            if(bInputIsImage) {
+        } else {
+            if (bInputIsImage) {
                 spdlog::error("{} can't output image {} as video {}, invalid params combination", selfId, inVideoUri, outFile);
                 exit(1);
             }
 
             bOutputIsImg = false;
-            if(!video.open(outFile, VideoWriter::fourcc('M','J','P','G'), 28, Size(cap.get(CAP_PROP_FRAME_WIDTH), cap.get(CAP_PROP_FRAME_HEIGHT)))) {
+            if (!video.open(outFile, VideoWriter::fourcc('M', 'J', 'P', 'G'), 28, Size(cap.get(CAP_PROP_FRAME_WIDTH), cap.get(CAP_PROP_FRAME_HEIGHT)))) {
                 spdlog::error("{} failed to open output video {}", selfId, outFile);
                 return -1;
             }
@@ -276,28 +272,27 @@ public:
         Mat frame, outFrame;
         while (true) {
             // get frame from the video
-            if(cmdStop) {
+            if (cmdStop) {
                 break;
             }
-            
-            if(bInputIsImage){
+
+            if (bInputIsImage) {
                 frame = imread(inVideoUri);
-                if(!frame.data){
+                if (!frame.data) {
                     spdlog::error("{} failed to read image {}", selfId, inVideoUri);
                     exit(1);
                 }
                 cmdStop = true;
-            }
-            else{
-                if(!cap.read(frame)) {
+            } else {
+                if (!cap.read(frame)) {
                     break;
                 }
 
                 frameCnt++;
-                if(frameCnt %100 == 0)
+                if (frameCnt % 100 == 0)
                     spdlog::debug("framecnt {}", frameCnt);
-                
-                if(frameCnt % 30  != 0 ){
+
+                if (frameCnt % 30 != 0) {
                     continue;
                 }
 
@@ -308,56 +303,55 @@ public:
             }
 
             vector<tuple<string, double, Rect>> ret = process(frame, &outFrame, true);
-            if(cb == nullptr) {
-                if(ret.size() == 0 && bOutputIsImg) {
+            if (cb == nullptr) {
+                if (ret.size() == 0 && bOutputIsImg) {
                     // no detection
-                    if(numLogSkip == 0|| skipCnt % numLogSkip == 0) {
+                    if (numLogSkip == 0 || skipCnt % numLogSkip == 0) {
                         spdlog::debug("{} no valid object detected skipped frame count {}", selfId, skipCnt);
                     }
-                    skipCnt++;    
+                    skipCnt++;
                     continue;
                 }
 
                 if (bOutputIsImg) {
-                    if(bHumanOnly){
-                        for(auto &[s, c, r]:ret) {
-                            if (s == "person"){
-                                auto ms = chrono::duration_cast<chrono::milliseconds >(chrono::system_clock::now().time_since_epoch()).count();
+                    if (bHumanOnly) {
+                        for (auto& [s, c, r] : ret) {
+                            if (s == "person") {
+                                auto ms = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch()).count();
                                 string ofname = outFileBase + "_person_" + to_string(ms) + ".jpg";
                                 imwrite(ofname, outFrame);
                                 spdlog::info("{} found human {} x: {}, y: {}, w: {}, h: {}; written image: {}", selfId, c, r.x, r.y, r.width, r.height, ofname);
-                                if(!bContinue){
+                                if (!bContinue) {
                                     cmdStop = true;
                                     break;
                                 }
                             }
                         }
-                    }else{
-                        if(wrapNum > 0) {
+                    } else {
+                        if (wrapNum > 0) {
                             detCnt = detCnt % wrapNum;
                         }
 
                         string ofname = outFileBase + to_string(detCnt) + ".jpg";
                         imwrite(ofname, outFrame);
                         string msg = fmt::format("{} found {} {}:\n", selfId, ret.size(), ofname);
-                        for(auto &[s, c, r]:ret) {
-                            msg += fmt::format("\t{} {} x: {}, y: {}, w: {}, h: {}\n",s, c, r.x, r.y, r.width, r.height);
+                        for (auto& [s, c, r] : ret) {
+                            msg += fmt::format("\t{} {} x: {}, y: {}, w: {}, h: {}\n", s, c, r.x, r.y, r.width, r.height);
                         }
                         spdlog::info(msg);
                         detCnt++;
                     }
-                }
-                else {
+                } else {
                     video.write(outFrame);
                 }
-            }else{
+            } else {
                 cb(ret, outFrame);
             }
         }
 
         spdlog::info("{} done processing {}", selfId, inVideoUri);
         cap.release();
-        if(!bOutputIsImg) video.release();
+        if (!bOutputIsImg) video.release();
 
         return 0;
     }
